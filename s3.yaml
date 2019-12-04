@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Template to create the complete S3 Bucket. Version 1.0
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - Label: 
+          default: "S3 Bucket Configuration"
+        Parameters: 
+          - Name
+          - Access
+      - Label: 
+          default: "Tags"
+        Parameters: 
+          - ProjectId
+          - CostCentre
+          - Environment
+    ParameterLabels: 
+      Name: 
+        default: "S3 Bucket Name"
+      ProjectId: 
+        default: "Project Id"
+      CostCentre: 
+        default: "Cost Centre"
+      Environment: 
+        default: "Environment"
+Conditions:
+  OrgRead: !Equals [ !Ref Access, OrganizationRead ]
+Parameters:
+  Name:
+    Type: String
+  Access:
+    Type: String
+    Default: Local
+    AllowedValues:
+      - Local
+      - OrganizationRead
+  ProjectId:
+    Type: String
+    Default: cops-aws
+  CostCentre:
+    Type: String
+    Default: cio-rdad
+  Environment:
+    Type: String
+    Default: ops
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]]
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Join ['-', ["ised-s3", !Ref "AWS::AccountId", "log" ]]
+        LogFilePrefix: !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name", "" ]]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["s3", !Ref "AWS::AccountId", "log"] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: ops
+  S3BucketPolicy: 
+    Type: AWS::S3::BucketPolicy
+    Condition: OrgRead
+    Properties: 
+      Bucket: !Ref S3Bucket
+      PolicyDocument: 
+        Statement: 
+          - Action: 
+              - "s3:GetObject"
+            Effect: "Allow"
+            Resource: !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]], "/*" ]]
+            Principal: "*"
+            Condition: 
+              StringEquals: 
+                aws:PrincipalOrgID: 
+                  - "o-2vzy0xgibx"
