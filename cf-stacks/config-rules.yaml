@@ -14,7 +14,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.4 - Add Metadata
 # Version 1.5 - Added Remediation SSM document and CreateJiraIssue lambda function. Moved the remediation Configuration to an external template 'RemediationConfig.yaml'
 # Version 1.5.1 - Moved all roles within this CF to the Roles CF script. Added a list of tags that was already applied to the jira ticket. 
-Description: Template to create all required config rules. Version 1.4
+Description: Template to create all required config rules. Version 1.5.1
 Metadata:
  AWS::CloudFormation::Interface:
    ParameterGroups:
