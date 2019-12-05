@@ -1,0 +1,207 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+#               It doesn't seem to be possible to configure logging to S3
+#               bucket via CFN/API at the moment (S3 logging is a fairly
+#               new GuardDuty feature. CFN/API support might come later).
+#               So right now, after running the CFN, we need to go into the
+#               account's GuardDuty settings and:
+#                 - Enable S3 logging
+#                 - Select the bucket created by this CFN
+#                 - Select the KMS key created by this CFN
+Description: Enable and Configure GuardDuty. Version 1.0
+
+Resources:
+  GuardDutyDetector:
+    Type: AWS::GuardDuty::Detector
+    Properties: 
+      Enable: True
+
+  AcceptMasterAccountRequest:
+    Type: AWS::GuardDuty::Master
+    Properties: 
+      DetectorId: !Ref GuardDutyDetector
+      # ID of the 'security' AWS account
+      MasterId: 279838520025
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: !Sub "${AWS::AccountId}-guardduty"
+      Subscription: 
+        -
+          Endpoint: "ic.isedawscloud-isdeawsinfonuagique.ic@canada.ca"
+          Protocol: "email"
+      TopicName: !Sub "${AWS::AccountId}-guardduty"
+
+  AmazonCloudWatchEventRule:
+    Type: AWS::Events::Rule
+    Properties: 
+      EventPattern:
+        source:
+          - aws.guardduty
+        detail-type:
+          - "GuardDuty Finding"
+      Targets:
+        -
+          Arn: !Ref SNSTopic
+          Id: !Sub "${AWS::AccountId}-guardduty"
+
+  EncryptionKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: "Key used by GuardDuty to encrypt findings in S3"
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: "key-consolepolicy-3"
+        Statement:
+          -
+            Sid: "Enable IAM User Permissions"
+            Effect: "Allow"
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+          - 
+            Sid: "Allow access for Key Administrators"
+            Effect: "Allow"
+            Principal:
+              AWS:
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty"
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/AdminRoleForMasterAccount"
+            Action:
+              -  "kms:Create*"
+              -  "kms:Describe*"
+              -  "kms:Enable*"
+              -  "kms:List*"
+              -  "kms:Put*"
+              -  "kms:Update*"
+              -  "kms:Revoke*"
+              -  "kms:Disable*"
+              -  "kms:Get*"
+              -  "kms:Delete*"
+              -  "kms:TagResource"
+              -  "kms:UntagResource"
+              -  "kms:ScheduleKeyDeletion"
+              -  "kms:CancelKeyDeletion"
+            Resource: "*"
+          -
+            Sid: "Allow use of the key"
+            Effect: "Allow"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty"
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/AdminRoleForMasterAccount"
+            Action:
+              -  "kms:Encrypt"
+              -  "kms:Decrypt"
+              -  "kms:ReEncrypt*"
+              -  "kms:GenerateDataKey*"
+              -  "kms:DescribeKey"
+            Resource: "*"
+          -
+            Sid: "Allow attachment of persistent resources"
+            Effect: "Allow"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty"
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/AdminRoleForMasterAccount"
+            Action:
+              - "kms:CreateGrant"
+              - "kms:ListGrants"
+              - "kms:RevokeGrant"
+            Resource: "*"
+            Condition:
+              Bool:
+                "kms:GrantIsForAWSResource": "true"
+          -
+            # This is the part that's important for GuardDuty
+            Sid: "Allow GuardDuty to encrypt findings"
+            Effect: "Allow"
+            Principal:
+              Service: "guardduty.amazonaws.com"
+            Action: "kms:GenerateDataKey"
+            Resource: "*"
+
+  EncryptionKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      # Alias names must start with "alias/" ...
+      AliasName: !Sub "alias/${AWS::AccountId}-guardduty"
+      TargetKeyId: !Ref EncryptionKey
+
+  S3BucketLogs:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::AccountId}-guardduty"
+
+  # See: https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_exportfindings.html#guardduty_exportfindings-s3-policies
+  S3Policy:
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: !Ref S3BucketLogs
+      PolicyDocument:
+        Statement:
+          -
+            Sid: "Allow GuardDuty to use the getBucketLocation operation"
+            Action:
+              - "s3:GetBucketLocation"
+            Effect: "Allow"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3BucketLogs ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+          -
+            Sid: "Allow GuardDuty to upload objects to the bucket"
+            Action:
+              - "s3:PutObject"
+            Effect: "Allow"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3BucketLogs, "/*" ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+          -
+            Sid: "Deny unencrypted object uploads. This is optional"
+            Action:
+              - "s3:PutObject"
+            Effect: "Deny"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3BucketLogs, "/*" ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+            Condition:
+              StringNotEquals:
+                "s3:x-amz-server-side-encryption": "aws:kms"
+          -
+            Sid: "Deny incorrect encryption header. This is optional"
+            Action:
+              - "s3:PutObject"
+            Effect: "Deny"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3BucketLogs, "/*" ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+            Condition:
+              StringNotEquals:
+                "s3:x-amz-server-side-encryption-aws-kms-key-id": !GetAtt EncryptionKey.Arn
+          -
+            Sid: "Deny non-HTTPS access"
+            Action:
+              - "s3:*"
+            Effect: "Deny"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3BucketLogs, "/*" ] ]
+            Principal: "*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+Outputs:
+  GuardDutyDetector:
+    Description: "GuardDuty Detector"
+    Value: !Ref GuardDutyDetector
+    Export:
+      Name: !Sub "${AWS::AccountId}-guardduty"
+  S3BucketLogs:
+    Description: "S3 Bucket"
+    Value: !Ref S3BucketLogs
+    Export:
+      Name: !Sub "${AWS::AccountId}-s3-guardduty"
+  EncryptionKey:
+    Description: "KMS Key"
+    Value: !Ref EncryptionKey
+    Export:
+      Name: !Sub "${AWS::AccountId}-kms-guardduty"
