@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Template to Configure the Remediation for the config rules.
+Parameters:
+  ConfigRuleName:
+    Type: String
+  AutomationRoleArm:
+    Type: String
+  IsedJiraUrl:
+    Type: String
+  IsedJiraUserName:
+    Type: String
+  IsedJiraProject:
+    Type: String
+  IsedLambdaRole:
+    Type: String
+  SSMDocumentCreateJiraIssue:
+    Type: String
+  JiraSSMParameterName:
+    Type: String
+  IsRemediationAutoOn:
+    Type: String
+    Description: Auto
+    Default: false
+    AllowedValues: [true, false]
+
+Conditions:
+  IsRemediationAuto:
+   !Equals [true, !Ref IsRemediationAutoOn]
+
+Resources:
+  BasicRemediationConfigurationTagsCost:
+      Type: "AWS::Config::RemediationConfiguration"
+      Properties:
+        ConfigRuleName: !Ref ConfigRuleName
+        Parameters:
+          AutomationAssumeRole:
+            StaticValue:
+              Values: 
+              - !Ref AutomationRoleArm
+          IssueDescription:
+            ResourceValue:
+              Value: RESOURCE_ID
+          IssueSummary:
+            StaticValue:
+              Values:
+              - !Join ['-', ["AWS Config", !Ref "AWS::AccountId",  !Ref ConfigRuleName ] ]
+          IssueTypeName:
+            StaticValue:
+              Values:
+              - Task
+          JiraURL:
+            StaticValue:
+              Values:
+              - !Ref IsedJiraUrl
+          JiraUsername:
+            StaticValue:
+              Values:
+              - !Ref IsedJiraUserName
+          LambdaAssumeRole:
+            StaticValue:
+              Values:
+              - !Ref IsedLambdaRole
+          ProjectKey:
+            StaticValue:
+              Values:
+              - !Ref IsedJiraProject
+          SSMParameterName:
+            StaticValue:
+              Values:
+              - !Ref JiraSSMParameterName
+        TargetId: !Ref SSMDocumentCreateJiraIssue
+        TargetType: "SSM_DOCUMENT"
+        Automatic: !If [ IsRemediationAuto, true, false ]
+        MaximumAutomaticAttempts: 10
+        RetryAttemptSeconds: 60
