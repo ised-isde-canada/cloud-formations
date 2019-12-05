@@ -12,6 +12,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.3.7 - Fixing auto remediation on/off
 # Version 1.3.8 - Remove Certificate from Costing config
 # Version 1.4 - Add Metadata
+# Version 1.5 - Added Remediation SSM document and CreateJiraIssue lambda function. Moved the remediation Configuration to an external template 'RemediationConfig.yaml'
+# Version 1.5.1 - Moved all roles within this CF to the Roles CF script. Added a list of tags that was already applied to the jira ticket. 
 Description: Template to create all required config rules. Version 1.4
 Metadata:
  AWS::CloudFormation::Interface:
@@ -24,19 +26,31 @@ Metadata:
          - IsedJiraProject
          - IsedJiraPassword
      - Label:
+         default: "The SSM Parameter Name"
+       Parameters:
+         - SSMParamName
+     - Label:
          default: "Costing"
        Parameters:
+         - CostTagConfigRuleName
          - IsedCostCentre
          - IsedEnvironment
          - IsedProjectId
      - Label:
          default: "Backup"
        Parameters:
+         - BackupTagConfigRuleName
          - IsedBackup
      - Label:
          default: "Patch"
        Parameters:
+         - PatchingTagConfigRuleName
          - IsedPatch
+     - Label:
+         default: "Remediation Configuration Template URL"
+       Parameters:
+         - RemediationConfigTemplate
+
 Conditions:
   IsRemediationOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", 355322244959 ]], !Not [!Equals [ !Ref "AWS::AccountId", 593927778252 ]]]
   IsCostRuleOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", 803354934415 ]] , !Not [!Equals [ !Ref "AWS::AccountId", 870005858651 ]], !Not [!Equals [ !Ref "AWS::AccountId", 501108984960 ]]]
@@ -44,78 +58,65 @@ Conditions:
 Parameters:
   IsedCostCentre:
     Type: String
+    Default: cio-dsd,cio-rdad,cio-dpad,dtss-ddb,ic-pnp,sitt-slpb,sitt-slao
   IsedProjectId:
     Type: String
+    Default: ccots,ccots-bitbucket,ccots-jira,ccots-confluence,ccots-crowd,cops-aws,cops-openshift,cops-db,gcapi,dsdmdl,dtssem,icpnpbi,aem,ised-specauct,icsdw
   IsedEnvironment:
     Type: String
+    Default: ops,prod,dev,lab,qa,uat
   IsedBackup:
     Type: String
+    Default: backup-dev,backup-prod
   IsedPatch:
     Type: String
+    Default: dev-linux,prod-linux,dev-linux2,prod-linux2,dev-windows,prod-windows,dev-rhel,prod-rhel
   IsedJiraUrl:
     Type: String
+    Default: https://jira.ised-isde.canada.ca
   IsedJiraUserName:
     Type: String
+    Default: ic.isedawscloud-isdeawsinfonuagique.ic@canada.ca
   IsedJiraProject:
     Type: String
+    Default: COPS
   IsedJiraPassword:
     Type: String
     NoEcho: true
+  RemediationConfigTemplate:
+    Type: String
+    Default:  https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/config-remediation.yaml
+  SSMParamName:
+    Type: String
+    Default: ised-jira-password
+  CostTagConfigRuleName:
+    Type: String
+    Default: ised-mandatory-tags-cost
+  BackupTagConfigRuleName:
+    Type: String
+    Default: ised-mandatory-tags-backup
+  PatchingTagConfigRuleName:
+    Type: String
+    Default: ised-mandatory-tags-patching
+# Mappings:
+#   vars:
+#     var:
+#       SSMParams:  ised-jira-password
+      
+    
 Resources:
   BasicParameterJiraPassword:
     Type: "AWS::SSM::Parameter"
     Properties:
-      Name: ised-jira-password
+      Name: !Ref SSMParamName
       Type: String
       Value: !Ref IsedJiraPassword
-  LambdaRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: ised-lambda-execution-role
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action:
-            - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service:
-              - lambda.amazonaws.com
-        Version: 2012-10-17
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSSMFullAccess
-        - arn:aws:iam::aws:policy/AWSLambdaExecute
-      Path: /
-  AutomationRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: ised-automation-role
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action:
-            - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service:
-              - ssm.amazonaws.com
-        Version: 2012-10-17
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
-      Path: /
-      Policies:
-       - PolicyName: "root"
-         PolicyDocument:
-           Version: "2012-10-17"
-           Statement:
-             - Effect: "Allow"
-               Action: 
-               - "lambda:*"
-               - "iam:PassRole"
-               Resource: "*"
+
   AWSConfigRuleTagsCost:
     Type: AWS::Config::ConfigRule
     Condition: IsCostRuleOn
     Properties:
-      ConfigRuleName: "ised-mandatory-tags-cost"
+      ConfigRuleName: !Ref CostTagConfigRuleName
       Description: Checks whether your resources have the tags that you specify.
       InputParameters:
         tag1Key: ised-cost-centre
@@ -162,7 +163,7 @@ Resources:
   AWSConfigRuleTagsBackup:
     Type: AWS::Config::ConfigRule
     Properties:
-      ConfigRuleName: "ised-mandatory-tags-backup"
+      ConfigRuleName: !Ref BackupTagConfigRuleName
       Description: Checks whether your resources have the tags that you specify.
       InputParameters:
         tag1Key: ised-backup
@@ -178,7 +179,7 @@ Resources:
     Type: AWS::Config::ConfigRule
     Condition: IsPatchingRuleOn
     Properties:
-      ConfigRuleName: "ised-mandatory-tags-patching"
+      ConfigRuleName: !Ref PatchingTagConfigRuleName
       Description: Checks whether your resources have the tags that you specify.
       InputParameters:
         tag1Key: Patch Group
@@ -189,140 +190,128 @@ Resources:
       Source:
         Owner: AWS
         SourceIdentifier: REQUIRED_TAGS
+
+  CreateJiraIssue:
+    Properties:
+      Code: {ZipFile: "#\n# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n#\n# Permission is hereby granted, free of charge, to any person obtaining a copy of this\n# software and associated documentation files (the \"Software\"), to deal in the Software\n# without restriction, including without limitation the rights to use, copy, modify,\n# merge, publish, distribute, sublicense, and/or sell copies of the Software, and to\n# permit persons to whom the Software is furnished to do so.\n#\n# THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,\n# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A\n# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT\n# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\n# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE\n# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n#\nimport boto3\nimport json\nfrom botocore.vendored import requests\n\ndef add_priority(issue, priority):\n\tfields = issue[\"fields\"]\n\tfields[\"priority\"] = {\"name\": priority}\n\ndef add_assignee(issue, assignee):\n\tfields = issue[\"fields\"]\n\tfields[\"assignee\"] = {\"name\": assignee}\n\ndef add_due_date(issue, due_date):\n\tfields = issue[\"fields\"]\n\tfields[\"duedate\"] = due_date\n\ndef lookup(rid):\n    def lookup_for_tags(token):\n    \tclientResourceGroupTag = boto3.client('resourcegroupstaggingapi')\n        response = clientResourceGroupTag.get_resources(\n            PaginationToken=token,\n            ResourcesPerPage=100,\n        )\n        return response\n    total_results = []\n    response = lookup_for_tags(\"\")\n    page_token = \"\"\n    resourceInfo = \"\"\n    while True:\n        total_results += response[\"ResourceTagMappingList\"]\n        page_token = response[\"PaginationToken\"]\n        if page_token == \"\":\n            break\n        response = lookup_for_tags(page_token)\n\n    for r in total_results:\n        findResult = r[\"ResourceARN\"].find(rid)\n        if findResult != -1:\n        \tresourceInfo +=  'The resource ARN '+r[\"ResourceARN\"] + '\\n'\n        \tprint resourceInfo\n        \tprint len(r[\"Tags\"])\n        \tresourceInfo += '\\nTags already applied to the resource: \\n'\n        \tfor t in r[\"Tags\"]:\n        \t\tprint t['Key']\n        \t\tprint t['Value']\n        \t\tresourceInfo += 'Key:' + t['Key'] +  '\\t\\tValue:'+t['Value'] + '\\n'\n    return resourceInfo\n\ndef handler(event, context):\n\n\tclient = boto3.client(\"ssm\")\n\n\n\tssm_parameter_name = event[\"SSMParameterName\"].strip()\n\n\tsecret = client.get_parameter(Name=ssm_parameter_name, WithDecryption=True)['Parameter']['Value']\n\n\tusername = event[\"JiraUsername\"].strip()\n\turl = event[\"JiraURL\"].strip()\n\tresourceId = event[\"IssueDescription\"].strip()\n\n\tresourceInfoDescrip = lookup(resourceId)\n\n\tissue = {\n\t\t\"fields\": {\n\t\t\t\"summary\": event[\"IssueSummary\"].strip() + '-' + resourceId,\n\t\t\t\"project\": {\n\t\t\t\t\"key\": event[\"ProjectKey\"].strip()\n\t\t\t},\n\t\t\t#\"description\": event[\"IssueDescription\"].strip(),\n\t\t\t\"description\": resourceInfoDescrip.strip(),\n\t\t\t\"issuetype\": {\n\t\t\t\t\"name\": event[\"IssueTypeName\"].strip()\n\t\t\t}\n\t\t}\n\t}\n\n\tpriority = event[\"PriorityName\"].strip()\n\tif priority:\n\t\tadd_priority(issue, priority)\n\n\tassignee = event[\"AssigneeName\"].strip()\n\tif assignee:\n\t\tadd_assignee(issue, assignee)\n\n\tdue_date = event[\"DueDate\"].strip()\n\tif due_date:\n\t\tadd_due_date(issue, due_date)\n\n\tdata = json.dumps(issue)\n\n\theaders = {'Content-Type':'application/json'}\n\n\tresponse = requests.post('{0}/rest/api/2/issue/'.format(url),\n\t\t\t\t\t\t\t headers=headers,\n\t\t\t\t\t\t\t data=data,\n\t\t\t\t\t\t\t auth=(username, secret))\n\n\tif not response.ok:\n\t\traise Exception(\"Received error with status code \" + str(response.status_code) + \" from Jira\")\n\telse:\n\t\tissue_key = (response.json()[\"key\"])\n\t\treturn {\"IssueKey\": issue_key}"}
+      # FunctionName: {Ref: LambdaName}
+      FunctionName: Ised-CreateJiraIssue
+      Handler: index.handler
+      MemorySize: 128
+      Role: !ImportValue ConfigLambdaRole
+      Runtime: python2.7
+      Timeout: 300
+    Type: AWS::Lambda::Function
+
+  
+  CreateSSMDocumentCreateJiraIssue:
+    Type: AWS::SSM::Document
+    Properties:
+      Content: 
+        description: "Automation Document Example JSON Template"
+        schemaVersion: "0.3"
+        assumeRole: "{{ AutomationAssumeRole }}"
+        parameters:
+          JiraUsername:
+            type: "String"
+            description: "(Required) The name of the user the issue will be created with."
+          SSMParameterName:
+            type: "String"
+            description: "(Required) The name of an encrypted SSM Parameter containing the API key or password for the Jira user."
+          JiraURL:
+            type: "String"
+            description: "(Required) The url of the Jira instance."
+          ProjectKey:
+            type: "String"
+            description: "(Required) The key of the project the issue should be created in."
+          IssueSummary:
+            type: "String"
+            description: "(Required) A brief summary of the issue."
+          IssueDescription:
+            type: "String"
+            description: "(Required) A detailed description of the issue."
+          IssueTypeName:
+            type: "String"
+            description: "(Required) The name of the type of issue you want to create (ex. Task, Sub-task, Bug, etc)."
+          PriorityName:
+            type: "String"
+            description: "(Optional) The name of the priority of the issue."
+            default: ""
+          AssigneeName:
+            type: "String"
+            description: "(Optional) The username of the person the issue should be assigned to."
+            default: ""
+          DueDate:
+            type: "String"
+            description: "(Optional) The due date for the issue in yyyy-mm-dd format."
+            default: ""
+          LambdaAssumeRole:
+            type: "String"
+            description: "(Optional) The ARN of the role that allows Lambda created by Automation to perform the actions on your behalf. If not specified a transient role will be created to execute the Lambda function."
+            default: ""
+          AutomationAssumeRole:
+            type: "String"
+            description: "(Optional) The ARN of the role that allows Automation to perform\
+              \ the actions on your behalf. "
+            default: ""
+        mainSteps:
+        - name: "createJiraIssue"
+          action: "aws:invokeLambdaFunction"
+          inputs:
+            FunctionName: "Ised-CreateJiraIssue"
+            Payload: "{\"JiraUsername\": \"{{JiraUsername}}\", \"SSMParameterName\": \"{{SSMParameterName}}\"\
+              , \"JiraURL\": \"{{JiraURL}}\", \"ProjectKey\": \"{{ProjectKey}}\", \"IssueSummary\"\
+              : \"{{IssueSummary}}\", \"IssueDescription\": \"{{IssueDescription}}\", \"IssueTypeName\"\
+              : \"{{IssueTypeName}}\", \"PriorityName\": \"{{PriorityName}}\", \"AssigneeName\"\
+              : \"{{AssigneeName}}\", \"DueDate\": \"{{DueDate}}\"}"
+        outputs:
+        - "createJiraIssue.Payload"
+          
+      DocumentType: Automation
+
   BasicRemediationConfigurationTagsCost:
-    Type: "AWS::Config::RemediationConfiguration"
+    Type: AWS::CloudFormation::Stack
     Condition: IsCostRuleOn
     Properties:
-      ConfigRuleName: !Ref AWSConfigRuleTagsCost
+      TemplateURL: !Ref RemediationConfigTemplate
       Parameters:
-        AutomationAssumeRole:
-          StaticValue:
-            Values: 
-            - Fn::GetAtt: [ AutomationRole, Arn ]
-        IssueDescription:
-          ResourceValue:
-            Value: RESOURCE_ID
-        IssueSummary:
-          StaticValue:
-            Values:
-            - !Join ['-', ["AWS Config", !Ref "AWS::AccountId",  !Ref AWSConfigRuleTagsCost ] ]
-        IssueTypeName:
-          StaticValue:
-            Values:
-            - Task
-        JiraURL:
-          StaticValue:
-            Values:
-            - !Ref IsedJiraUrl
-        JiraUsername:
-          StaticValue:
-            Values:
-            - !Ref IsedJiraUserName
-        LambdaAssumeRole:
-          StaticValue:
-            Values:
-            - Fn::GetAtt: [ LambdaRole, Arn ]
-        ProjectKey:
-          StaticValue:
-            Values:
-            - !Ref IsedJiraProject
-        SSMParameterName:
-          StaticValue:
-            Values:
-            - ised-jira-password
-      TargetId: "AWS-CreateJiraIssue"
-      TargetType: "SSM_DOCUMENT"
-      Automatic: !If [ IsRemediationOn, true, false ]
-      MaximumAutomaticAttempts: 10
-      RetryAttemptSeconds: 60
+        AutomationRoleArm: !ImportValue AutomationRole
+        ConfigRuleName: !Ref AWSConfigRuleTagsCost
+        IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
+        IsedJiraProject: !Ref IsedJiraProject
+        IsedJiraUrl: !Ref IsedJiraUrl
+        IsedJiraUserName: !Ref IsedJiraUserName
+        IsedLambdaRole: !ImportValue ConfigLambdaRole
+        SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
+        JiraSSMParameterName: !Ref BasicParameterJiraPassword
+
   BasicRemediationConfigurationTagsBackup:
-    Type: "AWS::Config::RemediationConfiguration"
+    Type: AWS::CloudFormation::Stack
     Properties:
-      ConfigRuleName: !Ref AWSConfigRuleTagsBackup
+      TemplateURL: !Ref RemediationConfigTemplate
       Parameters:
-        AutomationAssumeRole:
-          StaticValue:
-            Values: 
-            - Fn::GetAtt: [ AutomationRole, Arn ]
-        IssueDescription:
-          ResourceValue:
-            Value: RESOURCE_ID
-        IssueSummary:
-          StaticValue:
-            Values:
-            - !Join ['-', ["AWS Config", !Ref "AWS::AccountId",  !Ref AWSConfigRuleTagsBackup ] ]
-        IssueTypeName:
-          StaticValue:
-            Values:
-            - Task
-        JiraURL:
-          StaticValue:
-            Values:
-            - !Ref IsedJiraUrl
-        JiraUsername:
-          StaticValue:
-            Values:
-            - !Ref IsedJiraUserName
-        LambdaAssumeRole:
-          StaticValue:
-            Values:
-            - Fn::GetAtt: [ LambdaRole, Arn ]
-        ProjectKey:
-          StaticValue:
-            Values:
-            - !Ref IsedJiraProject
-        SSMParameterName:
-          StaticValue:
-            Values:
-            - ised-jira-password
-      TargetId: "AWS-CreateJiraIssue"
-      TargetType: "SSM_DOCUMENT"
-      Automatic: !If [ IsRemediationOn, true, false ]
-      MaximumAutomaticAttempts: 10
-      RetryAttemptSeconds: 60
+        AutomationRoleArm: !ImportValue AutomationRole
+        ConfigRuleName: !Ref AWSConfigRuleTagsBackup
+        IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
+        IsedJiraProject: !Ref IsedJiraProject
+        IsedJiraUrl: !Ref IsedJiraUrl
+        IsedJiraUserName: !Ref IsedJiraUserName
+        IsedLambdaRole: !ImportValue ConfigLambdaRole
+        SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
+        JiraSSMParameterName: !Ref BasicParameterJiraPassword
+  
   BasicRemediationConfigurationTagsPatching:
-    Type: "AWS::Config::RemediationConfiguration"
+    Type: AWS::CloudFormation::Stack
     Condition: IsPatchingRuleOn
     Properties:
-      ConfigRuleName: !Ref AWSConfigRuleTagsPatching
+      TemplateURL: !Ref RemediationConfigTemplate
       Parameters:
-        AutomationAssumeRole:
-          StaticValue:
-            Values: 
-            - Fn::GetAtt: [ AutomationRole, Arn ]
-        IssueDescription:
-          ResourceValue:
-            Value: RESOURCE_ID
-        IssueSummary:
-          StaticValue:
-            Values:
-            - !Join ['-', ["AWS Config", !Ref "AWS::AccountId",  !Ref AWSConfigRuleTagsPatching ] ]
-        IssueTypeName:
-          StaticValue:
-            Values:
-            - Task
-        JiraURL:
-          StaticValue:
-            Values:
-            - !Ref IsedJiraUrl
-        JiraUsername:
-          StaticValue:
-            Values:
-            - !Ref IsedJiraUserName
-        LambdaAssumeRole:
-          StaticValue:
-            Values:
-            - Fn::GetAtt: [ LambdaRole, Arn ]
-        ProjectKey:
-          StaticValue:
-            Values:
-            - !Ref IsedJiraProject
-        SSMParameterName:
-          StaticValue:
-            Values:
-            - ised-jira-password
-      TargetId: "AWS-CreateJiraIssue"
-      TargetType: "SSM_DOCUMENT"
-      Automatic: !If [ IsRemediationOn, true, false ]
-      MaximumAutomaticAttempts: 10
-      RetryAttemptSeconds: 60            
+        AutomationRoleArm: !ImportValue AutomationRole
+        ConfigRuleName: !Ref AWSConfigRuleTagsPatching
+        IsRemediationAutoOn: "false"
+        IsedJiraProject: !Ref IsedJiraProject
+        IsedJiraUrl: !Ref IsedJiraUrl
+        IsedJiraUserName: !Ref IsedJiraUserName
+        IsedLambdaRole: !ImportValue ConfigLambdaRole
+        SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
+        JiraSSMParameterName: !Ref BasicParameterJiraPassword 
