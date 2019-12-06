@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Template to create the log S3 Bucket. Version 1.0
+Resources:
+  S3LogBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Join ['-', ["ised-s3", !Ref "AWS::AccountId", "log" ]]
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      AccessControl: LogDeliveryWrite
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["s3", !Ref "AWS::AccountId", "log"] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: ops

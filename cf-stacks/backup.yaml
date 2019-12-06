@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.2 - Updating AWS Backup Plan from monthly to weekly (i.e. every Tuesday)
+# Version 1.3 - Fixed cron expression for scheduled AWS Backup Plan
+# Version 1.4 - Updated AWS Backup Plan time to 8:00 AM (local)
+Description: Template to create backups using AWS Backup and LifeCycleManager policies for RDS instances and EBS volumes. Version 1.4
+Resources:
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: "Encryption key for daily"
+      EnableKeyRotation: True
+      Enabled: True
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal: {AWS: { "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:root" }}
+          Action: kms:*
+          Resource: "*"
+  BackupVault:
+    Type: "AWS::Backup::BackupVault"
+    Properties:
+      BackupVaultName: "DefaultBackupVault01"
+      EncryptionKeyArn: !GetAtt KMSKey.Arn
+  BackupPlanForProdBackups:
+    Type: "AWS::Backup::BackupPlan"
+    Properties:
+      BackupPlan:
+        BackupPlanName: "PROD-Backup-Plan"
+        BackupPlanRule:
+          - RuleName: "PROD-WeeklyBackup-Rule"
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: "cron(0 12 ? * 3 *)"
+            StartWindowMinutes: 60
+            Lifecycle:
+              MoveToColdStorageAfterDays: 7
+              DeleteAfterDays: 2555
+    DependsOn: BackupVault
+  AssignProdBackupResources:
+    Type: "AWS::Backup::BackupSelection"
+    Properties:
+      BackupSelection:
+        SelectionName: "PROD-Backup-Resource"
+        IamRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole"
+        ListOfTags:
+         - ConditionType: "STRINGEQUALS"
+           ConditionKey: "ised-backup"
+           ConditionValue: "backup-prod"
+      BackupPlanId: !Ref BackupPlanForProdBackups
+    DependsOn: BackupPlanForProdBackups
+  LifecyclePolicyForDevEBS:
+    Type: "AWS::DLM::LifecyclePolicy"
+    Properties:
+      Description: "EBS Volumes Snapshot - backup-dev on daily basis"
+      State: "ENABLED"
+      ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/service-role/AWSDataLifecycleManagerDefaultRole"
+      PolicyDetails:
+        ResourceTypes:
+          - "VOLUME"
+        TargetTags:
+          - Key: "ised-backup"
+            Value: "backup-dev"
+        Schedules:
+          - Name: "DEV Snapshots"
+            CreateRule:
+              Interval: 24
+              IntervalUnit: "HOURS"
+              Times:
+                - "06:00"
+            RetainRule:
+              Count: 7
+            CopyTags: true
+  LifecyclePolicyForDevEBS30:
+    Type: "AWS::DLM::LifecyclePolicy"
+    Properties:
+      Description: "EBS Volumes Snapshot - backup-dev-30 on daily basis"
+      State: "ENABLED"
+      ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/service-role/AWSDataLifecycleManagerDefaultRole"
+      PolicyDetails:
+        ResourceTypes:
+          - "VOLUME"
+        TargetTags:
+          - Key: "ised-backup"
+            Value: "backup-dev-30"
+        Schedules:
+          - Name: "DEV-30 Snapshots"
+            CreateRule:
+              Interval: 24
+              IntervalUnit: "HOURS"
+              Times:
+                - "06:00"
+            RetainRule:
+              Count: 30
+            CopyTags: true
+  LifecyclePolicyForProdEBS:
+    Type: "AWS::DLM::LifecyclePolicy"
+    Properties:
+      Description: "EBS Volumes Snapshot - backup-prod on daily basis"
+      State: "ENABLED"
+      ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/service-role/AWSDataLifecycleManagerDefaultRole"
+      PolicyDetails:
+        ResourceTypes:
+          - "VOLUME"
+        TargetTags:
+          - Key: "ised-backup"
+            Value: "backup-prod"
+        Schedules:
+          - Name: "PROD Snapshots"
+            CreateRule:
+              Interval: 24
+              IntervalUnit: "HOURS"
+              Times:
+                - "06:00"
+            RetainRule:
+              Count: 30
+            CopyTags: true
+Outputs:
+  BackupVault:
+    Description: BackupVault where AWS Backups are stored 
+    Value: !Ref BackupVault
+  BackupPlanForProdBackups:
+    Description: PROD-Backup-Plan
+    Value: !Ref BackupPlanForProdBackups
+  LifecyclePolicyForDevEBS:
+    Description: Lifecycle Policy for (DEV) EBS volumes
+    Value: !Ref LifecyclePolicyForDevEBS
+  LifecyclePolicyForDevEBS30:
+    Description: Lifecycle Policy for (DEV-30) EBS volumes
+    Value: !Ref LifecyclePolicyForDevEBS30  
+  LifecyclePolicyForProdEBS:
+    Description: Lifecycle Policy for (PROD) EBS volumes
+    Value: !Ref LifecyclePolicyForProdEBS  

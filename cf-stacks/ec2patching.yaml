@@ -1,0 +1,346 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+# Version 1.1 - Removed "test" from names
+# Version 1.2 - Added "Comment" for each Run Command Task
+#             - Added RHEL PatchBaselines, and RHEL Maintenance Window configurations
+#             - Added Maintenance Window - Start Date as a parameter
+# Version 1.3 - Updated hard-code "AccountId" for service role
+# Version 1.4 - Added Service-Linked Role  
+Description: Template to create EC2 Patching. Version 1.4
+Parameters:
+  MaintenanceWindowStartDate:
+    Description: "Start Date of Maintenance Window (i.e. format: YYYY-MM-DD): "
+    Type: String
+    AllowedPattern: "^([12]\\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01]))$"
+Resources:
+  CustomSSMServiceLinkedRole:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties: 
+      AWSServiceName: "ssm.amazonaws.com"
+      Description: "Provides access to AWS Resources managed or used by Amazon SSM."
+  PatchBaselineLinuxDev:
+    Type: AWS::SSM::PatchBaseline
+    Properties:
+      Name: "ISED-AmazonLinux-Dev"
+      Description: This is a patch baseline for Amazon Linux - DEV
+      OperatingSystem: AMAZON_LINUX
+      PatchGroups: 
+        - dev-linux
+      ApprovalRules:
+        PatchRules:
+          - PatchFilterGroup:
+              PatchFilters:
+                - Key: PRODUCT
+                  Values: ["*"]
+                - Key: CLASSIFICATION
+                  Values: ["Security"]
+                - Key: SEVERITY
+                  Values: ["*"]
+            ApproveAfterDays: 0
+            ComplianceLevel: CRITICAL
+            EnableNonSecurity: false
+  PatchBaselineLinuxProd:
+    Type: AWS::SSM::PatchBaseline
+    Properties:
+      Name: "ISED-AmazonLinux-Prod"
+      Description: This is a patch baseline for Amazon Linux - PROD
+      OperatingSystem: AMAZON_LINUX
+      PatchGroups: 
+        - prod-linux
+      ApprovalRules:
+        PatchRules:
+          - PatchFilterGroup:
+              PatchFilters:
+                - Key: PRODUCT
+                  Values: ["*"]
+                - Key: CLASSIFICATION
+                  Values: ["Security"]
+                - Key: SEVERITY
+                  Values: ["*"]
+            ApproveAfterDays: 14
+            ComplianceLevel: CRITICAL
+            EnableNonSecurity: false
+  PatchBaselineLinux2Dev:
+    Type: AWS::SSM::PatchBaseline
+    Properties:
+      Name: "ISED-AmazonLinux2-Dev"
+      Description: This is a patch baseline for Amazon Linux2 - DEV
+      OperatingSystem: AMAZON_LINUX_2
+      PatchGroups: 
+        - dev-linux2
+      ApprovalRules:
+        PatchRules:
+          - PatchFilterGroup:
+              PatchFilters:
+                - Key: PRODUCT
+                  Values: ["*"]
+                - Key: CLASSIFICATION
+                  Values: ["Security"]
+                - Key: SEVERITY
+                  Values: ["*"]
+            ApproveAfterDays: 0
+            ComplianceLevel: CRITICAL
+            EnableNonSecurity: false
+  PatchBaselineLinux2Prod:
+    Type: AWS::SSM::PatchBaseline
+    Properties:
+      Name: "ISED-AmazonLinux2-Prod"
+      Description: This is a patch baseline for Amazon Linux2 - PROD
+      OperatingSystem: AMAZON_LINUX_2
+      PatchGroups: 
+        - prod-linux2
+      ApprovalRules:
+        PatchRules:
+          - PatchFilterGroup:
+              PatchFilters:
+                - Key: PRODUCT
+                  Values: ["*"]
+                - Key: CLASSIFICATION
+                  Values: ["Security"]
+                - Key: SEVERITY
+                  Values: ["*"]
+            ApproveAfterDays: 14
+            ComplianceLevel: CRITICAL
+            EnableNonSecurity: false
+  PatchBaselineWindowsDev:
+    Type: AWS::SSM::PatchBaseline
+    Properties:
+      Name: "ISED-MicrosoftWindows-Dev"
+      Description: This is a patch baseline for Microsoft Windows - DEV
+      OperatingSystem: WINDOWS
+      PatchGroups: 
+        - dev-windows
+      ApprovalRules:
+        PatchRules:
+          - PatchFilterGroup:
+              PatchFilters:
+                - Key: PRODUCT
+                  Values: ["*"]
+                - Key: CLASSIFICATION
+                  Values: ["SecurityUpdates"]
+                - Key: MSRC_SEVERITY
+                  Values: ["*"]
+            ApproveAfterDays: 0
+            ComplianceLevel: CRITICAL
+            EnableNonSecurity: false
+  PatchBaselineWindowsProd:
+    Type: AWS::SSM::PatchBaseline
+    Properties:
+      Name: "ISED-MicrosoftWindows-Prod"
+      Description: This is a patch baseline for Microsoft Windows - PROD
+      OperatingSystem: WINDOWS
+      PatchGroups: 
+        - prod-windows
+      ApprovalRules:
+        PatchRules:
+          - PatchFilterGroup:
+              PatchFilters:
+                - Key: PRODUCT
+                  Values: ["*"]
+                - Key: CLASSIFICATION
+                  Values: ["SecurityUpdates"]
+                - Key: MSRC_SEVERITY
+                  Values: ["*"]
+            ApproveAfterDays: 14
+            ComplianceLevel: CRITICAL
+            EnableNonSecurity: false
+  PatchBaselineRHELDev:
+    Type: AWS::SSM::PatchBaseline
+    Properties:
+      Name: "ISED-RHEL-Dev"
+      Description: This is a patch baseline for Red Hat Enterprise Linux - DEV
+      OperatingSystem: REDHAT_ENTERPRISE_LINUX
+      PatchGroups: 
+        - dev-rhel
+      ApprovalRules:
+        PatchRules:
+          - PatchFilterGroup:
+              PatchFilters:
+                - Key: PRODUCT
+                  Values: ["*"]
+                - Key: CLASSIFICATION
+                  Values: ["Security"]
+                - Key: SEVERITY
+                  Values: ["*"]
+            ApproveAfterDays: 0
+            ComplianceLevel: CRITICAL
+            EnableNonSecurity: false
+  PatchBaselineRHELProd:
+    Type: AWS::SSM::PatchBaseline
+    Properties:
+      Name: "ISED-RHEL-Prod"
+      Description: This is a patch baseline for Red Hat Enterprise Linux - PROD
+      OperatingSystem: REDHAT_ENTERPRISE_LINUX
+      PatchGroups: 
+        - prod-rhel
+      ApprovalRules:
+        PatchRules:
+          - PatchFilterGroup:
+              PatchFilters:
+                - Key: PRODUCT
+                  Values: ["*"]
+                - Key: CLASSIFICATION
+                  Values: ["Security"]
+                - Key: SEVERITY
+                  Values: ["*"]
+            ApproveAfterDays: 14
+            ComplianceLevel: CRITICAL
+            EnableNonSecurity: false
+  EC2MaintenanceWindow:
+    Type: AWS::SSM::MaintenanceWindow
+    Properties: 
+      Name: "EC2-Maintenance-Window"
+      Description: "Maintenance window to apply patches to EC2 instances"
+      Schedule: "rate(14 days)"
+      ScheduleTimezone: "Canada/Eastern"
+      AllowUnassociatedTargets: true
+      Duration: 1
+      Cutoff: 0
+      StartDate: 
+        !Sub 
+        - "${sDate}T07:00:00-04:00"
+        - { sDate: !Ref MaintenanceWindowStartDate}
+  MaintenanceWindowTargetForLinux:
+    Type: AWS::SSM::MaintenanceWindowTarget
+    Properties: 
+      Name: "PatchingTarget-linux"
+      Description: "Patching targets for Amazon Linux"
+      ResourceType: INSTANCE
+      Targets: 
+        - Key: "tag:Patch Group"
+          Values: ["dev-linux","prod-linux"]
+      WindowId: !Ref EC2MaintenanceWindow
+    DependsOn: EC2MaintenanceWindow
+  MaintenanceWindowTargetForLinux2:
+    Type: AWS::SSM::MaintenanceWindowTarget
+    Properties: 
+      Name: "PatchingTarget-linux2"
+      Description: "Patching targets for Amazon Linux2"
+      ResourceType: INSTANCE
+      Targets: 
+        - Key: "tag:Patch Group"
+          Values: ["dev-linux2","prod-linux2"]
+      WindowId: !Ref EC2MaintenanceWindow
+    DependsOn: EC2MaintenanceWindow
+  MaintenanceWindowTargetForWindows:
+    Type: AWS::SSM::MaintenanceWindowTarget
+    Properties: 
+      Name: "PatchingTarget-windows"
+      Description: "Patching targets for Microsoft Windows"
+      ResourceType: INSTANCE
+      Targets: 
+        - Key: "tag:Patch Group"
+          Values: ["dev-windows","prod-windows"]
+      WindowId: !Ref EC2MaintenanceWindow
+    DependsOn: EC2MaintenanceWindow
+  MaintenanceWindowTargetForRHEL:
+    Type: AWS::SSM::MaintenanceWindowTarget
+    Properties: 
+      Name: "PatchingTarget-rhel"
+      Description: "Patching targets for Red Hat Enterprise Linux"
+      ResourceType: INSTANCE
+      Targets: 
+        - Key: "tag:Patch Group"
+          Values: ["dev-rhel","prod-rhel"]
+      WindowId: !Ref EC2MaintenanceWindow
+    DependsOn: EC2MaintenanceWindow
+  MaintenanceWindowPatchingTaskLinux:
+    Type: 'AWS::SSM::MaintenanceWindowTask'
+    Properties:
+      WindowId: !Ref EC2MaintenanceWindow
+      Name: "PatchingTask-linux"
+      Description: "Patching Task for Maintenance Window - Amazon Linux"
+      TaskType: RUN_COMMAND
+      Priority: 1
+      Targets:
+        - Key: "WindowTargetIds"
+          Values: [!Ref MaintenanceWindowTargetForLinux]
+      MaxConcurrency: 50
+      MaxErrors: 0
+      ServiceRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ssm.amazonaws.com/${CustomSSMServiceLinkedRole}"
+      TaskArn: "AWS-RunPatchBaseline"
+      TaskInvocationParameters:
+        MaintenanceWindowRunCommandParameters:
+          Parameters:
+            Operation:
+            - Install 
+            SnapshotId: 
+            - "{{WINDOW_EXECUTION_ID}}"
+          Comment: "Patching Task for Amazon Linux"
+          TimeoutSeconds: 600
+    DependsOn: MaintenanceWindowTargetForLinux
+  MaintenanceWindowPatchingTaskLinux2:
+    Type: 'AWS::SSM::MaintenanceWindowTask'
+    Properties:
+      WindowId: !Ref EC2MaintenanceWindow
+      Name: "PatchingTask-linux2"
+      Description: "Patching Task for Maintenance Window - Amazon Linux2"
+      TaskType: RUN_COMMAND
+      Priority: 1
+      Targets:
+        - Key: "WindowTargetIds"
+          Values: [!Ref MaintenanceWindowTargetForLinux2]
+      MaxConcurrency: 50
+      MaxErrors: 0
+      ServiceRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ssm.amazonaws.com/${CustomSSMServiceLinkedRole}"
+      TaskArn: "AWS-RunPatchBaseline"
+      TaskInvocationParameters:
+        MaintenanceWindowRunCommandParameters:
+          Parameters:
+            Operation:
+            - Install 
+            SnapshotId: 
+            - "{{WINDOW_EXECUTION_ID}}"
+          Comment: "Patching Task for Amazon Linux2"
+          TimeoutSeconds: 600
+    DependsOn: MaintenanceWindowTargetForLinux2
+  MaintenanceWindowPatchingTaskWindows:
+    Type: 'AWS::SSM::MaintenanceWindowTask'
+    Properties:
+      WindowId: !Ref EC2MaintenanceWindow
+      Name: "PatchingTask-windows"
+      Description: "Patching Task for Maintenance Window - Windows"
+      TaskType: RUN_COMMAND
+      Priority: 1
+      Targets:
+        - Key: "WindowTargetIds"
+          Values: [!Ref MaintenanceWindowTargetForWindows]
+      MaxConcurrency: 50
+      MaxErrors: 0
+      ServiceRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ssm.amazonaws.com/${CustomSSMServiceLinkedRole}"
+      TaskArn: "AWS-RunPatchBaseline"
+      TaskInvocationParameters:
+        MaintenanceWindowRunCommandParameters:
+          Parameters:
+            Operation:
+            - Install 
+            SnapshotId: 
+            - "{{WINDOW_EXECUTION_ID}}"
+          Comment: "Patching Task for Windows"
+          TimeoutSeconds: 600
+    DependsOn: MaintenanceWindowTargetForWindows
+  MaintenanceWindowPatchingTaskRHEL:
+    Type: 'AWS::SSM::MaintenanceWindowTask'
+    Properties:
+      WindowId: !Ref EC2MaintenanceWindow
+      Name: "PatchingTask-rhel"
+      Description: "Patching Task for Maintenance Window - Red Hat Enterprise Linux"
+      TaskType: RUN_COMMAND
+      Priority: 1
+      Targets:
+        - Key: "WindowTargetIds"
+          Values: [!Ref MaintenanceWindowTargetForRHEL]
+      MaxConcurrency: 50
+      MaxErrors: 0
+      ServiceRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ssm.amazonaws.com/${CustomSSMServiceLinkedRole}"
+      TaskArn: "AWS-RunPatchBaseline"
+      TaskInvocationParameters:
+        MaintenanceWindowRunCommandParameters:
+          Parameters:
+            Operation:
+            - Install 
+            SnapshotId: 
+            - "{{WINDOW_EXECUTION_ID}}"
+          Comment: "Patching Task for Red Hat Enterprise Linux"
+          TimeoutSeconds: 600
+    DependsOn: MaintenanceWindowTargetForRHEL
