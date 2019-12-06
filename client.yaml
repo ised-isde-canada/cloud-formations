@@ -1,0 +1,388 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version, includes EC2 and RDS deployment
+# Version 1.1 - Add Option to create RDS from snapshot
+# Version 1.2 - Add Option to create EC2 from snapshot, add windows 
+# Version 1.3 - Open port 80 for inbound connection to EC2
+# Version 1.4 - Add option to schedule EC2 and RDS
+# version 1.4.1 - Fix database backup window to UTC
+Description: Template to create the client infrastructure. Version 1.4.1
+Mappings:
+  EC2OS:
+    Linux:
+      EC2Ami: ami-08a9b721ecc5b0a53
+      RootMount: /dev/xvda
+    Windows-2016:
+      EC2Ami: ami-042dc48bab9e693f9
+      RootMount: /dev/sda1
+    Restore-Linux:
+      EC2Ami: ami
+      RootMount: /dev/xvda
+    Restore-Windows-2016:
+      EC2Ami: ami
+      RootMount: /dev/sda1
+Metadata:
+ AWS::CloudFormation::Interface:
+   ParameterGroups:
+     - Label:
+         default: "General"
+       Parameters:
+         - JIRAProjectKey
+         - CostCentre
+         - Environment
+         - Subnet
+         - Schedule
+     - Label:
+         default: "EC2"
+       Parameters:
+         - CreateEC2
+         - EC2Size
+         - EC2Ami
+         - EC2RootVolumeSize
+     - Label:
+         default: "EBS"
+       Parameters:
+         - EBSMount
+         - EBSSize
+     - Label:
+         default: "RDS"
+       Parameters:
+         - CreateRDS
+         - RDSSize
+         - RDSStorage
+         - RDSSnapshot
+         - RDSMasterUserPassword
+         - RDSBackupRetentionPeriod
+Parameters:
+# ===== General Section =====
+  JIRAProjectKey:
+    Type: String
+  CostCentre:
+    Type: String
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - uat
+      - qa
+      - prod
+  Subnet:
+    Type: String
+    AllowedValues:
+      - subneta
+      - subnetb
+  Schedule:
+    Type: String
+    AllowedValues:
+      - no
+      - end-of-week-shutdown
+      - mon-6am-fri-6pm
+      - office-hours
+      - 24-7
+# ===== EC2 Section =====
+  CreateEC2:
+    Type: String
+    Default: no
+    AllowedValues:
+      - no
+      - Linux
+      - Windows-2016
+      - Restore-Linux
+      - Restore-Windows-2016
+  EC2Size:
+    Type: String
+    Default: <None>
+    AllowedValues:
+      - <None>
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+  EC2Ami:
+    Type: String
+    Description: Specify if restoring from Ami, otherwise leave blank
+  EC2RootVolumeSize:
+    Description: Only when create EC2
+    Type: String
+    Default: 8
+# ===== EBS Section =====
+  EBSMount:
+    Type: String
+    Default: no
+    AllowedValues:
+      - no
+      - /dev/sdf
+  EBSSize:
+    Type: String
+# ===== RDS Section =====
+  CreateRDS:
+    Type: String
+    Default: no
+    AllowedValues:
+      - no
+      - yes
+      - Restore
+  RDSStorage:
+    Type: String
+  RDSSize:
+    Type: String
+    Default: <None>
+    AllowedValues:
+      - <None>
+      - db.t3.large
+  RDSSnapshot:
+    Description: Specify if restoring from snapshot
+    Type: String
+  RDSBackupRetentionPeriod:
+    Type: String
+    Default: <None>
+    AllowedValues:
+      - <None>
+      - 7
+      - 30
+  RDSMasterUserPassword:
+    NoEcho: true
+    Type: String
+    #MinLength: 8
+    #MaxLength: 16
+    #AllowedPattern: ^[a-zA-Z0-9]*$
+Conditions:
+  IsProd: !Equals [ !Ref Environment, prod ]
+  IsEC2: !Not [!Equals [ !Ref CreateEC2, no] ]
+  IsEC2Restore: !Or [ !Equals [ !Ref CreateEC2, Restore-Linux ],!Equals [ !Ref CreateEC2, Restore-Windows-2016 ]] 
+  IsEBS: !Not [!Equals [ !Ref EBSMount, no ]]
+  IsRDS: !Not [!Equals [ !Ref CreateRDS, no ]]
+  IsRDSRestore: !Equals [ !Ref CreateRDS, Restore ]
+  IsSchedule: !Not [!Equals [ !Ref Schedule, no ]]
+Resources:
+  SecurityGroupEC2:
+    Type: AWS::EC2::SecurityGroup
+    Condition: IsEC2
+    Properties:
+      GroupDescription: "EC2 Security Group"
+      VpcId: 
+        Fn::ImportValue: 
+          Fn::Sub:  "vpc-${Environment}"
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["sg-ec2", !Ref "AWS::AccountId", !Ref "JIRAProjectKey" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref JIRAProjectKey
+      - Key: ised-environment
+        Value: !Ref Environment
+  SecurityGroupRDS:
+    Type: AWS::EC2::SecurityGroup
+    Condition: IsRDS
+    Properties:
+      GroupDescription: "RDS Secuirty Group"
+      VpcId: 
+        Fn::ImportValue: 
+          Fn::Sub:  "vpc-${Environment}"
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref "JIRAProjectKey" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref JIRAProjectKey
+      - Key: ised-environment
+        Value: !Ref Environment
+  # Open SSH Port
+  Ingress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: IsEC2
+    Properties:
+      GroupId: !Ref SecurityGroupEC2
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: 100.96.192.0/24
+  # Open RDP
+  IngressRDP:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: IsEC2
+    Condition: IsRDS
+    Properties:
+      GroupId: !Ref SecurityGroupEC2
+      IpProtocol: tcp
+      FromPort: 3389
+      ToPort: 3389
+      CidrIp: 100.96.192.0/24
+  # Allow connection to RDS from within the vpc
+  Ingress2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: IsRDS
+    Properties:
+      GroupId: !Ref SecurityGroupRDS
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      CidrIp: 
+        Fn::ImportValue: 
+          Fn::Sub:  "vpc-cidrblock-${Environment}"
+  IngressTCP80:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: IsEC2
+    Properties:
+      GroupId: !Ref SecurityGroupEC2
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 100.96.192.0/24
+  Egress1:
+    Type: AWS::EC2::SecurityGroupEgress
+    Condition: IsEC2
+    Properties:
+      GroupId: !Ref SecurityGroupEC2
+      IpProtocol: -1
+      CidrIp: 0.0.0.0/0
+  Egress2:
+    Type: AWS::EC2::SecurityGroupEgress
+    Condition: IsRDS
+    Properties:
+      GroupId: !Ref SecurityGroupRDS
+      IpProtocol: -1
+      CidrIp: 0.0.0.0/0
+  EC2:
+    Type: AWS::EC2::Instance
+    Condition: IsEC2
+    Properties:
+      DisableApiTermination: false
+      InstanceInitiatedShutdownBehavior: stop
+      EbsOptimized: true
+      ImageId: !If [ IsEC2Restore, !Ref EC2Ami, !FindInMap [EC2OS, !Ref CreateEC2, EC2Ami] ]    
+      InstanceType: !Ref EC2Size
+      KeyName: !Ref JIRAProjectKey
+      Monitoring: false
+      BlockDeviceMappings:
+        - DeviceName: !FindInMap [EC2OS, !Ref CreateEC2, RootMount]
+          Ebs:
+            DeleteOnTermination: true
+            VolumeSize: !Ref EC2RootVolumeSize
+      NetworkInterfaces: 
+        - DeleteOnTermination: true
+          DeviceIndex: 0
+          GroupSet: [ !Ref SecurityGroupEC2 ]
+          SubnetId: 
+            Fn::ImportValue: 
+              Fn::Sub:  "${Subnet}-${Environment}"
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["ec2", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref JIRAProjectKey
+      - Key: ised-environment
+        Value: !Ref Environment
+      - Key: ised-backup
+        Value: !If [ IsProd, backup-prod, backup-dev ]
+      - Key: Patch Group
+        Value: !If [ IsProd, prod-linux2, dev-linux2 ]
+      - !If
+        - IsSchedule
+        - Key: ised-schedule
+          Value: !Ref Schedule
+        - !Ref AWS::NoValue
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          AWS_AVAIL_ZONE=$(curl http://169.254.169.254/latest/meta-data/placement/availability-zone)
+          AWS_REGION=`echo "$AWS_AVAIL_ZONE" | sed 's/[a-z]$//'`
+          AWS_INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+          ROOT_VOLUME_IDS=$(aws ec2 describe-instances --region $AWS_REGION --instance-id $AWS_INSTANCE_ID --output text --query Reservations[0].Instances[0].BlockDeviceMappings[0].Ebs.VolumeId)
+          aws ec2 create-tags --resources $ROOT_VOLUME_IDS --region $AWS_REGION --tags Key=MyRootTag,Value=MyRootVolumesValue
+  RDS:
+    Type: AWS::RDS::DBInstance
+    Condition: IsRDS
+    Properties:
+      DBInstanceIdentifier: !Ref JIRAProjectKey
+      AllocatedStorage: !Ref RDSStorage
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: !Ref RDSSize
+      Port: 5432
+      StorageType: gp2
+      BackupRetentionPeriod: !Ref RDSBackupRetentionPeriod
+      CopyTagsToSnapshot: true
+      DBSnapshotIdentifier: !If [ IsRDSRestore, !Ref RDSSnapshot, !Ref "AWS::NoValue" ]
+      MasterUsername: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref JIRAProjectKey ]
+      MasterUserPassword: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref RDSMasterUserPassword ]
+      # backup is defined in UTC 
+      PreferredBackupWindow: 10:30-11:00
+      PreferredMaintenanceWindow: fri:06:00-fri:06:30
+      DBName: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref JIRAProjectKey ]
+      Engine: postgres
+      EngineVersion: 10.6
+      LicenseModel: postgresql-license
+      StorageEncrypted: true
+      DBSubnetGroupName:
+        Fn::ImportValue: 
+          Fn::Sub: "dbsubnet-${Environment}"
+      VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref JIRAProjectKey
+      - Key: ised-environment
+        Value: !Ref Environment
+      - Key: ised-backup
+        Value: !If [ IsProd, backup-prod, backup-dev ]
+      - !If
+        - IsSchedule
+        - Key: ised-schedule
+          Value: !Ref Schedule
+        - !Ref AWS::NoValue
+  EBSVolume:
+    Type: AWS::EC2::Volume
+    Condition: IsEC2
+    Condition: IsEBS
+    DependsOn: EC2
+    Properties:
+      Size: !Ref EBSSize
+      AvailabilityZone: !GetAtt EC2.AvailabilityZone
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref JIRAProjectKey
+      - Key: ised-environment
+        Value: !Ref Environment
+      - Key: ised-backup
+        Value: !If [ IsProd, backup-prod, backup-dev ]
+    DeletionPolicy: Snapshot
+  EBSMountPoint:
+    Type: AWS::EC2::VolumeAttachment
+    Condition: IsEC2
+    Condition: IsEBS
+    Properties:
+      InstanceId: !Ref EC2
+      VolumeId: !Ref EBSVolume
+      Device: !Ref EBSMount
+Outputs:
+  EC2:
+    Condition: IsEC2
+    Description: EC2
+    Value: !Ref EC2
+    Export: 
+      Name: !Join ['-', [!Ref "JIRAProjectKey", !Ref "Environment", "ec2" ] ]
+  RDS:
+    Condition: IsRDS
+    Description: RDS
+    Value: !Ref RDS
+    Export: 
+      Name: !Join ['-', [!Ref "JIRAProjectKey", !Ref "Environment", "rds" ] ]
+  RDSEndpoint:
+    Condition: IsRDS
+    Description: RDS Endpoint
+    Value: !GetAtt RDS.Endpoint.Address 
+    Export: 
+      Name: !Join ['-', [!Ref "JIRAProjectKey", !Ref "Environment", "rds-endpoint" ] ]
+      
