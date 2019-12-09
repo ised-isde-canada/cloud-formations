@@ -1,0 +1,459 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Add AWS accounts as a GuardDuty member accounts to the current GuardDuty master account. Version 1.0
+
+Metadata:
+ AWS::CloudFormation::Interface:
+   ParameterGroups:
+     - Label:
+         default: "MasterGuardDuty"
+       Parameters:
+         - MasterGuardDuty
+     - Label:
+         default: "Member01"
+       Parameters:
+         - MemberId01
+         - EmailAddress01
+     - Label:
+         default: "Member02"
+       Parameters:
+         - MemberId02
+         - EmailAddress02
+     - Label:
+         default: "Member03"
+       Parameters:
+         - MemberId03
+         - EmailAddress03
+     - Label:
+         default: "Member04"
+       Parameters:
+         - MemberId04
+         - EmailAddress04
+     - Label:
+         default: "Member05"
+       Parameters:
+         - MemberId05
+         - EmailAddress05
+     - Label:
+         default: "Member06"
+       Parameters:
+         - MemberId06
+         - EmailAddress06
+     - Label:
+         default: "Member07"
+       Parameters:
+         - MemberId07
+         - EmailAddress07
+     - Label:
+         default: "Member08"
+       Parameters:
+         - MemberId08
+         - EmailAddress08
+     - Label:
+         default: "Member09"
+       Parameters:
+         - MemberId09
+         - EmailAddress09
+     - Label:
+         default: "Member10"
+       Parameters:
+         - MemberId10
+         - EmailAddress10
+     - Label:
+         default: "Member11"
+       Parameters:
+         - MemberId11
+         - EmailAddress11
+     - Label:
+         default: "Member12"
+       Parameters:
+         - MemberId12
+         - EmailAddress12
+     - Label:
+         default: "Member13"
+       Parameters:
+         - MemberId13
+         - EmailAddress13
+     - Label:
+         default: "Member14"
+       Parameters:
+         - MemberId14
+         - EmailAddress14
+     - Label:
+         default: "Member15"
+       Parameters:
+         - MemberId15
+         - EmailAddress15
+     - Label:
+         default: "Member16"
+       Parameters:
+         - MemberId16
+         - EmailAddress16
+     - Label:
+         default: "Member17"
+       Parameters:
+         - MemberId17
+         - EmailAddress17
+     - Label:
+         default: "Member18"
+       Parameters:
+         - MemberId18
+         - EmailAddress18
+     - Label:
+         default: "Member19"
+       Parameters:
+         - MemberId19
+         - EmailAddress19
+     - Label:
+         default: "Member20"
+       Parameters:
+         - MemberId20
+         - EmailAddress20
+
+Conditions:
+  Member01: !Not [ !Equals [ !Ref MemberId01, "" ] ]
+  Member02: !Not [ !Equals [ !Ref MemberId02, "" ] ]
+  Member03: !Not [ !Equals [ !Ref MemberId03, "" ] ]
+  Member04: !Not [ !Equals [ !Ref MemberId04, "" ] ]
+  Member05: !Not [ !Equals [ !Ref MemberId05, "" ] ]
+  Member06: !Not [ !Equals [ !Ref MemberId06, "" ] ]
+  Member07: !Not [ !Equals [ !Ref MemberId07, "" ] ]
+  Member08: !Not [ !Equals [ !Ref MemberId08, "" ] ]
+  Member09: !Not [ !Equals [ !Ref MemberId09, "" ] ]
+  Member10: !Not [ !Equals [ !Ref MemberId10, "" ] ]
+  Member11: !Not [ !Equals [ !Ref MemberId11, "" ] ]
+  Member12: !Not [ !Equals [ !Ref MemberId12, "" ] ]
+  Member13: !Not [ !Equals [ !Ref MemberId13, "" ] ]
+  Member14: !Not [ !Equals [ !Ref MemberId14, "" ] ]
+  Member15: !Not [ !Equals [ !Ref MemberId15, "" ] ]
+  Member16: !Not [ !Equals [ !Ref MemberId16, "" ] ]
+  Member17: !Not [ !Equals [ !Ref MemberId17, "" ] ]
+  Member18: !Not [ !Equals [ !Ref MemberId18, "" ] ]
+  Member19: !Not [ !Equals [ !Ref MemberId19, "" ] ]
+  Member20: !Not [ !Equals [ !Ref MemberId20, "" ] ]
+
+Parameters:
+  MasterGuardDuty:
+    Description: The GuardDuty ID from the master account
+    Type: String
+
+  MemberId01:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress01:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId02:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress02:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId03:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress03:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId04:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress04:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId05:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress05:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId06:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress06:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId07:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress07:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId08:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress08:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId09:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress09:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId10:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress10:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId11:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress11:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId12:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress12:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId13:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress13:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId14:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress14:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId15:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress15:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId16:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress16:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId17:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress17:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId18:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress18:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId19:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress19:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId20:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress20:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+Resources:
+  AccountInvite01:
+    Condition: Member01
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress01
+      MemberId: !Ref MemberId01
+      Status: Invited
+
+  AccountInvite02:
+    Condition: Member02
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress02
+      MemberId: !Ref MemberId02
+      Status: Invited
+
+  AccountInvite03:
+    Condition: Member03
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress03
+      MemberId: !Ref MemberId03
+      Status: Invited
+
+  AccountInvite04:
+    Condition: Member04
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress04
+      MemberId: !Ref MemberId04
+      Status: Invited
+
+  AccountInvite05:
+    Condition: Member05
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress05
+      MemberId: !Ref MemberId05
+      Status: Invited
+
+  AccountInvite06:
+    Condition: Member06
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress06
+      MemberId: !Ref MemberId06
+      Status: Invited
+
+  AccountInvite07:
+    Condition: Member07
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress07
+      MemberId: !Ref MemberId07
+      Status: Invited
+
+  AccountInvite08:
+    Condition: Member08
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress08
+      MemberId: !Ref MemberId08
+      Status: Invited
+
+  AccountInvite09:
+    Condition: Member09
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress09
+      MemberId: !Ref MemberId09
+      Status: Invited
+
+  AccountInvite10:
+    Condition: Member10
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress10
+      MemberId: !Ref MemberId10
+      Status: Invited
+
+  AccountInvite11:
+    Condition: Member11
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress11
+      MemberId: !Ref MemberId11
+      Status: Invited
+
+  AccountInvite12:
+    Condition: Member12
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress12
+      MemberId: !Ref MemberId12
+      Status: Invited
+
+  AccountInvite13:
+    Condition: Member13
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress13
+      MemberId: !Ref MemberId13
+      Status: Invited
+
+  AccountInvite14:
+    Condition: Member14
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress14
+      MemberId: !Ref MemberId14
+      Status: Invited
+
+  AccountInvite15:
+    Condition: Member15
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress15
+      MemberId: !Ref MemberId15
+      Status: Invited
+
+  AccountInvite16:
+    Condition: Member16
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress16
+      MemberId: !Ref MemberId16
+      Status: Invited
+
+  AccountInvite17:
+    Condition: Member17
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress17
+      MemberId: !Ref MemberId17
+      Status: Invited
+
+  AccountInvite18:
+    Condition: Member18
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress18
+      MemberId: !Ref MemberId18
+      Status: Invited
+
+  AccountInvite19:
+    Condition: Member19
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress19
+      MemberId: !Ref MemberId19
+      Status: Invited
+
+  AccountInvite20:
+    Condition: Member20
+    Type: AWS::GuardDuty::Member
+    Properties:
+      DetectorId: !Ref MasterGuardDuty
+      Email: !Ref EmailAddress20
+      MemberId: !Ref MemberId20
+      Status: Invited
