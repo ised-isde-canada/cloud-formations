@@ -1,0 +1,508 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+#               It doesn't seem to be possible to configure logging to S3
+#               bucket via CFN/API at the moment (S3 logging is a fairly
+#               new GuardDuty feature. CFN/API support might come later).
+#               So right now, after running the CFN, we need to go into the
+#               account's GuardDuty settings and:
+#                 - Enable S3 logging
+#                 - Select the bucket created by this CFN
+#                 - Select the KMS key created by this CFN
+Description: Enable and Configure GuardDuty. Version 1.0
+Metadata:
+
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Master Account"
+        Parameters:
+          - MasterId
+      - Label:
+          default: "Member01"
+        Parameters:
+          - MemberId01
+          - EmailAddress01
+      - Label:
+          default: "Member02"
+        Parameters:
+          - MemberId02
+          - EmailAddress02
+      - Label:
+          default: "Member03"
+        Parameters:
+          - MemberId03
+          - EmailAddress03
+      - Label:
+          default: "Member04"
+        Parameters:
+          - MemberId04
+          - EmailAddress04
+      - Label:
+          default: "Member05"
+        Parameters:
+          - MemberId05
+          - EmailAddress05
+      - Label:
+          default: "Member06"
+        Parameters:
+          - MemberId06
+          - EmailAddress06
+      - Label:
+          default: "Member07"
+        Parameters:
+          - MemberId07
+          - EmailAddress07
+      - Label:
+          default: "Member08"
+        Parameters:
+          - MemberId08
+          - EmailAddress08
+      - Label:
+          default: "Member09"
+        Parameters:
+          - MemberId09
+          - EmailAddress09
+      - Label:
+          default: "Member10"
+        Parameters:
+          - MemberId10
+          - EmailAddress10
+      - Label:
+          default: "Member11"
+        Parameters:
+          - MemberId11
+          - EmailAddress11
+      - Label:
+          default: "Member12"
+        Parameters:
+          - MemberId12
+          - EmailAddress12
+      - Label:
+          default: "Member13"
+        Parameters:
+          - MemberId13
+          - EmailAddress13
+      - Label:
+          default: "Member14"
+        Parameters:
+          - MemberId14
+          - EmailAddress14
+      - Label:
+          default: "Member15"
+        Parameters:
+          - MemberId15
+          - EmailAddress15
+      - Label:
+          default: "Member16"
+        Parameters:
+          - MemberId16
+          - EmailAddress16
+      - Label:
+          default: "Member17"
+        Parameters:
+          - MemberId17
+          - EmailAddress17
+      - Label:
+          default: "Member18"
+        Parameters:
+          - MemberId18
+          - EmailAddress18
+      - Label:
+          default: "Member19"
+        Parameters:
+          - MemberId19
+          - EmailAddress19
+      - Label:
+          default: "Member20"
+        Parameters:
+          - MemberId20
+          - EmailAddress20
+
+Parameters:
+  MasterId:
+    Description: The AWS account number of the GuardDuty master account
+    Type: String
+
+  MemberId01:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress01:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId02:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress02:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId03:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress03:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId04:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress04:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId05:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress05:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId06:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress06:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId07:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress07:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId08:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress08:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId09:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress09:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId10:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress10:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId11:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress11:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId12:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress12:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId13:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress13:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId14:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress14:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId15:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress15:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId16:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress16:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId17:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress17:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId18:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress18:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId19:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress19:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+  MemberId20:
+    Description: The AWS account number of the member account
+    Type: String
+  EmailAddress20:
+    Description: The email address associated with the member AWS account
+    Type: String
+
+Conditions:
+  IsMasterAccount: !Equals [ !Ref "AWS::AccountId" , !Ref MasterId ]
+
+Resources:
+  GuardDutyDetector:
+    Type: AWS::GuardDuty::Detector
+    Properties: 
+      Enable: True
+
+  InviteMembers:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsMasterAccount
+    Properties:
+      TemplateURL: https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/guard-duty-member-invite.yaml
+      Parameters:
+        MemberId01: !Ref MemberId01
+        MemberId02: !Ref MemberId02
+        MemberId03: !Ref MemberId03
+        MemberId04: !Ref MemberId04
+        MemberId05: !Ref MemberId05
+        MemberId06: !Ref MemberId06
+        MemberId07: !Ref MemberId07
+        MemberId08: !Ref MemberId08
+        MemberId09: !Ref MemberId09
+        MemberId10: !Ref MemberId10
+        MemberId11: !Ref MemberId11
+        MemberId12: !Ref MemberId12
+        MemberId13: !Ref MemberId13
+        MemberId14: !Ref MemberId14
+        MemberId15: !Ref MemberId15
+        MemberId16: !Ref MemberId16
+        MemberId17: !Ref MemberId17
+        MemberId18: !Ref MemberId18
+        MemberId19: !Ref MemberId19
+        MemberId20: !Ref MemberId20
+        EmailAddress01: !Ref EmailAddress01
+        EmailAddress02: !Ref EmailAddress02
+        EmailAddress03: !Ref EmailAddress03
+        EmailAddress04: !Ref EmailAddress04
+        EmailAddress05: !Ref EmailAddress05
+        EmailAddress06: !Ref EmailAddress06
+        EmailAddress07: !Ref EmailAddress07
+        EmailAddress08: !Ref EmailAddress08
+        EmailAddress09: !Ref EmailAddress09
+        EmailAddress10: !Ref EmailAddress10
+        EmailAddress11: !Ref EmailAddress11
+        EmailAddress12: !Ref EmailAddress12
+        EmailAddress13: !Ref EmailAddress13
+        EmailAddress14: !Ref EmailAddress14
+        EmailAddress15: !Ref EmailAddress15
+        EmailAddress16: !Ref EmailAddress16
+        EmailAddress17: !Ref EmailAddress17
+        EmailAddress18: !Ref EmailAddress18
+        EmailAddress19: !Ref EmailAddress19
+        EmailAddress20: !Ref EmailAddress20
+        MasterGuardDuty: !Ref GuardDutyDetector
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub "${AWS::AccountId}-guardduty"
+      Subscription: 
+        -
+          Endpoint: "ic.isedawscloud-isdeawsinfonuagique.ic@canada.ca"
+          Protocol: "email"
+      TopicName: !Sub "${AWS::AccountId}-guardduty"
+
+  AmazonCloudWatchEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.guardduty
+        detail-type:
+          - "GuardDuty Finding"
+      Targets:
+        -
+          Arn: !Ref SNSTopic
+          Id: !Sub "${AWS::AccountId}-guardduty"
+
+  EncryptionKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: "Key used by GuardDuty to encrypt findings in S3"
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: "key-consolepolicy-3"
+        Statement:
+          -
+            Sid: "Enable IAM User Permissions"
+            Effect: "Allow"
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+          -
+            Sid: "Allow access for Key Administrators"
+            Effect: "Allow"
+            Principal:
+              AWS:
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty"
+            Action:
+              -  "kms:Create*"
+              -  "kms:Describe*"
+              -  "kms:Enable*"
+              -  "kms:List*"
+              -  "kms:Put*"
+              -  "kms:Update*"
+              -  "kms:Revoke*"
+              -  "kms:Disable*"
+              -  "kms:Get*"
+              -  "kms:Delete*"
+              -  "kms:TagResource"
+              -  "kms:UntagResource"
+              -  "kms:ScheduleKeyDeletion"
+              -  "kms:CancelKeyDeletion"
+            Resource: "*"
+          -
+            Sid: "Allow use of the key"
+            Effect: "Allow"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty"
+            Action:
+              -  "kms:Encrypt"
+              -  "kms:Decrypt"
+              -  "kms:ReEncrypt*"
+              -  "kms:GenerateDataKey*"
+              -  "kms:DescribeKey"
+            Resource: "*"
+          -
+            Sid: "Allow attachment of persistent resources"
+            Effect: "Allow"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty"
+            Action:
+              - "kms:CreateGrant"
+              - "kms:ListGrants"
+              - "kms:RevokeGrant"
+            Resource: "*"
+            Condition:
+              Bool:
+                "kms:GrantIsForAWSResource": "true"
+          -
+            # This is the part that's important for GuardDuty
+            Sid: "Allow GuardDuty to encrypt findings"
+            Effect: "Allow"
+            Principal:
+              Service: "guardduty.amazonaws.com"
+            Action: "kms:GenerateDataKey"
+            Resource: "*"
+
+  EncryptionKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      # Alias names must start with "alias/" ...
+      AliasName: !Sub "alias/${AWS::AccountId}-guardduty"
+      TargetKeyId: !Ref EncryptionKey
+
+  S3BucketLogs:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::AccountId}-guardduty"
+      Tags:
+        - Key: ised-project-id
+          Value: cops-aws
+        - Key: ised-environment
+          Value: ops
+        - Key: ised-cost-centre
+          Value: cio-rdad
+
+  # See: https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_exportfindings.html#guardduty_exportfindings-s3-policies
+  S3Policy:
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: !Ref S3BucketLogs
+      PolicyDocument:
+        Statement:
+          -
+            Sid: "Allow GuardDuty to use the getBucketLocation operation"
+            Action:
+              - "s3:GetBucketLocation"
+            Effect: "Allow"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3BucketLogs ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+          -
+            Sid: "Allow GuardDuty to upload objects to the bucket"
+            Action:
+              - "s3:PutObject"
+            Effect: "Allow"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3BucketLogs, "/*" ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+          -
+            Sid: "Deny unencrypted object uploads. This is optional"
+            Action:
+              - "s3:PutObject"
+            Effect: "Deny"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3BucketLogs, "/*" ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+            Condition:
+              StringNotEquals:
+                "s3:x-amz-server-side-encryption": "aws:kms"
+          -
+            Sid: "Deny incorrect encryption header. This is optional"
+            Action:
+              - "s3:PutObject"
+            Effect: "Deny"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3BucketLogs, "/*" ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+            Condition:
+              StringNotEquals:
+                "s3:x-amz-server-side-encryption-aws-kms-key-id": !GetAtt EncryptionKey.Arn
+          -
+            Sid: "Deny non-HTTPS access"
+            Action:
+              - "s3:*"
+            Effect: "Deny"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3BucketLogs, "/*" ] ]
+            Principal: "*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+Outputs:
+  GuardDutyDetector:
+    Description: "GuardDuty Detector"
+    Value: !Ref GuardDutyDetector
+    Export:
+      Name: !Sub "${AWS::AccountId}-guardduty"
+  S3BucketLogs:
+    Description: "S3 Bucket"
+    Value: !Ref S3BucketLogs
+    Export:
+      Name: !Sub "${AWS::AccountId}-s3-guardduty"
+  EncryptionKey:
+    Description: "KMS Key"
+    Value: !Ref EncryptionKey
+    Export:
+      Name: !Sub "${AWS::AccountId}-kms-guardduty"
