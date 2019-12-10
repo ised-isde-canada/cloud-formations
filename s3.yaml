@@ -9,6 +9,7 @@ Metadata:
         Parameters: 
           - Name
           - Access
+          - KmsArn
       - Label: 
           default: "Tags"
         Parameters: 
@@ -26,8 +27,11 @@ Metadata:
         default: "Environment"
 Conditions:
   OrgRead: !Equals [ !Ref Access, OrganizationRead ]
+  GuardDuty: !Equals [ !Ref Access, GuardDuty ]
 Parameters:
   Name:
+    Type: String
+  KmsArn:
     Type: String
   Access:
     Type: String
@@ -35,6 +39,7 @@ Parameters:
     AllowedValues:
       - Local
       - OrganizationRead
+      - GuardDuty
   ProjectId:
     Type: String
     Default: cops-aws
@@ -85,3 +90,60 @@ Resources:
               StringEquals: 
                 aws:PrincipalOrgID: 
                   - "o-2vzy0xgibx"
+
+  # See: https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_exportfindings.html#guardduty_exportfindings-s3-policies
+  GuardDutyS3Policy:
+    Type: AWS::S3::BucketPolicy
+    Condition: GuardDuty
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Statement:
+          -
+            Sid: "Allow GuardDuty to use the getBucketLocation operation"
+            Action:
+              - "s3:GetBucketLocation"
+            Effect: "Allow"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3Bucket ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+          -
+            Sid: "Allow GuardDuty to upload objects to the bucket"
+            Action:
+              - "s3:PutObject"
+            Effect: "Allow"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3Bucket, "/*" ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+          -
+            Sid: "Deny unencrypted object uploads. This is optional"
+            Action:
+              - "s3:PutObject"
+            Effect: "Deny"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3Bucket, "/*" ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+            Condition:
+              StringNotEquals:
+                "s3:x-amz-server-side-encryption": "aws:kms"
+          -
+            Sid: "Deny incorrect encryption header. This is optional"
+            Action:
+              - "s3:PutObject"
+            Effect: "Deny"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3Bucket, "/*" ] ]
+            Principal:
+              Service: "guardduty.amazonaws.com"
+            Condition:
+              StringNotEquals:
+                "s3:x-amz-server-side-encryption-aws-kms-key-id": !Ref KmsArn
+          -
+            Sid: "Deny non-HTTPS access"
+            Action:
+              - "s3:*"
+            Effect: "Deny"
+            Resource: !Join ['', [ "arn:aws:s3:::", !Ref S3Bucket, "/*" ] ]
+            Principal: "*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
