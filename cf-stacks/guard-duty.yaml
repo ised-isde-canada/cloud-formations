@@ -437,14 +437,14 @@ Outputs:
     Description: "GuardDuty Detector"
     Value: !Ref GuardDutyDetector
     Export:
-      Name: !Sub "${AWS::AccountId}-guardduty"
-  S3BucketLogs:
+      Name: !Sub "ised-guardduty-${AWS::AccountId}"
+  S3Bucket:
     Description: "S3 Bucket"
-    Value: !Ref S3BucketLogs
+    Value: !Ref S3Bucket
     Export:
-      Name: !Sub "${AWS::AccountId}-s3-guardduty"
+      Name: !Sub "ised-s3-${AWS::AccountId}-guardduty"
   EncryptionKey:
     Description: "KMS Key"
     Value: !Ref EncryptionKey
     Export:
-      Name: !Sub "${AWS::AccountId}-kms-guardduty"
+      Name: !Sub "ised-kms-${AWS::AccountId}-guardduty"
