@@ -126,142 +126,182 @@ Parameters:
   MemberId01:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress01:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId02:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress02:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId03:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress03:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId04:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress04:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId05:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress05:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId06:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress06:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId07:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress07:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId08:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress08:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId09:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress09:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId10:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress10:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId11:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress11:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId12:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress12:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId13:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress13:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId14:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress14:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId15:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress15:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId16:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress16:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId17:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress17:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId18:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress18:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId19:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress19:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
   MemberId20:
     Description: The AWS account number of the member account
     Type: String
+    Default: "N/A"
   EmailAddress20:
     Description: The email address associated with the member AWS account
     Type: String
+    Default: "N/A"
 
 Conditions:
   IsMasterAccount: !Equals [ !Ref "AWS::AccountId" , !Ref MasterId ]
@@ -420,13 +460,13 @@ Resources:
     Type: AWS::KMS::Alias
     Properties:
       # Alias names must start with "alias/" ...
-      AliasName: !Sub "alias/${AWS::AccountId}-guardduty"
+      AliasName: !Sub "alias/ised-kms-${AWS::AccountId}-guardduty"
       TargetKeyId: !Ref EncryptionKey
 
   S3Bucket:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/s3.yaml
+      TemplateURL: https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/s3.yaml
       Parameters:
         Name: guardduty
         Access: GuardDuty
