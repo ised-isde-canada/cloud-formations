@@ -80,11 +80,14 @@ Resources:
     Properties: 
       Bucket: !Ref S3Bucket
       PolicyDocument: 
+        Version: 2012-10-17
         Statement: 
           - Action: 
               - "s3:GetObject"
             Effect: "Allow"
-            Resource: !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]], "/*" ]]
+            Resource: 
+              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]], "/*" ]]
+              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]]]]
             Principal: "*"
             Condition: 
               StringEquals: 
