@@ -370,6 +370,41 @@ Resources:
           Protocol: "email"
       TopicName: !Sub "${AWS::AccountId}-guardduty"
 
+  SNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref SNSTopic
+      PolicyDocument:
+        Statement:
+          -
+            Sid: GuardDutyPolicy
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action:
+              - "sns:Publish"
+            Resource: !Ref SNSTopic
+          -
+            Sid: __default_statement_ID
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Action:
+              - "SNS:GetTopicAttributes"
+              - "SNS:SetTopicAttributes"
+              - "SNS:AddPermission"
+              - "SNS:RemovePermission"
+              - "SNS:DeleteTopic"
+              - "SNS:Subscribe"
+              - "SNS:ListSubscriptionsByTopic"
+              - "SNS:Publish"
+              - "SNS:Receive"
+            Resource: !Ref SNSTopic
+            Condition:
+              StringEquals:
+                "AWS:SourceOwner": !Ref "AWS::AccountId"
+
   AmazonCloudWatchEventRule:
     Type: AWS::Events::Rule
     Properties:
