@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Add the policy to allow all organization accounts to write; Remove hardcoded tags
-Description: Template to create the complete S3 Bucket. Version 1.0
+Description: Template to create the S3 Bucket. Version 1.1
 Metadata: 
   AWS::CloudFormation::Interface: 
     ParameterGroups: 
