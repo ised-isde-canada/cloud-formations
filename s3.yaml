@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: Template to create the complete S3 Bucket. Version 1.0
+# Version 1.1 - Add the policy to allow all organization accounts to write; Remove hardcoded tags
+Description: Template to create the S3 Bucket. Version 1.1
 Metadata: 
   AWS::CloudFormation::Interface: 
     ParameterGroups: 
@@ -27,6 +28,7 @@ Metadata:
         default: "Environment"
 Conditions:
   OrgRead: !Equals [ !Ref Access, OrganizationRead ]
+  OrgWrite: !Equals [ !Ref Access, OrganizationWrite ]
   GuardDuty: !Equals [ !Ref Access, GuardDuty ]
 Parameters:
   Name:
@@ -39,6 +41,7 @@ Parameters:
     AllowedValues:
       - Local
       - OrganizationRead
+      - OrganizationWrite
       - GuardDuty
   ProjectId:
     Type: String
@@ -69,11 +72,11 @@ Resources:
       - Key: Name
         Value: !Join ['-', ["s3", !Ref "AWS::AccountId", "log"] ]
       - Key: ised-cost-centre
-        Value: cio-rdad
+        Value: !Ref "CostCentre"
       - Key: ised-project-id
-        Value: cops-aws
+        Value: !Ref "ProjectId"
       - Key: ised-environment
-        Value: ops
+        Value: !Ref "Environment"
   S3BucketPolicy: 
     Type: AWS::S3::BucketPolicy
     Condition: OrgRead
@@ -83,6 +86,7 @@ Resources:
         Version: 2012-10-17
         Statement: 
           - Action: 
+              - "s3:ListBucket"
               - "s3:GetObject"
             Effect: "Allow"
             Resource: 
@@ -93,7 +97,27 @@ Resources:
               StringEquals: 
                 aws:PrincipalOrgID: 
                   - "o-2vzy0xgibx"
-
+  S3BucketPolicy: 
+    Type: AWS::S3::BucketPolicy
+    Condition: OrgWrite
+    Properties: 
+      Bucket: !Ref S3Bucket
+      PolicyDocument: 
+        Version: 2012-10-17
+        Statement: 
+          - Action: 
+              - "s3:ListBucket"
+              - "s3:GetObject"
+              - "s3:PutObject"
+            Effect: "Allow"
+            Resource: 
+              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]], "/*" ]]
+              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]]]]
+            Principal: "*"
+            Condition: 
+              StringEquals: 
+                aws:PrincipalOrgID: 
+                  - "o-2vzy0xgibx"
   # See: https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_exportfindings.html#guardduty_exportfindings-s3-policies
   GuardDutyS3Policy:
     Type: AWS::S3::BucketPolicy
