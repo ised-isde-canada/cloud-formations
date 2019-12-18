@@ -54,6 +54,9 @@ Parameters:
     Default: 26
   TransitGateway:
     Type: String
+  VPCFlowlogS3:
+    Description: The S3 bucket arn where the VPC flow logs are to be publish
+    Type: String
 Resources:
   SubFunction:
     Type: AWS::Lambda::Function
@@ -387,6 +390,14 @@ Resources:
         Fn::ImportValue: 
           Fn::Sub:  "VPCFlowLogRole"
       LogGroupName: !Join ['-', [!Ref "VPC","FlowLog-LogGroup"]]
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: ALL
+  VPCFlowLogstoS3:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      LogDestination: !Ref VPCFlowlogS3
+      LogDestinationType: s3
       ResourceId: !Ref VPC
       ResourceType: VPC
       TrafficType: ALL
