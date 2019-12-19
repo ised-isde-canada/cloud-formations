@@ -396,7 +396,7 @@ Resources:
   VPCFlowLogstoS3:
     Type: AWS::EC2::FlowLog
     Properties:
-      LogDestination: !Ref VPCFlowlogS3
+      LogDestination: !Join ['/', [!Ref "VPCFlowlogS3", !Ref "VPC"]] 
       LogDestinationType: s3
       ResourceId: !Ref VPC
       ResourceType: VPC
