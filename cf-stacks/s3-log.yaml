@@ -1,25 +1,12 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: Template to create the log S3 Bucket. Version 1.0
+# Version 1.1 - Link to s3 template, use System Manager
+Description: Template to create the log S3 Bucket. Version 1.1
 Resources:
   S3LogBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Delete
+    Type: AWS::CloudFormation::Stack
     Properties:
-      BucketName: !Join ['-', ["ised-s3", !Ref "AWS::AccountId", "log" ]]
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      VersioningConfiguration:
-        Status: Enabled
-      AccessControl: LogDeliveryWrite
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["s3", !Ref "AWS::AccountId", "log"] ]
-      - Key: ised-cost-centre
-        Value: cio-rdad
-      - Key: ised-project-id
-        Value: cops-aws
-      - Key: ised-environment
-        Value: ops
+      TemplateURL: "{{resolve:ssm:TemplateS3:1}}"
+      Parameters:
+        Name: log
+        Access: Local
