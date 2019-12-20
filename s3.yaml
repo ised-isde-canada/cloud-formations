@@ -81,7 +81,7 @@ Resources:
         Value: !Ref "ProjectId"
       - Key: ised-environment
         Value: !Ref "Environment"
-  S3BucketPolicy: 
+  S3OrgReadBucketPolicy: 
     Type: AWS::S3::BucketPolicy
     Condition: OrgRead
     Properties: 
@@ -101,7 +101,7 @@ Resources:
               StringEquals: 
                 aws:PrincipalOrgID: 
                   - "o-2vzy0xgibx"
-  S3BucketPolicy: 
+  S3OrgWriteBucketPolicy: 
     Type: AWS::S3::BucketPolicy
     Condition: OrgWrite
     Properties: 
@@ -122,7 +122,7 @@ Resources:
               StringEquals: 
                 aws:PrincipalOrgID: 
                   - "o-2vzy0xgibx"
-  S3BucketPolicy: 
+  S3LogDeliveryBucketPolicy: 
     Type: AWS::S3::BucketPolicy
     Condition: LogDelivery
     Properties: 
@@ -148,7 +148,7 @@ Resources:
               - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]] ]]
             Principal: 
               Service: delivery.logs.amazonaws.com
-  S3BucketPolicy: 
+  S3LogLoadBalancerBucketPolicy: 
     Type: AWS::S3::BucketPolicy
     Condition: LogLoadBalancer
     Properties: 
