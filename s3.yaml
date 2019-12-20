@@ -1,7 +1,9 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Add the policy to allow all organization accounts to write; Remove hardcoded tags
-Description: Template to create the S3 Bucket. Version 1.1
+# Version 1.2 - Add the policy to allow all logs from VPC and load balancer
+# Version 1.3 - Move sensitive inbfo to system manager
+Description: Template to create the S3 Bucket. Version 1.3
 Metadata: 
   AWS::CloudFormation::Interface: 
     ParameterGroups: 
@@ -61,7 +63,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
-      BucketName: !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]]
+      BucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name" ]]
       AccessControl: Private
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -70,11 +72,11 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName: !Join ['-', ["ised-s3", !Ref "AWS::AccountId", "log" ]]
-        LogFilePrefix: !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name", "" ]]
+        DestinationBucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "log" ]]
+        LogFilePrefix: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name", "" ]]
       Tags:
       - Key: Name
-        Value: !Join ['-', ["s3", !Ref "AWS::AccountId", "log"] ]
+        Value: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "log"] ]
       - Key: ised-cost-centre
         Value: !Ref "CostCentre"
       - Key: ised-project-id
@@ -94,8 +96,8 @@ Resources:
               - "s3:GetObject"
             Effect: "Allow"
             Resource: 
-              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]], "/*" ]]
-              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]]]]
+              - !Join ['', ["arn:aws:s3:::", !Ref S3Bucket, "/*" ]]
+              - !Join ['', ["arn:aws:s3:::", !Ref S3Bucket]]
             Principal: "*"
             Condition: 
               StringEquals: 
@@ -115,8 +117,8 @@ Resources:
               - "s3:PutObject"
             Effect: "Allow"
             Resource: 
-              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]], "/*" ]]
-              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]]]]
+              - !Join ['', ["arn:aws:s3:::", !Ref S3Bucket, "/*" ]]
+              - !Join ['', ["arn:aws:s3:::", !Ref S3Bucket]]
             Principal: "*"
             Condition: 
               StringEquals: 
@@ -134,7 +136,7 @@ Resources:
               - "s3:PutObject"
             Effect: "Allow"
             Resource: 
-              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]], "/*" ]]
+              - !Join ['', ["arn:aws:s3:::", !Ref S3Bucket, "/*" ]]
             Principal: 
               Service: delivery.logs.amazonaws.com
             Condition: 
@@ -145,7 +147,7 @@ Resources:
               - "s3:GetBucketAcl"
             Effect: "Allow"
             Resource: 
-              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]] ]]
+              - !Join ['', ["arn:aws:s3:::", !Ref S3Bucket ]]
             Principal: 
               Service: delivery.logs.amazonaws.com
   S3LogLoadBalancerBucketPolicy: 
@@ -160,7 +162,7 @@ Resources:
               - "s3:PutObject"
             Effect: "Allow"
             Resource: 
-              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]], "/*" ]]
+              - !Join ['', ["arn:aws:s3:::",  !Ref S3Bucket, "/*" ]]
             Principal: 
               AWS: arn:aws:iam::985666609251:root
   # See: https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_exportfindings.html#guardduty_exportfindings-s3-policies
