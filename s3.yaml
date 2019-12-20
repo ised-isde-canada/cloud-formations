@@ -30,6 +30,8 @@ Conditions:
   OrgRead: !Equals [ !Ref Access, OrganizationRead ]
   OrgWrite: !Equals [ !Ref Access, OrganizationWrite ]
   GuardDuty: !Equals [ !Ref Access, GuardDuty ]
+  LogDelivery: !Equals [ !Ref Access, LogDelivery ]
+  LogLoadBalancer: !Equals [ !Ref Access, LogLoadBalancer ]
 Parameters:
   Name:
     Type: String
@@ -42,6 +44,8 @@ Parameters:
       - Local
       - OrganizationRead
       - OrganizationWrite
+      - LogDelivery
+      - LogLoadBalancer
       - GuardDuty
   ProjectId:
     Type: String
@@ -118,6 +122,47 @@ Resources:
               StringEquals: 
                 aws:PrincipalOrgID: 
                   - "o-2vzy0xgibx"
+  S3BucketPolicy: 
+    Type: AWS::S3::BucketPolicy
+    Condition: LogDelivery
+    Properties: 
+      Bucket: !Ref S3Bucket
+      PolicyDocument: 
+        Version: 2012-10-17
+        Statement: 
+          - Action: 
+              - "s3:PutObject"
+            Effect: "Allow"
+            Resource: 
+              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]], "/*" ]]
+            Principal: 
+              Service: delivery.logs.amazonaws.com
+            Condition: 
+              StringEquals: 
+                s3:x-amz-acl: 
+                  - "bucket-owner-full-control"
+          - Action: 
+              - "s3:GetBucketAcl"
+            Effect: "Allow"
+            Resource: 
+              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]] ]]
+            Principal: 
+              Service: delivery.logs.amazonaws.com
+  S3BucketPolicy: 
+    Type: AWS::S3::BucketPolicy
+    Condition: LogLoadBalancer
+    Properties: 
+      Bucket: !Ref S3Bucket
+      PolicyDocument: 
+        Version: 2012-10-17
+        Statement: 
+          - Action: 
+              - "s3:PutObject"
+            Effect: "Allow"
+            Resource: 
+              - !Join ['', ["arn:aws:s3:::",  !Join ['-', ["ised-s3", !Ref "AWS::AccountId", !Ref "Name" ]], "/*" ]]
+            Principal: 
+              AWS: arn:aws:iam::985666609251:root
   # See: https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_exportfindings.html#guardduty_exportfindings-s3-policies
   GuardDutyS3Policy:
     Type: AWS::S3::BucketPolicy
