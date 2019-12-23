@@ -76,7 +76,7 @@ Resources:
         LogFilePrefix: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name", "" ]]
       Tags:
       - Key: Name
-        Value: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "log"] ]
+        Value: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "Name"] ]
       - Key: ised-cost-centre
         Value: !Ref "CostCentre"
       - Key: ised-project-id

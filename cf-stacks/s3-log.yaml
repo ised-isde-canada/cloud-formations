@@ -10,3 +10,4 @@ Resources:
       Parameters:
         Name: log
         Access: Local
+        KmsArn: NA
