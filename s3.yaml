@@ -34,11 +34,30 @@ Conditions:
   GuardDuty: !Equals [ !Ref Access, GuardDuty ]
   LogDelivery: !Equals [ !Ref Access, LogDelivery ]
   LogLoadBalancer: !Equals [ !Ref Access, LogLoadBalancer ]
+  LogBucket: !Equals [ !Ref LogBucket, true ]
 Parameters:
   Name:
     Type: String
+  LogBucket:
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
   KmsArn:
     Type: String
+  AccessControl:
+    Type: String
+    Default: Private
+    AllowedValues:
+      - Private
+      - PublicRead-
+      - PublicReadWrite
+      - AuthenticatedRead
+      - LogDeliveryWrite
+      - BucketOwnerRead
+      - BucketOwnerFullControl
+      - AwsExecRead
   Access:
     Type: String
     Default: Local
@@ -64,7 +83,7 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       BucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name" ]]
-      AccessControl: Private
+      AccessControl: LogDeliveryWrite
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -72,8 +91,8 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "log" ]]
-        LogFilePrefix: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name", "" ]]
+        DestinationBucketName: !If [ LogBucket, !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "log"" ]], !Ref "AWS::NoValue" ]
+        LogFilePrefix: !If [ LogBucket, !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name", "" ]], !Ref "AWS::NoValue" ]
       Tags:
       - Key: Name
         Value: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "Name"] ]
