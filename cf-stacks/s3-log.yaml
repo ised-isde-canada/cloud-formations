@@ -10,4 +10,5 @@ Resources:
       Parameters:
         Name: log
         Access: Local
+        AccessLog: LogDeliveryWrite
         KmsArn: NA
