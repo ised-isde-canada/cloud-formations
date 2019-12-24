@@ -29,36 +29,29 @@ Metadata:
       Environment: 
         default: "Environment"
 Conditions:
-  OrgRead: !Equals [ !Ref Access, OrganizationRead ]
-  OrgWrite: !Equals [ !Ref Access, OrganizationWrite ]
-  GuardDuty: !Equals [ !Ref Access, GuardDuty ]
-  LogDelivery: !Equals [ !Ref Access, LogDelivery ]
-  LogLoadBalancer: !Equals [ !Ref Access, LogLoadBalancer ]
-  LogBucket: !Equals [ !Ref LogBucket, true ]
+  OrgRead: !Equals [ !Ref S3BucketPolicy, OrganizationRead ]
+  OrgWrite: !Equals [ !Ref S3BucketPolicy, OrganizationWrite ]
+  GuardDuty: !Equals [ !Ref S3BucketPolicy, GuardDuty ]
+  LogDelivery: !Equals [ !Ref S3BucketPolicy, LogDelivery ]
+  LogLoadBalancer: !Equals [ !Ref S3BucketPolicy, LogLoadBalancer ]
 Parameters:
   Name:
     Type: String
-  LogBucket:
-    Type: String
-    Default: true
-    AllowedValues:
-      - true
-      - false
   KmsArn:
     Type: String
-  AccessControl:
+  S3BucketAccess:
     Type: String
     Default: Private
     AllowedValues:
       - Private
-      - PublicRead-
+      - PublicRead
       - PublicReadWrite
       - AuthenticatedRead
       - LogDeliveryWrite
       - BucketOwnerRead
       - BucketOwnerFullControl
       - AwsExecRead
-  Access:
+  S3BucketPolicy:
     Type: String
     Default: Local
     AllowedValues:
@@ -83,7 +76,7 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       BucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name" ]]
-      AccessControl: LogDeliveryWrite
+      AccessControl: !Ref S3BucketAccess
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -91,8 +84,8 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName: !If [ LogBucket, !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "log" ]], !Ref "AWS::NoValue" ]
-        LogFilePrefix: !If [ LogBucket, !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name", "" ]], !Ref "AWS::NoValue" ]
+        DestinationBucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "log" ]]
+        LogFilePrefix: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name", "" ]]
       Tags:
       - Key: Name
         Value: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "Name"] ]
