@@ -9,6 +9,6 @@ Resources:
       TemplateURL: "{{resolve:ssm:TemplateS3:1}}"
       Parameters:
         Name: log
-        Access: Local
-        AccessLog: LogDeliveryWrite
+        S3BucketPolicy: Local
+        S3BucketAccess: LogDeliveryWrite
         KmsArn: NA
