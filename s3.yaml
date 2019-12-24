@@ -91,7 +91,7 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName: !If [ LogBucket, !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "log"" ]], !Ref "AWS::NoValue" ]
+        DestinationBucketName: !If [ LogBucket, !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "log" ]], !Ref "AWS::NoValue" ]
         LogFilePrefix: !If [ LogBucket, !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name", "" ]], !Ref "AWS::NoValue" ]
       Tags:
       - Key: Name
