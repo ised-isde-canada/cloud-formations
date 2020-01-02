@@ -3,9 +3,10 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.1 - Add VPC S3 Endpoint
 # Version 1.2 - Add VPC Flow log
 # Version 2.0 - Add VPC Name; Add the option to create Public Subnets
+# Version 2.1 - Added VPC Flow Log  that publish to an S3 Bucket and used AWS store parameter for bucket name and Cots account.
 Description: Template to create the complete VPC. Version 2.0
 Conditions:
-  IsCots: !Equals [ !Ref "AWS::AccountId", 850605615431 ]
+  IsCots: !Equals [ !Ref "AWS::AccountId", "{{resolve:ssm:AccountIDCots:1}}" ]
   IsProd: !Equals [ !Ref Environment, prod ]
   PublicSubnetsCondition: !Or [ !Equals [ !Ref Structure, 2AZ-Public-Private ], !Equals [ !Ref Structure, 2AZ-Public ] ]
   PrivateSubnetsCondition: !Or [ !Equals [ !Ref Structure, 2AZ-Public-Private ], !Equals [ !Ref Structure, 2AZ-Private ] ]
@@ -53,9 +54,6 @@ Parameters:
     - 28
     Default: 26
   TransitGateway:
-    Type: String
-  VPCFlowlogS3:
-    Description: The S3 bucket arn where the VPC flow logs are to be publish
     Type: String
 Resources:
   SubFunction:
@@ -378,7 +376,7 @@ Resources:
       VpcEndpointType: Gateway
       VpcId: !Ref VPC      
   # Enable Flow logs in vpc
-  VPCFlowLogRetention:
+  VPCFlowLogCloudWatchLog:
     Type: AWS::Logs::LogGroup
     Properties: 
       LogGroupName: !Join ['-', [!Ref "VPC","FlowLog-LogGroup"]]
@@ -396,7 +394,7 @@ Resources:
   VPCFlowLogstoS3:
     Type: AWS::EC2::FlowLog
     Properties:
-      LogDestination: !Join ['/', [!Ref "VPCFlowlogS3", !Ref "VPC"]] 
+      LogDestination: !Join ['/', ["{{resolve:ssm:S3BucketVPCFlowLogs:1}}", !Ref "VPC"]] 
       LogDestinationType: s3
       ResourceId: !Ref VPC
       ResourceType: VPC
