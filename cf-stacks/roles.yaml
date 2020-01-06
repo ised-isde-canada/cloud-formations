@@ -28,7 +28,8 @@ Resources:
     Type: AWS::IAM::Policy
     Condition: IsCotsAccount
     Properties:
-      Roles: !Ref NexusRole
+      Roles: 
+        - !Ref NexusRole
       PolicyName: ised-nexus-volume-tagging-policy
       # Permissions for the EC2 to tag the volumes (ex: root) from User Data
       PolicyDocument:
@@ -48,7 +49,8 @@ Resources:
     Condition: IsCotsAccount
     Properties:
       InstanceProfileName: ised-nexus-ec2-instance-profile
-      Roles: !Ref NexusRole
+      Roles: 
+        - !Ref NexusRole
   IsedAdminRole:
     Type: AWS::IAM::Role
     Condition: IsNotMaster
