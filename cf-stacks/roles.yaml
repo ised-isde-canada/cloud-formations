@@ -209,11 +209,11 @@ Outputs:
       Name: NexusRole
   NexusVolumeTaggingPolicy:
     Description: NexusVolumeTaggingPolicy
-    Value: !GetAtt NexusVolumeTaggingPolicy.Arn
+    Value: !Ref NexusVolumeTaggingPolicy
     Export: 
       Name: NexusVolumeTaggingPolicy
   EC2InstanceProfile:
     Description: EC2InstanceProfile
-    Value: !GetAtt EC2InstanceProfile.Arn
+    Value: !Ref EC2InstanceProfile
     Export: 
       Name: EC2InstanceProfile
