@@ -24,6 +24,31 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         # Role for Cloudwatch
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy  
+  NexusVolumeTaggingPolicy:
+    Type: AWS::IAM::Policy
+    Condition: IsCotsAccount
+    Properties:
+      Roles: !Ref NexusRole
+      PolicyName: ised-nexus-volume-tagging-policy
+      # Permissions for the EC2 to tag the volumes (ex: root) from User Data
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            "Action":
+              - "ec2:CreateTags"
+            Resource:
+              - "arn:aws:ec2:*:*:instance/*"
+              - "arn:aws:ec2:*:*:volume/*"
+          - Effect: "Allow"
+            Action: "ec2:DescribeInstances"
+            Resource: "*"
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Condition: IsCotsAccount
+    Properties:
+      InstanceProfileName: ised-nexus-ec2-instance-profile
+      Roles: !Ref NexusRole
   IsedAdminRole:
     Type: AWS::IAM::Role
     Condition: IsNotMaster
@@ -182,3 +207,13 @@ Outputs:
     Value: !GetAtt NexusRole.Arn
     Export: 
       Name: NexusRole
+  NexusVolumeTaggingPolicy:
+    Description: NexusVolumeTaggingPolicy
+    Value: !GetAtt NexusVolumeTaggingPolicy.Arn
+    Export: 
+      Name: NexusVolumeTaggingPolicy
+  EC2InstanceProfile:
+    Description: EC2InstanceProfile
+    Value: !GetAtt EC2InstanceProfile.Arn
+    Export: 
+      Name: EC2InstanceProfile
