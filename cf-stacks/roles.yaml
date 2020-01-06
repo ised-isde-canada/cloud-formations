@@ -11,6 +11,7 @@ Resources:
     Type: AWS::IAM::Role
     Condition: IsCotsAccount
     Properties:
+      RoleName: ised-nexus-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
