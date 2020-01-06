@@ -1,10 +1,28 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Add Admin role trust with master
-Description: Template to create all required roles. Version 1.1
+# Version 1.2 - Add Nexus role for cots account
+Description: Template to create all required roles. Version 1.2
 Conditions:
   IsNotMaster: !Not [!Equals [ !Ref "AWS::AccountId", 256255698049 ]]
+  IsCotsAccount: !Equals [ !Ref "AWS::AccountId", 850605615431 ]
 Resources:
+  NexusRole:
+    Type: AWS::IAM::Role
+    Condition: IsCotsAccount
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "ec2.amazonaws.com"
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        # Role for patching
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        # Role for Cloudwatch
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy  
   IsedAdminRole:
     Type: AWS::IAM::Role
     Condition: IsNotMaster
@@ -158,3 +176,8 @@ Outputs:
     Value: !GetAtt AutomationRole.Arn
     Export: 
       Name: AutomationRole
+  NexusRole:
+    Description: NexusRole
+    Value: !GetAtt NexusRole.Arn
+    Export: 
+      Name: NexusRole
