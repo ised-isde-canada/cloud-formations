@@ -21,10 +21,10 @@ Metadata:
      - Label:
          default: "Jira"
        Parameters:
-         - IsedJiraUrl
-         - IsedJiraUserName
+        #  - IsedJiraUrl
+        #  - IsedJiraUserName
          - IsedJiraProject
-         - IsedJiraPassword
+        #  - IsedJiraPassword
      - Label:
          default: "The SSM Parameter Name"
        Parameters:
@@ -250,7 +250,8 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: IsCostRuleOn
     Properties:
-      TemplateURL: "{{resolve:ssm:TemplateRemediationConfig:1}}"
+      # TemplateURL: '{resolve:ssm:TemplateRemediationConfig:1}}'
+      TemplateURL: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/config-remediation.yaml
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsCost
@@ -265,7 +266,8 @@ Resources:
   BasicRemediationConfigurationTagsBackup:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: "{{resolve:ssm:TemplateRemediationConfig:1}}"
+      #  TemplateURL: '{{resolve:ssm:TemplateRemediationConfig:1}}'
+      TemplateURL: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/config-remediation.yaml
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsBackup
@@ -281,7 +283,8 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: IsPatchingRuleOn
     Properties:
-      TemplateURL: "{{resolve:ssm:TemplateRemediationConfig:1}}"
+      # TemplateURL: '{{resolve:ssm:TemplateRemediationConfig:1}}'
+      TemplateURL: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/config-remediation.yaml
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsPatching
