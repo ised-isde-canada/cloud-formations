@@ -7,13 +7,23 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.3 - Updated hard-code "AccountId" for service role
 # Version 1.4 - Added Service-Linked Role  
 # Version 1.5 - Enable S3 logging
-Description: Template to create EC2 Patching. Version 1.5
+# Version 1.6 - Added Association to auto-update SSM Agent on all managed instances
+Description: Template to create EC2 Patching. Version 1.6
 Parameters:
   MaintenanceWindowStartDate:
     Description: "Start Date of Maintenance Window (i.e. format: YYYY-MM-DD): "
     Type: String
     AllowedPattern: "^([12]\\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01]))$"
 Resources:
+  AutoUpdateSSMAgent:
+    Type: AWS::SSM::Association
+    Properties:
+      Name: "AWS-UpdateSSMAgent"
+      ScheduleExpression: "cron(0 10 ? * WED *)"
+      Targets:
+        - Key: InstanceIds
+          Values:
+            - "*"
   S3PatchingLogs:
     Type: AWS::CloudFormation::Stack
     Properties:
