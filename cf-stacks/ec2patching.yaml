@@ -6,13 +6,21 @@ AWSTemplateFormatVersion: "2010-09-09"
 #             - Added Maintenance Window - Start Date as a parameter
 # Version 1.3 - Updated hard-code "AccountId" for service role
 # Version 1.4 - Added Service-Linked Role  
-Description: Template to create EC2 Patching. Version 1.4
+# Version 1.5 - Enable S3 logging
+Description: Template to create EC2 Patching. Version 1.5
 Parameters:
   MaintenanceWindowStartDate:
     Description: "Start Date of Maintenance Window (i.e. format: YYYY-MM-DD): "
     Type: String
     AllowedPattern: "^([12]\\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01]))$"
 Resources:
+  S3PatchingLogs:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "{{resolve:ssm:TemplateS3:1}}"
+      Parameters:
+        Name: ec2patching
+        KmsArn: ""
   CustomSSMServiceLinkedRole:
     Type: AWS::IAM::ServiceLinkedRole
     Properties: 
@@ -261,6 +269,7 @@ Resources:
       TaskArn: "AWS-RunPatchBaseline"
       TaskInvocationParameters:
         MaintenanceWindowRunCommandParameters:
+          OutputS3BucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "ec2patching" ]]
           Parameters:
             Operation:
             - Install 
@@ -286,6 +295,7 @@ Resources:
       TaskArn: "AWS-RunPatchBaseline"
       TaskInvocationParameters:
         MaintenanceWindowRunCommandParameters:
+          OutputS3BucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "ec2patching" ]]
           Parameters:
             Operation:
             - Install 
@@ -311,6 +321,7 @@ Resources:
       TaskArn: "AWS-RunPatchBaseline"
       TaskInvocationParameters:
         MaintenanceWindowRunCommandParameters:
+          OutputS3BucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "ec2patching" ]]
           Parameters:
             Operation:
             - Install 
@@ -336,6 +347,7 @@ Resources:
       TaskArn: "AWS-RunPatchBaseline"
       TaskInvocationParameters:
         MaintenanceWindowRunCommandParameters:
+          OutputS3BucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "ec2patching" ]]
           Parameters:
             Operation:
             - Install 
