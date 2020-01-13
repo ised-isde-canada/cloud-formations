@@ -14,17 +14,15 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.4 - Add Metadata
 # Version 1.5 - Added Remediation SSM document and CreateJiraIssue lambda function. Moved the remediation Configuration to an external template 'RemediationConfig.yaml'
 # Version 1.5.1 - Moved all roles within this CF to the Roles CF script. Added a list of tags that was already applied to the jira ticket. 
-Description: Template to create all required config rules. Version 1.5.1
+# Version 1.6 - Switch the parameter that contain sensitive info to use value from SSM Parameter store and enable Auto remediation for patching. 
+Description: Template to create all required config rules. Version 1.6
 Metadata:
  AWS::CloudFormation::Interface:
    ParameterGroups:
      - Label:
          default: "Jira"
        Parameters:
-        #  - IsedJiraUrl
-        #  - IsedJiraUserName
          - IsedJiraProject
-        #  - IsedJiraPassword
      - Label:
          default: "The SSM Parameter Name"
        Parameters:
@@ -47,14 +45,21 @@ Metadata:
          - PatchingTagConfigRuleName
          - IsedPatch
      - Label:
-         default: "Remediation Configuration Template URL"
+         default: "Account info"
        Parameters:
-         - RemediationConfigTemplate
+          - SandboxAccountID
+          - SandboxDBAccountID
+          - APIStoreAccountID
+          - StudentsAccountID
+          - OpenShiftAccountID
+
+
+
 
 Conditions:
-  IsRemediationOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", "{{resolve:ssm:AccountIDSandbox:1}}" ]], !Not [!Equals [ !Ref "AWS::AccountId", "{{resolve:ssm:AccountIDSandboxDB:1}}" ]]]
-  IsCostRuleOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", "{{resolve:ssm:AccountIDAPIStore:1}}" ]] , !Not [!Equals [ !Ref "AWS::AccountId", "{{resolve:ssm:AccountIDOpenShift:1}}" ]], !Not [!Equals [ !Ref "AWS::AccountId", "{{resolve:ssm:AccountIDStudents:1}}" ]]]
-  IsPatchingRuleOn: !Not [!Equals [ !Ref "AWS::AccountId", "{{resolve:ssm:AccountIDOpenShitf:1}}" ]]
+  IsRemediationOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxAccountID ]], !Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxDBAccountID ]]]
+  IsCostRuleOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", !Ref APIStoreAccountID ]] , !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftAccountID ]], !Not [!Equals [ !Ref "AWS::AccountId", !Ref StudentsAccountID ]]]
+  IsPatchingRuleOn: !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftAccountID ]]
 Parameters:
   IsedCostCentre:
     Type: String
@@ -86,6 +91,21 @@ Parameters:
   PatchingTagConfigRuleName:
     Type: String
     Default: ised-mandatory-tags-patching
+  SandboxAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSandbox
+  SandboxDBAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSandboxDB    
+  APIStoreAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDAPIStore
+  StudentsAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDStudents   
+  OpenShiftAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShift       
       
     
 Resources:
@@ -250,8 +270,7 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: IsCostRuleOn
     Properties:
-      # TemplateURL: '{resolve:ssm:TemplateRemediationConfig:1}}'
-      TemplateURL: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/config-remediation.yaml
+      TemplateURL: '{{resolve:ssm:TemplateRemediationConfig:1}}'
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsCost
@@ -266,8 +285,7 @@ Resources:
   BasicRemediationConfigurationTagsBackup:
     Type: AWS::CloudFormation::Stack
     Properties:
-      #  TemplateURL: '{{resolve:ssm:TemplateRemediationConfig:1}}'
-      TemplateURL: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/config-remediation.yaml
+      TemplateURL: '{{resolve:ssm:TemplateRemediationConfig:1}}'
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsBackup
@@ -283,12 +301,11 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: IsPatchingRuleOn
     Properties:
-      # TemplateURL: '{{resolve:ssm:TemplateRemediationConfig:1}}'
-      TemplateURL: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/config-remediation.yaml
+      TemplateURL: '{{resolve:ssm:TemplateRemediationConfig:1}}'
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsPatching
-        IsRemediationAutoOn: "false"
+        IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
         IsedJiraUrl: "{{resolve:ssm:JiraURL:1}}"
         IsedJiraUserName: "{{resolve:ssm:JiraUser:1}}"
