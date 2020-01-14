@@ -70,19 +70,14 @@ Conditions:
 Parameters:
   IsedCostCentre:
     Type: String
-    Default: cio-dsd,cio-rdad,cio-dpad,dtss-ddb,ic-pnp,sitt-slpb,sitt-slao
   IsedProjectId:
     Type: String
-    Default: ccots,ccots-bitbucket,ccots-jira,ccots-confluence,ccots-crowd,cops-aws,cops-openshift,cops-db,gcapi,dsdmdl,dtssem,icpnpbi,aem,ised-specauct,icsdw
   IsedEnvironment:
     Type: String
-    Default: ops,prod,dev,lab,qa,uat
   IsedBackup:
     Type: String
-    Default: backup-dev,backup-prod
   IsedPatch:
     Type: String
-    Default: dev-linux,prod-linux,dev-linux2,prod-linux2,dev-windows,prod-windows,dev-rhel,prod-rhel
   IsedJiraProject:
     Type: AWS::SSM::Parameter::Value<String>
     Default: JiraProject
