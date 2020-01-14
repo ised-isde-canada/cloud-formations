@@ -14,7 +14,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.4 - Add Metadata
 # Version 1.5 - Added Remediation SSM document and CreateJiraIssue lambda function. Moved the remediation Configuration to an external template 'RemediationConfig.yaml'
 # Version 1.5.1 - Moved all roles within this CF to the Roles CF script. Added a list of tags that was already applied to the jira ticket. 
-Description: Template to create all required config rules. Version 1.5.1
+# Version 1.6 - Switch the parameter that contain sensitive info to use value from SSM Parameter store and enable Auto remediation for patching. 
+Description: Template to create all required config rules. Version 1.6
 Metadata:
  AWS::CloudFormation::Interface:
    ParameterGroups:
@@ -49,12 +50,23 @@ Metadata:
      - Label:
          default: "Remediation Configuration Template URL"
        Parameters:
-         - RemediationConfigTemplate
+         - RemediationConfigTemplate         
+     - Label:
+         default: "Account info"
+       Parameters:
+          - SandboxAccountID
+          - SandboxDBAccountID
+          - APIStoreAccountID
+          - StudentsAccountID
+          - OpenShiftAccountID
+
+
+
 
 Conditions:
-  IsRemediationOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", 355322244959 ]], !Not [!Equals [ !Ref "AWS::AccountId", 593927778252 ]]]
-  IsCostRuleOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", 803354934415 ]] , !Not [!Equals [ !Ref "AWS::AccountId", 870005858651 ]], !Not [!Equals [ !Ref "AWS::AccountId", 501108984960 ]]]
-  IsPatchingRuleOn: !Not [!Equals [ !Ref "AWS::AccountId", 870005858651 ]]
+  IsRemediationOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxAccountID ]], !Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxDBAccountID ]]]
+  IsCostRuleOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", !Ref APIStoreAccountID ]] , !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftAccountID ]], !Not [!Equals [ !Ref "AWS::AccountId", !Ref StudentsAccountID ]]]
+  IsPatchingRuleOn: !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftAccountID ]]
 Parameters:
   IsedCostCentre:
     Type: String
@@ -71,21 +83,15 @@ Parameters:
   IsedPatch:
     Type: String
     Default: dev-linux,prod-linux,dev-linux2,prod-linux2,dev-windows,prod-windows,dev-rhel,prod-rhel
-  IsedJiraUrl:
-    Type: String
-    Default: https://jira.ised-isde.canada.ca
-  IsedJiraUserName:
-    Type: String
-    Default: ic.isedawscloud-isdeawsinfonuagique.ic@canada.ca
   IsedJiraProject:
-    Type: String
-    Default: COPS
-  IsedJiraPassword:
-    Type: String
-    NoEcho: true
-  RemediationConfigTemplate:
-    Type: String
-    Default:  https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/config-remediation.yaml
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: JiraProject
+  IsedJiraURL:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: JiraURL 
+  IsedJiraUser:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: JiraUser     
   SSMParamName:
     Type: String
     Default: ised-jira-password
@@ -98,20 +104,27 @@ Parameters:
   PatchingTagConfigRuleName:
     Type: String
     Default: ised-mandatory-tags-patching
-# Mappings:
-#   vars:
-#     var:
-#       SSMParams:  ised-jira-password
+  SandboxAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSandbox
+  SandboxDBAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSandboxDB    
+  APIStoreAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDAPIStore
+  StudentsAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDStudents   
+  OpenShiftAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShift       
+  IsedTemplateRemediationConfig:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: TemplateRemediationConfig          
       
     
 Resources:
-  BasicParameterJiraPassword:
-    Type: "AWS::SSM::Parameter"
-    Properties:
-      Name: !Ref SSMParamName
-      Type: String
-      Value: !Ref IsedJiraPassword
-
   AWSConfigRuleTagsCost:
     Type: AWS::Config::ConfigRule
     Condition: IsCostRuleOn
@@ -273,45 +286,45 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: IsCostRuleOn
     Properties:
-      TemplateURL: !Ref RemediationConfigTemplate
+      TemplateURL: !Ref IsedTemplateRemediationConfig
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsCost
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
-        IsedJiraUrl: !Ref IsedJiraUrl
-        IsedJiraUserName: !Ref IsedJiraUserName
+        IsedJiraUrl: !Ref IsedJiraURL
+        IsedJiraUserName: !Ref IsedJiraUser
         IsedLambdaRole: !ImportValue ConfigLambdaRole
         SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
-        JiraSSMParameterName: !Ref BasicParameterJiraPassword
+        JiraSSMParameterName: !Ref SSMParamName
 
   BasicRemediationConfigurationTagsBackup:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Ref RemediationConfigTemplate
+      TemplateURL: !Ref IsedTemplateRemediationConfig
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsBackup
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
-        IsedJiraUrl: !Ref IsedJiraUrl
-        IsedJiraUserName: !Ref IsedJiraUserName
+        IsedJiraUrl: !Ref IsedJiraURL
+        IsedJiraUserName: !Ref IsedJiraUser
         IsedLambdaRole: !ImportValue ConfigLambdaRole
         SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
-        JiraSSMParameterName: !Ref BasicParameterJiraPassword
+        JiraSSMParameterName: !Ref SSMParamName
   
   BasicRemediationConfigurationTagsPatching:
     Type: AWS::CloudFormation::Stack
     Condition: IsPatchingRuleOn
     Properties:
-      TemplateURL: !Ref RemediationConfigTemplate
+      TemplateURL: !Ref IsedTemplateRemediationConfig
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsPatching
-        IsRemediationAutoOn: "false"
+        IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
-        IsedJiraUrl: !Ref IsedJiraUrl
-        IsedJiraUserName: !Ref IsedJiraUserName
+        IsedJiraUrl: !Ref IsedJiraURL
+        IsedJiraUserName: !Ref IsedJiraUser
         IsedLambdaRole: !ImportValue ConfigLambdaRole
         SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
-        JiraSSMParameterName: !Ref BasicParameterJiraPassword 
+        JiraSSMParameterName: !Ref SSMParamName 
