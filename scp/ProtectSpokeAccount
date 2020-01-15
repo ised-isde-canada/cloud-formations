@@ -1,0 +1,124 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "ProtectCloudTrail",
+            "Effect": "Deny",
+            "Action": [
+                "cloudtrail:Delete*",
+                "cloudtrail:Stop*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ProtectCloudWatchLogs",
+            "Effect": "Deny",
+            "Action": [
+                "logs:DeleteDestination",
+                "logs:DeleteLogGroup",
+                "logs:DeleteLogStream",
+                "logs:DeleteMetricFilter",
+                "logs:DeleteResourcePolicy",
+                "logs:DeleteSubscriptionFilter"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ProtectVPCFlowlogs",
+            "Effect": "Deny",
+            "Action": [
+                "ec2:DeleteFlowLogs",
+                "logs:DeleteLogGroup",
+                "logs:DeleteLogStream"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ProtectConfig",
+            "Effect": "Deny",
+            "Action": [
+                "config:Delete*",
+                "config:Stop*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ProtectGuardDuty",
+            "Effect": "Deny",
+            "Action": [
+                "guardduty:Disassociate*",
+                "guardduty:Delete*",
+                "guardduty:StopMonitoringMembers",
+                "guardduty:UpdateDetector"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "DenyServiceLocalInternet",
+            "Effect": "Deny",
+            "Action": [
+                "ec2:AttachInternetGateway",
+                "ec2:CreateInternetGateway",
+                "ec2:AttachEgressOnlyInternetGateway",
+                "ec2:CreateVpcPeeringConnection",
+                "ec2:AcceptVpcPeeringConnection"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "DenyServiceNATGW",
+            "Effect": "Deny",
+            "Action": [
+                "ec2:CreateNatGateway",
+                "ec2:DeleteNatGateway",
+                "ec2:DescribeNatGateways"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "DenyServiceSSO",
+            "Effect": "Deny",
+            "Action": [
+                "sso-directory:*"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "DenyServiceCloudDirectory",
+            "Effect": "Deny",
+            "Action": [
+                "clouddirectory:*"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "DenyServiceDirectConnect",
+            "Effect": "Deny",
+            "Action": [
+                "directconnect:*"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "DenyServiceDirectoryServices",
+            "Effect": "Deny",
+            "Action": [
+                "ds:*"
+            ],
+            "Resource": [
+                "*"
+            ]
+        }
+    ]
+}
