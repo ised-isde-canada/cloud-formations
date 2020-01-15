@@ -2,11 +2,6 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Effect": "Allow",
-            "Action": "*",
-            "Resource": "*"
-        },
-        {
             "Effect": "Deny",
             "Action": [
                 "config:Delete*",
@@ -19,6 +14,17 @@
             "Action": [
                 "cloudtrail:Delete*",
                 "cloudtrail:Stop*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ProtectGuardDuty",
+            "Effect": "Deny",
+            "Action": [
+                "guardduty:Disassociate*",
+                "guardduty:Delete*",
+                "guardduty:StopMonitoringMembers",
+                "guardduty:UpdateDetector"
             ],
             "Resource": "*"
         }
