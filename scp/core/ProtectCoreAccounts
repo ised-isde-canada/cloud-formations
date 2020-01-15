@@ -2,20 +2,6 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Effect": "Allow",
-            "Action": "*",
-            "Resource": "*"
-        },
-        {
-            "Sid": "ProtectCloudTrail",
-            "Effect": "Deny",
-            "Action": [
-                "cloudtrail:Delete*",
-                "cloudtrail:Stop*"
-            ],
-            "Resource": "*"
-        },
-        {
             "Sid": "ProtectCloudWatchLogs",
             "Effect": "Deny",
             "Action": [
@@ -30,26 +16,6 @@
                 "ec2:DeleteFlowLogs",
                 "logs:DeleteLogGroup",
                 "logs:DeleteLogStream"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "ProtectConfig",
-            "Effect": "Deny",
-            "Action": [
-                "config:Delete*",
-                "config:Stop*"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "ProtectGuardDuty",
-            "Effect": "Deny",
-            "Action": [
-                "guardduty:Disassociate*",
-                "guardduty:Delete*",
-                "guardduty:StopMonitoringMembers",
-                "guardduty:UpdateDetector"
             ],
             "Resource": "*"
         }
