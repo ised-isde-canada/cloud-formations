@@ -32,13 +32,7 @@
             "Sid": "ProtectCloudWatchLogs",
             "Effect": "Deny",
             "Action": [
-                "ec2:DeleteFlowLogs",
-                "logs:DeleteDestination",
-                "logs:DeleteLogGroup",
-                "logs:DeleteLogStream",
-                "logs:DeleteMetricFilter",
-                "logs:DeleteResourcePolicy",
-                "logs:DeleteSubscriptionFilter"
+                "logs:Delete*"
             ],
             "Resource": "*"
         }
