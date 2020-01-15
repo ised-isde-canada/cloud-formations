@@ -7,15 +7,6 @@
             "Resource": "*"
         },
         {
-            "Sid": "ProtectCloudTrail",
-            "Effect": "Deny",
-            "Action": [
-                "cloudtrail:Delete*",
-                "cloudtrail:Stop*"
-            ],
-            "Resource": "*"
-        },
-        {
             "Sid": "ProtectCloudWatchLogs",
             "Effect": "Deny",
             "Action": [
@@ -35,15 +26,6 @@
                 "ec2:DeleteFlowLogs",
                 "logs:DeleteLogGroup",
                 "logs:DeleteLogStream"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "ProtectConfig",
-            "Effect": "Deny",
-            "Action": [
-                "config:Delete*",
-                "config:Stop*"
             ],
             "Resource": "*"
         },
