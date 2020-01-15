@@ -1,0 +1,72 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "RestrictRegion",
+            "Effect": "Deny",
+            "NotAction": [
+                "support:*",
+                "trustedadvisor:*",
+                "budget:*",
+                "route53:*",
+                "route53domains:*",
+                "route53resolver:*",
+                "cloudfront:*",
+                "sts:*",
+                "s3:*",
+                "config:*",
+                "cloudwatch:*",
+                "SNS:*"
+            ],
+            "Resource": [
+                "*"
+            ],
+            "Condition": {
+                "ForAllValues:StringNotEquals": {
+                    "aws:RequestedRegion": [
+                        "ca-central-1",
+                        "us-east-1"
+                    ]
+                },
+                "StringNotLike": {
+                    "aws:PrincipalArn": [
+                        "arn:aws:iam::*:role/AWS-Landing-Zone-ConfigRecorderRole"
+                    ]
+                }
+            }
+        },
+        {
+            "Sid": "RestrictRegionUSEAST1",
+            "Effect": "Deny",
+            "NotAction": [
+                "iam:*",
+                "ses:*",
+                "support:*",
+                "trustedadvisor:*",
+                "budget:*",
+                "route53:*",
+                "route53domains:*",
+                "route53resolver:*",
+                "cloudfront:*",
+                "sts:*",
+                "s3:*",
+                "config:*",
+                "cloudwatch:*",
+                "SNS:*"
+            ],
+            "Resource": [
+                "*"
+            ],
+            "Condition": {
+                "ForAllValues:StringEquals": {
+                    "aws:RequestedRegion": "us-east-1"
+                },
+                "StringNotLike": {
+                    "aws:PrincipalArn": [
+                        "arn:aws:iam::*:role/AWS-Landing-Zone-ConfigRecorderRole"
+                    ]
+                }
+            }
+        }
+    ]
+}
