@@ -368,6 +368,9 @@ Resources:
         -
           Endpoint: "{{resolve:ssm:IsedCloudEmail:1}}"
           Protocol: "email"
+        -
+          Endpoint: "{{resolve:ssm:ITSecurityEmail:1}}"
+          Protocol: "email"
       TopicName: !Sub "${AWS::AccountId}-guardduty"
 
   SNSTopicPolicy:
