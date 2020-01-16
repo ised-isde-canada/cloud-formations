@@ -366,7 +366,10 @@ Resources:
       DisplayName: !Sub "${AWS::AccountId}-guardduty"
       Subscription: 
         -
-          Endpoint: "ic.isedawscloud-isdeawsinfonuagique.ic@canada.ca"
+          Endpoint: "{{resolve:ssm:IsedCloudEmail:1}}"
+          Protocol: "email"
+        -
+          Endpoint: "{{resolve:ssm:ITSecurityEmail:1}}"
           Protocol: "email"
       TopicName: !Sub "${AWS::AccountId}-guardduty"
 
@@ -504,8 +507,8 @@ Resources:
       TemplateURL: https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/s3.yaml
       Parameters:
         Name: guardduty
-        Access: GuardDuty
         KmsArn: !GetAtt EncryptionKey.Arn
+        S3BucketPolicy: GuardDuty
 
 Outputs:
   GuardDutyDetector:
