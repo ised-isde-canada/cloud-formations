@@ -2,7 +2,9 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Add Admin role trust with master
 # Version 1.2 - Add Nexus role for cots account
-Description: Template to create all required roles. Version 1.2
+# Version 1.3 - Added Backup role and DataLifeCycleManager role for RDS and EBS backups
+#             - Added 'Condtion' in 'Outputs' section related to NexusRole, otherwise deployment fails
+Description: Template to create all required roles. Version 1.3
 Conditions:
   IsNotMaster: !Not [!Equals [ !Ref "AWS::AccountId", 256255698049 ]]
   IsCotsAccount: !Equals [ !Ref "AWS::AccountId", 850605615431 ]
@@ -177,6 +179,41 @@ Resources:
                - "lambda:*"
                - "iam:PassRole"
                Resource: "*"
+  BackupRole:
+    Type: AWS::IAM::Role
+    Description: Provides AWS Backup permission to create backups and perform restores on your behalf across AWS services.
+    Properties:
+      RoleName: ised-backup-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - backup.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores
+      Path: /
+  DataLifecycleManagerRole:
+    Type: AWS::IAM::Role
+    Description: Provides AWS Data Lifecycle Manager to manage the lifecycle of your AWS resources. 
+    Properties:
+      RoleName: ised-backup-lifecycle-manager-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - dlm.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSDataLifecycleManagerServiceRole
+      Path: /
 Outputs:
   RoleLambdaExecution:
     Description: LambdaExecutionRole
@@ -205,17 +242,30 @@ Outputs:
     Export: 
       Name: AutomationRole
   NexusRole:
+    Condition: IsCotsAccount
     Description: NexusRole
     Value: !GetAtt NexusRole.Arn
     Export: 
       Name: NexusRole
   NexusVolumeTaggingPolicy:
+    Condition: IsCotsAccount
     Description: NexusVolumeTaggingPolicy
     Value: !Ref NexusVolumeTaggingPolicy
     Export: 
       Name: NexusVolumeTaggingPolicy
   EC2InstanceProfile:
+    Condition: IsCotsAccount
     Description: EC2InstanceProfile
     Value: !Ref EC2InstanceProfile
     Export: 
       Name: EC2InstanceProfile
+  BackupRole:
+    Description: BackupRole
+    Value: !GetAtt BackupRole.Arn
+    Export: 
+      Name: BackupRole
+  DataLifecycleManagerRole:
+    Description: DataLifecycleManagerRole
+    Value: !GetAtt DataLifecycleManagerRole.Arn
+    Export: 
+      Name: DataLifecycleManagerRole
