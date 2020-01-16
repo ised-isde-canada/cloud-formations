@@ -366,7 +366,7 @@ Resources:
       DisplayName: !Sub "${AWS::AccountId}-guardduty"
       Subscription: 
         -
-          Endpoint: "ic.isedawscloud-isdeawsinfonuagique.ic@canada.ca"
+          Endpoint: "{{resolve:ssm:IsedCloudEmail:1}}"
           Protocol: "email"
       TopicName: !Sub "${AWS::AccountId}-guardduty"
 
