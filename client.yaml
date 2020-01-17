@@ -250,6 +250,8 @@ Resources:
     Condition: IsEC2
     Properties:
       DisableApiTermination: false
+      IamInstanceProfile:
+        Fn::ImportValue: ManagedInstanceProfile
       InstanceInitiatedShutdownBehavior: stop
       EbsOptimized: true
       ImageId: !If [ IsEC2Restore, !Ref EC2Ami, !FindInMap [EC2OS, !Ref CreateEC2, EC2Ami] ]    
