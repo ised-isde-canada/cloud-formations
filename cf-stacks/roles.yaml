@@ -4,11 +4,63 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.2 - Add Nexus role for cots account
 # Version 1.3 - Added Backup role and DataLifeCycleManager role for RDS and EBS backups
 #             - Added 'Condtion' in 'Outputs' section related to NexusRole, otherwise deployment fails
-Description: Template to create all required roles. Version 1.3
+# Version 1.4 - Add generic ised-managed-instance-role with SSM and S3 permissions for EC2 patching
+Description: Template to create all required roles. Version 1.4
+
 Conditions:
   IsNotMaster: !Not [!Equals [ !Ref "AWS::AccountId", 256255698049 ]]
   IsCotsAccount: !Equals [ !Ref "AWS::AccountId", 850605615431 ]
 Resources:
+  ManagedInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ised-managed-instance-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "ec2.amazonaws.com"
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        # Role for patching
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  ManagedInstancePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref ManagedInstanceRole
+      PolicyName: ised-managed-instance-policy
+      # Permissions for the EC2 to write to the patching s3 bucket
+      # See: https://docs.aws.amazon.com/systems-manager/latest/userguide/setup-instance-profile.html#instance-profile-custom-s3-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "s3:GetObject"
+            Resource:
+              - "arn:aws:s3:::aws-ssm-ca-central-1/*"
+              - "arn:aws:s3:::aws-windows-downloads-ca-central-1/*"
+              - "arn:aws:s3:::amazon-ssm-ca-central-1/*"
+              - "arn:aws:s3:::amazon-ssm-packages-ca-central-1/*"
+              - "arn:aws:s3:::ca-central-1-birdwatcher-prod/*"
+              - "arn:aws:s3:::patch-baseline-snapshot-ca-central-1/*"
+          - Effect: "Allow"
+            Action:
+              - "s3:GetObject"
+              - "s3:PutObject"
+              - "s3:PutObjectAcl"
+              - "s3:GetEncryptionConfiguration"
+            Resource:
+              - !Join ['', ["arn:aws:s3:::", "{{resolve:ssm:S3BucketNamePrefix:1}}", "-", !Ref "AWS::AccountId", "-ec2patching/*" ]]
+              - !Join ['', ["arn:aws:s3:::", "{{resolve:ssm:S3BucketNamePrefix:1}}", "-", !Ref "AWS::AccountId", "-ec2patching/" ]]
+  ManagedInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: ised-managed-instance-profile
+      Roles:
+        - !Ref ManagedInstanceRole
   NexusRole:
     Type: AWS::IAM::Role
     Condition: IsCotsAccount
@@ -269,3 +321,13 @@ Outputs:
     Value: !GetAtt DataLifecycleManagerRole.Arn
     Export: 
       Name: DataLifecycleManagerRole
+  ManagedInstanceRole:
+    Description: ManagedInstanceRole
+    Value: !GetAtt ManagedInstanceRole.Arn
+    Export:
+      Name: ManagedInstanceRole
+  ManagedInstanceProfile:
+    Description: ManagedInstanceProfile
+    Value: !Ref ManagedInstanceProfile
+    Export:
+      Name: ManagedInstanceProfile
