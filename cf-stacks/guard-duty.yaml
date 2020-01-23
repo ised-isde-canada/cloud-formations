@@ -425,6 +425,7 @@ Resources:
     Type: AWS::KMS::Key
     Properties:
       Description: "Key used by GuardDuty to encrypt findings in S3"
+      EnableKeyRotation: True
       KeyPolicy:
         Version: "2012-10-17"
         Id: "key-consolepolicy-3"
