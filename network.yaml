@@ -1,10 +1,21 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 Description: Creates ingress and egress VPCs. Version 1.0
+Parameters:
+  TemplateVPC:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: TemplateVPC 
 Resources:
   ElbVpc:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: "{{resolve:ssm:TemplateVPC:1}}"
+      TemplateURL: !Ref TemplateVPC
       Parameters:
         Name: elb
+        Structure: Public
+        NumberAZ: "2"
+        Environment: dev
+        VPCCidrBlockAddress: 100.96.193.64
+        VPCCidrBlockSize: 27
+        TransitGateway: tgw-0fbd84557c80cd1ce
+
