@@ -575,6 +575,7 @@ Outputs:
       Name: !Join ['-', ["subnetc", !Ref Name, !Ref "Environment" ]]
   DBSubnetGroup:
     Description: DBSubnetGroup
+    Condition: HasSubnetA
     Value: !Ref DBSubnetGroup
     Export: 
       Name: !Join ['-', ["dbsubnet", !Ref Name, !Ref "Environment" ]]
