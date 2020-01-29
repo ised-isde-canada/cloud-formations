@@ -488,6 +488,7 @@ Resources:
       TransitGatewayId: !Ref TransitGateway
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
+    Condition: HasSubnetA
     Properties:
       DBSubnetGroupDescription: "DB Subnet Group"
       SubnetIds: !If [ HasAZ3, [!Ref SubnetA , !Ref SubnetB, !Ref SubnetC], !If [ HasAZ2, [!Ref SubnetA , !Ref SubnetB], [!Ref SubnetA] ] ]
