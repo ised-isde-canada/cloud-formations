@@ -521,18 +521,12 @@ Resources:
       VpcEndpointType: Gateway
       VpcId: !Ref VPC
 # Enable VPC Flow logs to central S3 bucket in the Log Archive account
-  VPCFlowLogRetention:
-    Type: AWS::Logs::LogGroup
-    DeletionPolicy: Retain
-    Properties: 
-      LogGroupName: !Join ['-', ["vpc-flow-log-group", !Ref "AWS::AccountId", !Ref Name, !Ref Environment ]]
-      RetentionInDays: 90
   VPCFlowLogs:
     Type: AWS::EC2::FlowLog
     DependsOn: VPCFlowLogRetention
     Properties:
       DeliverLogsPermissionArn: !ImportValue VPCFlowLogRole
-      LogGroupName: !Join ['-', ["vpc-log-group", !Ref "AWS::AccountId", !Ref Name, !Ref Environment ]]
+      LogGroupName: !Join ['-', ["vpc-flow-log-group", !Ref "AWS::AccountId" ]]
       ResourceId: !Ref VPC
       ResourceType: VPC
       TrafficType: ALL
