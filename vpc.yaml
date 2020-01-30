@@ -296,7 +296,7 @@ Resources:
         Value: !Ref "Environment"
   NATGatewayB:
     Type: AWS::EC2::NatGateway
-    Condition: HasNATGatewayC
+    Condition: HasNATGatewayB
     DependsOn: VPCInternetGatewayAttachment
     Properties:
       AllocationId: !GetAtt NATCEIP.AllocationId
@@ -441,7 +441,7 @@ Resources:
   RouteNATAOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayA
-    DependsOn: HasNATGatewayA
+    DependsOn: NATGatewayA
     Properties:
       RouteTableId: !Ref RouteTableA
       DestinationCidrBlock: 0.0.0.0/0
@@ -457,7 +457,7 @@ Resources:
   RouteNATBOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayB
-    DependsOn: HasNATGatewayB
+    DependsOn: NATGatewayB
     Properties:
       RouteTableId: !Ref RouteTableB
       DestinationCidrBlock: 0.0.0.0/0
@@ -473,7 +473,7 @@ Resources:
   RouteNATCOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayC
-    DependsOn: HasNATGatewayC
+    DependsOn: NATGatewayC
     Properties:
       RouteTableId: !Ref RouteTableC
       DestinationCidrBlock: 0.0.0.0/0
