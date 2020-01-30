@@ -2,9 +2,9 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 Description: Creates ingress and egress VPCs. Version 1.0
 Parameters:
-  TemplateVPC:
+  S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
-    Default: TemplateVPC 
+    Default: S3Templates 
 Resources:
   ElbVpc:
     Type: AWS::CloudFormation::Stack
