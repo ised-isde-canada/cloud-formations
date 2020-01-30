@@ -3,7 +3,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.1 - Added S3 bucket and Cots account parameter.
 # Version 1.2 - Added parameter that relate to Jira and AWS Account id
 # Version 1.3 - Added parameters for IT Security and ISED Cloud mailboxes
-Parameters:
+Resources:
   VPCFlowLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
