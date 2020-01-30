@@ -523,7 +523,6 @@ Resources:
 # Enable VPC Flow logs to central S3 bucket in the Log Archive account
   VPCFlowLogs:
     Type: AWS::EC2::FlowLog
-    DependsOn: VPCFlowLogRetention
     Properties:
       DeliverLogsPermissionArn: !ImportValue VPCFlowLogRole
       LogGroupName: !Join ['-', ["vpc-flow-log-group", !Ref "AWS::AccountId" ]]
