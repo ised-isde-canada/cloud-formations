@@ -422,7 +422,7 @@ Resources:
       RouteTableId: !Ref RouteTablePublic
       SubnetId: !Ref SubnetPubC
 # Routes  
-  RouteTablePublicOut:
+  RoutePublicOut:
     Type: AWS::EC2::Route
     Condition: HasSubnetPubA
     DependsOn: InternetGateway
@@ -430,15 +430,15 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       RouteTableId: !Ref RouteTablePublic
       GatewayId: !Ref InternetGateway
-  RouteTablePublicIn:
-    Type: AWS::EC2::Route
-    Condition: HasSubnetPubA
-    DependsOn: TransitGatewayAttachment
-    Properties:
-      DestinationCidrBlock: 100.96.192.0/20
-      RouteTableId: !Ref RouteTablePublic
-      GatewayId: !Ref TransitGateway
-  RouteTableAPrivateOut:
+  #RoutePublicIn:
+  #  Type: AWS::EC2::Route
+  #  Condition: HasSubnetPubA
+  #  DependsOn: TransitGatewayAttachment
+  #  Properties:
+  #    DestinationCidrBlock: 100.96.192.0/20
+  #    RouteTableId: !Ref RouteTablePublic
+  #    GatewayId: !Ref TransitGateway
+  RouteNATAOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayA
     DependsOn: HasNATGatewayA
@@ -446,7 +446,7 @@ Resources:
       RouteTableId: !Ref RouteTableA
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NATGatewayA
-  RouteTableAPrivateOut:
+  RouteTGAOut:
     Type: AWS::EC2::Route
     Condition: HasNoNATGatewayA
     DependsOn: TransitGatewayAttachment
@@ -454,7 +454,7 @@ Resources:
       RouteTableId: !Ref RouteTableA
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayId: !Ref TransitGateway
-  RouteTableBPrivateOut:
+  RouteNATBOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayB
     DependsOn: HasNATGatewayB
@@ -462,7 +462,7 @@ Resources:
       RouteTableId: !Ref RouteTableB
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NATGatewayB
-  RouteTableBPrivateOut:
+  RouteTGBOut:
     Type: AWS::EC2::Route
     Condition: HasNoNATGatewayB
     DependsOn: TransitGatewayAttachment
@@ -470,7 +470,7 @@ Resources:
       RouteTableId: !Ref RouteTableB
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayId: !Ref TransitGateway
-  RouteTableCPrivateOut:
+  RouteNATCOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayC
     DependsOn: HasNATGatewayC
@@ -478,7 +478,7 @@ Resources:
       RouteTableId: !Ref RouteTableC
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NATGatewayC
-  RouteTableCPrivateOut:
+  RouteTGCOut:
     Type: AWS::EC2::Route
     Condition: HasNoNATGatewayC
     DependsOn: TransitGatewayAttachment
