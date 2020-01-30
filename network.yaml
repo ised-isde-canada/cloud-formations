@@ -9,7 +9,7 @@ Resources:
   ElbVpc:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Ref TemplateVPC
+      TemplateURL: !Join [ !Ref TemplateVPC, "vpc.yaml" ]
       Parameters:
         Name: elb
         Structure: Public
