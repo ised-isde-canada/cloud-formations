@@ -294,13 +294,13 @@ Resources:
         Value: cops-aws
       - Key: ised-environment
         Value: !Ref "Environment"
-  NATGatewayB:
+  NATGatewayC:
     Type: AWS::EC2::NatGateway
-    Condition: HasNATGatewayB
+    Condition: HasNATGatewayC
     DependsOn: VPCInternetGatewayAttachment
     Properties:
       AllocationId: !GetAtt NATCEIP.AllocationId
-      SubnetId: !Ref SubnetPubB
+      SubnetId: !Ref SubnetPubC
       Tags:
       - Key: Name
         Value: !Join ['-', ["natgw", !Ref "AWS::AccountId", !Ref "Environment", !Ref "Name", !Select [ 2, !GetAZs ''] ] ]
