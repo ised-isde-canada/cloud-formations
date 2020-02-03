@@ -430,14 +430,14 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       RouteTableId: !Ref RouteTablePublic
       GatewayId: !Ref InternetGateway
-  #RoutePublicIn:
-  #  Type: AWS::EC2::Route
-  #  Condition: HasSubnetPubA
-  #  DependsOn: TransitGatewayAttachment
-  #  Properties:
-  #    DestinationCidrBlock: 100.96.192.0/20
-  #    RouteTableId: !Ref RouteTablePublic
-  #    GatewayId: !Ref TransitGateway
+  RoutePublicIn:
+    Type: AWS::EC2::Route
+    Condition: HasSubnetPubA
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 100.96.192.0/20
+      RouteTableId: !Ref RouteTablePublic
+      GatewayId: !Ref TransitGateway
   RouteNATAOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayA
