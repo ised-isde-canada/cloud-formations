@@ -228,7 +228,7 @@ Resources:
     Properties:
       Tags:
       - Key: Name
-        Value: !Join ['-', ["igw", !Ref "AWS::AccountId", !Ref "Environment", !Ref "Name" ] ]
+        Value: !Join ['-', ["igw", !Ref "AWS::AccountId", !Ref "Name", !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
@@ -613,32 +613,32 @@ Outputs:
     Export:
       Name: !Join ['-', ["sg-ec2-atlassian", !Ref "Environment" ]]
 # This is for backward compatibility
-  VPCOld:
-    Description: VPC
-    Value: !Ref VPC
-    Export: 
-      Name: !Join ['-', ["vpc", !Ref "Environment" ]]
-  VPCCidrBlockOld:
-    Description: VPCCidrBlock
-    Value: !GetAtt VPC.CidrBlock
-    Export: 
-      Name: !Join ['-', ["vpc-cidrblock", !Ref "Environment" ]]
-  SubnetAOld:
-    Description: SubnetA
-    Condition: HasSubnetA
-    Value: !Ref SubnetA  
-    Export: 
-      Name: !Join ['-', ["subneta", !Ref "Environment" ]]
-  SubnetBOld:
-    Description: SubnetB
-    Condition: HasSubnetB
-    Value: !Ref SubnetB
-    Export: 
-      Name: !Join ['-', ["subnetb", !Ref "Environment" ]]
-  DBSubnetGroup:
-    Description: DBSubnetGroup
-    Condition: HasSubnetA
-    Value: !Ref DBSubnetGroup
-    Export: 
-      Name: !Join ['-', ["dbsubnet", !Ref "Environment" ]]
+#  VPCOld:
+#    Description: VPC
+#    Value: !Ref VPC
+#    Export: 
+#      Name: !Join ['-', ["vpc", !Ref "Environment" ]]
+#  VPCCidrBlockOld:
+#    Description: VPCCidrBlock
+#    Value: !GetAtt VPC.CidrBlock
+#    Export: 
+#      Name: !Join ['-', ["vpc-cidrblock", !Ref "Environment" ]]
+#  SubnetAOld:
+#    Description: SubnetA
+#    Condition: HasSubnetA
+#    Value: !Ref SubnetA  
+#    Export: 
+#      Name: !Join ['-', ["subneta", !Ref "Environment" ]]
+#  SubnetBOld:
+#    Description: SubnetB
+#    Condition: HasSubnetB
+#    Value: !Ref SubnetB
+#    Export: 
+#      Name: !Join ['-', ["subnetb", !Ref "Environment" ]]
+#  DBSubnetGroup:
+#    Description: DBSubnetGroup
+#    Condition: HasSubnetA
+#    Value: !Ref DBSubnetGroup
+#    Export: 
+#      Name: !Join ['-', ["dbsubnet", !Ref "Environment" ]]
   

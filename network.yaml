@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Add Transit Gateway
-Description: Creates ingress and egress VPCs. Version 1.1
+# Version 1.2 - Add NAT VPC
+Description: Creates ingress and egress VPCs. Version 1.2
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -43,10 +44,22 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "vpc.yaml" ]]
       Parameters:
-        Name: !Join [ '', [network, elb ]]
+        Name: network-elb
         Structure: Public
         NumberAZ: "2"
         Environment: !Ref Environment
         VPCCidrBlockAddress: 100.96.193.64
+        VPCCidrBlockSize: 27
+  NatVpc:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: TransitGateway
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "vpc.yaml" ]]
+      Parameters:
+        Name: network-nat
+        Structure: Public-Private
+        NumberAZ: "2"
+        Environment: !Ref Environment
+        VPCCidrBlockAddress: 100.96.193.128
         VPCCidrBlockSize: 27
 
