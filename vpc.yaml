@@ -14,10 +14,6 @@ Metadata:
          - Environment
          - VPCCidrBlockAddress
          - VPCCidrBlockSize
-     - Label:
-         default: "VPC Connectivity"
-       Parameters:
-         - TransitGateway
     ParameterLabels:
       Name:
         default: "VPC Name"
@@ -27,8 +23,6 @@ Metadata:
         default: "Number of AZ"
       Environment:
         default: "Environment"
-      TransitGateway:
-        default: "Transit Gateway Id"
 Parameters:
   Name:
     Type: String
@@ -64,8 +58,6 @@ Parameters:
     - 27
     - 28
     Default: 26
-  TransitGateway:
-    Type: String
   S3BucketNamePrefix:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3BucketNamePrefix
@@ -142,7 +134,7 @@ Resources:
       AvailabilityZone: !Select [ 0, !GetAZs '']
       Tags:
       - Key: Name
-        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", "Private", !Select [ 0, !GetAZs ''] ] ]
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 0, !GetAZs ''], "private" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
@@ -158,7 +150,7 @@ Resources:
       AvailabilityZone: !Select [ 0, !GetAZs '']
       Tags:
       - Key: Name
-        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", "Public", !Select [ 0, !GetAZs ''] ] ]
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 0, !GetAZs ''], "public" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
@@ -174,7 +166,7 @@ Resources:
       AvailabilityZone: !Select [ 1, !GetAZs '']
       Tags:
       - Key: Name
-        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", "Private", !Select [ 1, !GetAZs ''] ] ]
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 1, !GetAZs ''], "private" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
@@ -190,7 +182,7 @@ Resources:
       AvailabilityZone: !Select [ 1, !GetAZs '']
       Tags:
       - Key: Name
-        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", "Public", !Select [ 0, !GetAZs ''] ] ]
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 1, !GetAZs ''], "public" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
@@ -206,7 +198,7 @@ Resources:
       AvailabilityZone: !Select [ 2, !GetAZs '']
       Tags:
       - Key: Name
-        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", "Private", !Select [ 2, !GetAZs ''] ] ]
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 2, !GetAZs ''], "private" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
@@ -222,7 +214,7 @@ Resources:
       AvailabilityZone: !Select [ 2, !GetAZs '']
       Tags:
       - Key: Name
-        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", "Public", !Select [ 0, !GetAZs ''] ] ]
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 2, !GetAZs ''], "public" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
@@ -316,7 +308,7 @@ Resources:
         Value: cops-aws
       - Key: ised-environment
         Value: !Ref "Environment"
-# Gateways resources
+ Gateways resources
   TransitGatewayAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
     Properties: 
@@ -606,6 +598,7 @@ Outputs:
       Name: !Join ['-', ["dbsubnet", !Ref Name, !Ref "Environment" ]]
   SecurityGroupAtlassianEC2:
     Description: Security Group for all Atlassian EC2s
+    Condition: IsCots
     Value: !Ref SecurityGroupAtlassianEC2
     Export:
       Name: !Join ['-', ["sg-ec2-atlassian", !Ref "Environment" ]]

@@ -110,3 +110,5 @@ Outputs:
   TransitGatewayId: #Outputs the Transit Gateway ID
     Description: The Transit Gateway ID
     Value: !Ref TransitGateway
+    Export: 
+      Name: !Join ['-', ["tgw", !Ref "Name", !Ref "Environment" ]]
