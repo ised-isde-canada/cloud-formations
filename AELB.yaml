@@ -1,0 +1,127 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Parameters:
+  SubnetAName:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet Identifier 
+  SubnetBName:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet Identifier 
+  S3BucketName:
+    Type: String
+    Description: Name of the S3 bucket
+    Default: ised-s3-355322244959-chendy-s3-test
+  CFTempateURL:
+    Type: String
+    Default: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/AELB-Lisenter-TargetGroup.yaml
+  CFTempateURL2:
+    Type: String
+    Default: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/AELB-certsListener.yaml
+  CFTempateURL3:
+    Type: String
+    Default: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/AELB-Lisenter-TargetGroup2.yaml
+  TargetTest:
+    Type: String
+  TargetTest2:
+    Type: String    
+
+
+  # VpcName:
+  #   Type: AWS::EC2::VPC::Id
+  #   Description: VPC Identifier
+
+# Conditions:
+#   CreateGroup2: !Not [!Equals [!Ref TargetTest2, ""]] 
+
+Resources:
+    AELB:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Properties:
+        LoadBalancerAttributes:
+          - Key: access_logs.s3.enabled
+            Value: true
+          - Key: access_logs.s3.bucket
+            # Value: ised-s3-355322244959-chendy-s3-test
+            Value: !Ref S3BucketName   
+        Name: !Join ['-', [!Ref 'AWS::StackName', 'AELB']]
+        Scheme: internal
+        Subnets: 
+          - !Ref SubnetAName
+          - !Ref SubnetBName
+        Type: application
+    
+    TargetAndListener:
+      Type: AWS::CloudFormation::Stack
+      Properties:
+        TemplateURL: !Ref CFTempateURL
+        Parameters:
+          # VPCId: !Ref VpcName
+          # TargetGroupName: !Ref TargetTest
+          AELBarn: !Ref AELB
+          ListenerPort: 80
+          RedirectingPort1: 443
+          RedirectingProtocol: HTTPS
+          RedirectinStatusCode1: HTTP_301
+          ListenerProtocol: HTTP
+      DependsOn: TargetAndListener2   
+
+    TargetAndListener2:
+      Type: AWS::CloudFormation::Stack
+      Properties:
+        TemplateURL: !Ref CFTempateURL2
+        Parameters:
+          AELBarn: !Ref AELB
+          ListenerPort: 443
+          ListenerProtocol: HTTPS
+      DependsOn: AELB 
+
+    TargetAndListener3:
+      # Condition: CreateGroup2
+      Type: AWS::CloudFormation::Stack
+      Properties:
+        TemplateURL: !Ref CFTempateURL3
+        Parameters:
+          # VPCId: !Ref VpcName
+          TargetGroupName: !Ref TargetTest2
+          AELBarn: !Ref AELB
+          ListenerPort: 443
+          RedirectingPort1: 443
+          RedirectingProtocol: HTTPS
+          RedirectinStatusCode1: HTTP_302
+          ListenerProtocol: HTTPS
+      DependsOn: AELB      
+
+
+    # LoadBalancerListener:
+    #   Type: AWS::ElasticLoadBalancingV2::Listener
+    #   Properties:
+    #     Certificates:
+    #       # - CertificateArn: arn:aws:acm:ca-central-1:355322244959:certificate/31a25bb4-37e5-45d8-a246-0364571e5bb2
+    #       - CertificateArn: !Ref mycert
+    #     LoadBalancerArn: !Ref AELB
+    #     Port: 443
+    #     Protocol: HTTPS
+    #     DefaultActions:
+    #       - Type: forward
+    #         TargetGroupArn: !Ref TargetGroup
+    #   DependsOn: mycert
+    # ListenerCert:
+    #   Type: AWS::ElasticLoadBalancingV2::ListenerCertificate
+    #   Properties: 
+    #     Certificates: 
+    #       - !Ref mycert
+    #     ListenerArn: !Ref LoadBalancerListener
+    #   DepondsOn: mycert
+
+    # TargetGroup:
+    #   Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    #   Properties:
+    #     Name: ck-targetgroup-test-2
+    #     VpcId: vpc-0bf5da9a0aaf66c66
+    #     Port: 443
+    #     Protocol: HTTPS
+    # mycert:
+    #   Type: AWS::CertificateManager::Certificate
+    #   Properties:
+    #     DomainName: ck.ised-isde.canada.ca
+    #     ValidationMethod: DNS

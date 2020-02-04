@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Parameters:
+  AELBarn:
+    Type: String
+  ListenerPort:
+    Type: String
+  RedirectingPort1:
+    Type: String
+  RedirectingProtocol:
+    Type: String    
+  RedirectinStatusCode1:
+    Type: String
+  ListenerProtocol:
+    Type: String
+
+
+Resources:
+    LoadBalancerListener:
+      Type: AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        LoadBalancerArn: !Ref AELBarn
+        Port: !Ref ListenerPort
+        Protocol: HTTP
+        DefaultActions:
+         - Type: redirect
+           RedirectConfig: 
+            Host: '#{host}'
+            Path: '/#{path}'
+            Port: 443
+            Protocol: "HTTPS"
+            Query: '#{query}'
+            StatusCode: HTTP_301
+      # DependsOn: mycert
+    
+    # TargetGroup:
+    #   Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    #   Properties:
+    #     Name: !Join ['-', [TargetGroupName,'Target-group']]
+    #     VpcId: !Ref VPCId
+    #     Port: 443
+    #     Protocol: HTTPS
+    #     TargetType: instance
+    #     Targets:
+    #       - Id: i-04322a19cfb951d5e
+    #         Port: 443
+
+
+    # mycert:
+    #   Type: AWS::CertificateManager::Certificate
+    #   Condition: CreateCerts
+    #   Properties:
+    #     DomainName: ck.ised-isde.canada.ca
+    #     ValidationMethod: DNS

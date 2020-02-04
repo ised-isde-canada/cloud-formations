@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+
+
+Parameters:
+  TargetGroupName:
+    Type: String
+    Default: ck-Target-Test
+  TargetPort:
+    Type: String
+    Default: 80
+  TargetProtocol:
+    Type: String
+    Default: HTTP
+  VPCId:
+    Type: String
+    Default: vpc-0bf5da9a0aaf66c66
+  TargetIp:
+    Type: String
+    Default: 100.96.206.24
+  PortNumber:
+    Type: String
+    Default: 8443
+
+
+
+Resources:
+   TargetGroup:
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      Properties:
+        Name: !Ref TargetGroupName
+        VpcId: !Ref VPCId
+        Port: !Ref TargetPort
+        Protocol: !Ref TargetProtocol
+        TargetType: ip
+        Targets:
+          - Id: !Ref TargetIp
+            Port: !Ref PortNumber

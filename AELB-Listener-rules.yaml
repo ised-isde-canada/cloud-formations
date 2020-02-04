@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+
+#Need to create listener rules for path /robots.txt
+#    Return fixed response 200
+#   Content-Type:text/plain
+#   Response body:# Fixed content served from ALB User-agent: * Disallow: /
+
+
+Parameters:
+  Host:
+    Type: String
+    Default: test.com
+  AELBListenerArn:                                                                                                                                                                                                                                                                                                                                                                                                       
+    Type: String
+    Default: arn:aws:elasticloadbalancing:ca-central-1:355322244959:listener/app/ck-elba-test-3432-AELB/9231bcb2995a7874/11f715eefb587555
+  PriorityNumber:
+    Type: String
+    Default: 1
+  AELBTargetGroupArn:
+    Type: String
+    Default: arn:aws:elasticloadbalancing:ca-central-1:355322244959:targetgroup/ck-test-tg/65f898b10ec2443e
+
+Resources:
+    LoadBalancerListenerRule:
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref AELBListenerArn
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref AELBTargetGroupArn
+        Conditions:
+          - HostHeaderConfig: 
+              Values:
+                - !Ref Host
+            Field: host-header
+        Priority: !Ref PriorityNumber
