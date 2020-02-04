@@ -323,7 +323,9 @@ Resources:
       - Key: ised-environment
         Value: !Ref Environment
       #List All Available Transit Gateways
-      TransitGatewayId: !Ref TransitGateway
+      TransitGatewayId: 
+        Fn::ImportValue: 
+          Fn::Sub:  "tgw-network-${Environment}"
       VpcId: !Ref VPC
 # Route Table
   RouteTableA:
@@ -435,7 +437,10 @@ Resources:
     Properties:
       DestinationCidrBlock: 100.96.192.0/20
       RouteTableId: !Ref RouteTablePublic
-      GatewayId: !Ref TransitGateway
+      GatewayId:
+        Fn::ImportValue: 
+          Fn::Sub:  "tgw-network-${Environment}"
+ !Ref TransitGateway
   RouteNATAOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayA
@@ -451,7 +456,9 @@ Resources:
     Properties:
       RouteTableId: !Ref RouteTableA
       DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId: !Ref TransitGateway
+      TransitGatewayId:
+        Fn::ImportValue: 
+          Fn::Sub:  "tgw-network-${Environment}"
   RouteNATBOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayB
@@ -467,7 +474,9 @@ Resources:
     Properties:
       RouteTableId: !Ref RouteTableB
       DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId: !Ref TransitGateway
+      TransitGatewayId:
+        Fn::ImportValue: 
+          Fn::Sub:  "tgw-network-${Environment}"
   RouteNATCOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayC
@@ -483,7 +492,9 @@ Resources:
     Properties:
       RouteTableId: !Ref RouteTableC
       DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId: !Ref TransitGateway
+      TransitGatewayId: 
+        Fn::ImportValue: 
+          Fn::Sub:  "tgw-network-${Environment}"
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Condition: HasSubnetA
