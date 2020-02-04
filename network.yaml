@@ -32,7 +32,7 @@ Resources:
       Parameters:
         Name: "network"
         Environment: !Ref Environment
-AutoAcceptSharedAttachments: "enable"
+        AutoAcceptSharedAttachments: "enable"
         DefaultRouteTableAssociation: "enable"
         DefaultRouteTablePropagation: "enable"
         DnsSupport: "enable"
@@ -43,7 +43,7 @@ AutoAcceptSharedAttachments: "enable"
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "vpc.yaml" ]]
       Parameters:
-        Name: !Join [ '', [!Ref Name, elb ]]
+        Name: !Join [ '', [network, elb ]]
         Structure: Public
         NumberAZ: "2"
         Environment: !Ref Environment
