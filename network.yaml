@@ -8,16 +8,11 @@ Metadata:
      - Label:
          default: "Network Configuration"
        Parameters:
-         - Name
          - Environment
     ParameterLabels:
-      Name:
-        default: "VPC Name"
       Environment:
         default: "Environment"
 Parameters:
-  Name:
-    Type: String
   Environment:
     Type: String
     Default: dev
@@ -26,7 +21,7 @@ Parameters:
       - uat
       - qa
       - prod
-  pS3Templates:
+  S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates 
 Resources:
@@ -35,17 +30,16 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "transit-gateway.yaml" ]]
       Parameters:
-        Name: !Ref Name
+        Name: "network"
         Environment: !Ref Environment
-        AmazonAsn: 65010
-        AutoAcceptSharedAttachments: "enable"
+AutoAcceptSharedAttachments: "enable"
         DefaultRouteTableAssociation: "enable"
         DefaultRouteTablePropagation: "enable"
         DnsSupport: "enable"
         VpnEcmpSupport: "enable"
   ElbVpc:
     Type: AWS::CloudFormation::Stack
-    DependsOn: !Ref TransitGateway
+    DependsOn: TransitGateway
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "vpc.yaml" ]]
       Parameters:
@@ -55,5 +49,4 @@ Resources:
         Environment: !Ref Environment
         VPCCidrBlockAddress: 100.96.193.64
         VPCCidrBlockSize: 27
-        TransitGateway: !Ref TransitGateway
 
