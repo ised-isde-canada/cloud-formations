@@ -308,7 +308,7 @@ Resources:
         Value: cops-aws
       - Key: ised-environment
         Value: !Ref "Environment"
- Gateways resources
+# Transit Gateways resources
   TransitGatewayAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
     Properties: 
