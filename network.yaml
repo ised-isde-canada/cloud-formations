@@ -1,21 +1,59 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: Creates ingress and egress VPCs. Version 1.0
+# Version 1.1 - Add Transit Gateway
+Description: Creates ingress and egress VPCs. Version 1.1
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+     - Label:
+         default: "Network Configuration"
+       Parameters:
+         - Name
+         - Environment
+    ParameterLabels:
+      Name:
+        default: "VPC Name"
+      Environment:
+        default: "Environment"
 Parameters:
-  S3Templates:
+  Name:
+    Type: String
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - uat
+      - qa
+      - prod
+  pS3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates 
 Resources:
+  TransitGateway:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "transit-gateway.yaml" ]]
+      Parameters:
+        Name: !Ref Name
+        Environment: !Ref Environment
+        AmazonAsn: 65010
+        AutoAcceptSharedAttachments: "enable"
+        DefaultRouteTableAssociation: "enable"
+        DefaultRouteTablePropagation: "enable"
+        DnsSupport: "enable"
+        VpnEcmpSupport: "enable"
   ElbVpc:
     Type: AWS::CloudFormation::Stack
+    DependsOn: !Ref TransitGateway
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "vpc.yaml" ]]
       Parameters:
-        Name: elb
+        Name: !Join [ '', [!Ref Name, elb ]]
         Structure: Public
         NumberAZ: "2"
-        Environment: dev
+        Environment: !Ref Environment
         VPCCidrBlockAddress: 100.96.193.64
         VPCCidrBlockSize: 27
-        TransitGateway: tgw-0fbd84557c80cd1ce
+        TransitGateway: !Ref TransitGateway
 

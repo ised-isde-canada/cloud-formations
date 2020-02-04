@@ -25,6 +25,8 @@ Metadata:
         default: "VPC Structure"
       NumberAZ:
         default: "Number of AZ"
+      Environment:
+        default: "Environment"
       TransitGateway:
         default: "Transit Gateway Id"
 Parameters:
@@ -70,6 +72,9 @@ Parameters:
   AccountIDLog:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDLog
+  AccountIDCots:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDCots       
 Conditions:
   HasAZ2: !Or [!Equals [ !Ref NumberAZ, "2" ], !Equals [ !Ref NumberAZ, "3" ]]
   HasAZ3: !Equals [ !Ref NumberAZ, "3" ]
@@ -90,6 +95,7 @@ Conditions:
   Has2Subnets: !Or [ !And [!Equals [ !Ref Structure, Public-Private ],!Equals [ !Ref NumberAZ, "1" ]] , !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "2" ]]] 
   Has4Subnets: !Or [ !And [!Equals [ !Ref Structure, Public-Private ],!Equals [ !Ref NumberAZ, "2" ]] , !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "4" ]]] 
   Has8Subnets: !And [!Equals [ !Ref Structure, Public-Private ], !Equals [ !Ref NumberAZ, "3" ]]
+  IsCots: !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCots ]
 Resources:
   SubFunction:
     Type: AWS::Lambda::Function
@@ -537,6 +543,32 @@ Resources:
       ResourceId: !Ref VPC
       ResourceType: VPC
       TrafficType: ALL
+# Attlassian related configuration
+  SecurityGroupAtlassianEC2:
+    Type: AWS::EC2::SecurityGroup
+    Condition: IsCots
+    Properties:
+      GroupDescription: "Atlassian EC2 Security Group"
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["sg-ec2-atlassian", !Ref Environment ] ]
+      - Key: ised-cost-centre
+        Value: cop-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+  IngressAtlassian:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: IsCots
+    Properties:
+      Description: Allow incoming connections between Atlassian COTS
+      GroupId: !Ref SecurityGroupAtlassianEC2
+      IpProtocol: tcp
+      FromPort: 0
+      ToPort: 65535
+      SourceSecurityGroupId: !Ref SecurityGroupAtlassianEC2
 Outputs:
   VPC:
     Description: VPC
@@ -572,3 +604,38 @@ Outputs:
     Value: !Ref DBSubnetGroup
     Export: 
       Name: !Join ['-', ["dbsubnet", !Ref Name, !Ref "Environment" ]]
+  SecurityGroupAtlassianEC2:
+    Description: Security Group for all Atlassian EC2s
+    Value: !Ref SecurityGroupAtlassianEC2
+    Export:
+      Name: !Join ['-', ["sg-ec2-atlassian", !Ref "Environment" ]]
+# This is for backward compatibility
+  VPCOld:
+    Description: VPC
+    Value: !Ref VPC
+    Export: 
+      Name: !Join ['-', ["vpc", !Ref "Environment" ]]
+  VPCCidrBlockOld:
+    Description: VPCCidrBlock
+    Value: !GetAtt VPC.CidrBlock
+    Export: 
+      Name: !Join ['-', ["vpc-cidrblock", !Ref "Environment" ]]
+  SubnetAOld:
+    Description: SubnetA
+    Condition: HasSubnetA
+    Value: !Ref SubnetA  
+    Export: 
+      Name: !Join ['-', ["subneta", !Ref "Environment" ]]
+  SubnetBOld:
+    Description: SubnetB
+    Condition: HasSubnetB
+    Value: !Ref SubnetB
+    Export: 
+      Name: !Join ['-', ["subnetb", !Ref "Environment" ]]
+  DBSubnetGroup:
+    Description: DBSubnetGroup
+    Condition: HasSubnetA
+    Value: !Ref DBSubnetGroup
+    Export: 
+      Name: !Join ['-', ["dbsubnet", !Ref "Environment" ]]
+  
