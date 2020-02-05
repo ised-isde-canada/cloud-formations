@@ -7,6 +7,10 @@ Parameters:
   SubnetBName:
     Type: AWS::EC2::Subnet::Id
     Description: Subnet Identifier 
+  SubnetCName:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet Identifier 
+    Default: ' '
   S3BucketName:
     Type: String
     Description: Name of the S3 bucket
@@ -24,14 +28,14 @@ Parameters:
     Type: String
   TargetTest2:
     Type: String    
+  NumberOfAz:
+    Type: String
+    Default: 2
+    AllowedPattern: '[2-3]'
 
+Conditions:
 
-  # VpcName:
-  #   Type: AWS::EC2::VPC::Id
-  #   Description: VPC Identifier
-
-# Conditions:
-#   CreateGroup2: !Not [!Equals [!Ref TargetTest2, ""]] 
+  Has3Az: !Equals [ !Ref NumberOfAz, 3 ]
 
 Resources:
     AELB:
@@ -48,6 +52,10 @@ Resources:
         Subnets: 
           - !Ref SubnetAName
           - !Ref SubnetBName
+          - Fn::If:
+            - Has3Az
+            - !Ref SubnetCName
+            - !Ref AWS::NoValue
         Type: application
     
     TargetAndListener:
@@ -74,54 +82,3 @@ Resources:
           ListenerPort: 443
           ListenerProtocol: HTTPS
       DependsOn: AELB 
-
-    TargetAndListener3:
-      # Condition: CreateGroup2
-      Type: AWS::CloudFormation::Stack
-      Properties:
-        TemplateURL: !Ref CFTempateURL3
-        Parameters:
-          # VPCId: !Ref VpcName
-          TargetGroupName: !Ref TargetTest2
-          AELBarn: !Ref AELB
-          ListenerPort: 443
-          RedirectingPort1: 443
-          RedirectingProtocol: HTTPS
-          RedirectinStatusCode1: HTTP_302
-          ListenerProtocol: HTTPS
-      DependsOn: AELB      
-
-
-    # LoadBalancerListener:
-    #   Type: AWS::ElasticLoadBalancingV2::Listener
-    #   Properties:
-    #     Certificates:
-    #       # - CertificateArn: arn:aws:acm:ca-central-1:355322244959:certificate/31a25bb4-37e5-45d8-a246-0364571e5bb2
-    #       - CertificateArn: !Ref mycert
-    #     LoadBalancerArn: !Ref AELB
-    #     Port: 443
-    #     Protocol: HTTPS
-    #     DefaultActions:
-    #       - Type: forward
-    #         TargetGroupArn: !Ref TargetGroup
-    #   DependsOn: mycert
-    # ListenerCert:
-    #   Type: AWS::ElasticLoadBalancingV2::ListenerCertificate
-    #   Properties: 
-    #     Certificates: 
-    #       - !Ref mycert
-    #     ListenerArn: !Ref LoadBalancerListener
-    #   DepondsOn: mycert
-
-    # TargetGroup:
-    #   Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    #   Properties:
-    #     Name: ck-targetgroup-test-2
-    #     VpcId: vpc-0bf5da9a0aaf66c66
-    #     Port: 443
-    #     Protocol: HTTPS
-    # mycert:
-    #   Type: AWS::CertificateManager::Certificate
-    #   Properties:
-    #     DomainName: ck.ised-isde.canada.ca
-    #     ValidationMethod: DNS
