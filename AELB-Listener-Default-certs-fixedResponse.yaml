@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Parameters:
+  AELBarn:
+    Type: String
+    Default: arn:aws:elasticloadbalancing:ca-central-1:355322244959:loadbalancer/app/ck-elb-test-4-AELB/4cea230a124b3610
+  ListenerPort:
+    Type: String
+    # AllowedPattern: '[/d]'
+  ListenerProtocol:
+    Type: String
+    AllowedValues:
+      - HTTPS
+      - HTTP
+      - TCP
+  CertDomainName:
+    Type: String
+    Default: new.ised-isde.canada.ca
+  DefaultType:
+    Type: String
+    AllowedValues: 
+      - fixed-response
+      - redirect
+      - forward
+  RedirectingPort:
+    Type: String
+  RedirectingProtocol:
+    Type: String  
+  RedirectingHost:
+    Type: String
+    Default: '#{host}'
+  # RedirectinStatusCode:
+  #   Type: String
+  TargetType:
+    Type: String
+    AllowedValues:
+      - ip
+      - instance
+
+
+
+
+Conditions: 
+  DefaultIsFixed: !Equals [!Ref DefaultType, "fixed-response"]
+  CreateCerts: !Equals [!Ref ListenerPort, "443"]
+  DefaultIsFixedAndCreateCerts: !And
+        - !Condition DefaultIsFixed
+        - !Condition CreateCerts
+  DefaultIsFixedAndNoCreateCerts: !And
+        - !Condition DefaultIsFixed
+        - !Not [!Condition CreateCerts]
+  DefaultisRedirect: !Equals [!Ref DefaultType, "redirect"]
+  DefaultIsForward: !Equals [!Ref DefaultType, "forward"]
+
+  #TargetType condition
+  TargetTypeIsIp: !Equals [!Ref TargetType, "ip"]
+  DefaultIsForwardAndTargetTypeisIp
+  !And
+      - !Condition DefaultIsForward 
+      - !Condition DefaultIsForward
+
+Resources:
+
+    LoadBalancerListenerDefaltIsFixedCreateCerts:
+      Condition: DefaultIsFixedAndCreateCerts
+      Type: AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        Certificates:
+          - CertificateArn:  !Ref mycert
+        LoadBalancerArn: !Ref AELBarn
+        Port: !Ref ListenerPort
+        Protocol: !Ref ListenerProtocol
+        DefaultActions:
+         - Type: fixed-response
+           FixedResponseConfig: 
+            ContentType: text/plain
+            StatusCode: 503
+      DependsOn: mycert
+
+    LoadBalancerListenerDefaltIsFixedNoCerts:
+      Condition: DefaultIsFixedAndNoCreateCerts
+      Type: AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        LoadBalancerArn: !Ref AELBarn
+        Port: !Ref ListenerPort
+        Protocol: !Ref ListenerProtocol
+        DefaultActions:
+         - Type: fixed-response
+           FixedResponseConfig: 
+            ContentType: text/plain
+            StatusCode: 503
+    
+    mycert:
+      Condition: CreateCerts
+      Type: AWS::CertificateManager::Certificate
+      Properties:
+        DomainName: !Ref CertDomainName
+        ValidationMethod: DNS
+
+    LoadBalancerListenerDefaltIsRedirect:
+      Condition: DefaultisRedirect
+      Type: AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        LoadBalancerArn: !Ref AELBarn
+        Port: !Ref ListenerPort
+        Protocol: !Ref ListenerProtocol
+        DefaultActions:
+         - Type: redirect
+           RedirectConfig: 
+            Host: !Ref RedirectingHost
+            Path: '/#{path}'
+            Port: !Ref RedirectingPort
+            Protocol: !Ref RedirectingProtocol
+            Query: '#{query}'
+            StatusCode: HTTP_301
+
+    LoadBalancerListenerDefaultIsForward:
+      Condition: DefaultIsForward
+      Type: AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        LoadBalancerArn: !Ref AELBarn
+        Port: !Ref ListenerPort
+        Protocol: !Ref ListenerProtocol
+        DefaultActions:
+          - Type: forward
+            TargetGroupArn: !Ref TargetGroup
+      DependsOn:  CreateTargetGroup
+
+    CreateTargetGroup:
+      Condition: DefaultIsForward 
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      Properties:
+        Name: !Ref TargetGroupName
+        VpcId: !Ref VPCId
+        Port: !Ref TargetPort
+        Protocol: !Ref TargetProtocol
+        TargetType: ip
+        Targets:
+          - Id: !Ref TargetIp
+            Port: !Ref PortNumber
