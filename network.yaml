@@ -10,9 +10,12 @@ Metadata:
          default: "Network Configuration"
        Parameters:
          - Environment
+         - AmazonAsn
     ParameterLabels:
       Environment:
         default: "Environment"
+      AmazonAsn:
+        default: Amazon Side ASN
 Parameters:
   Environment:
     Type: String
@@ -22,6 +25,12 @@ Parameters:
       - uat
       - qa
       - prod
+  AmazonAsn: # Amazon side BGP ASN
+    Type: String
+    Description: A private Autonomous System Number (ASN) for the Amazon side of a BGP session.
+    MinLength: 5
+    MaxLength: 10
+    ConstraintDescription: The range is 64512 to 65534 for 16-bit ASNs and 4200000000 to 4294967294 for 32-bit ASNs.
   S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates 
@@ -33,6 +42,7 @@ Resources:
       Parameters:
         Name: "network"
         Environment: !Ref Environment
+        AmazonAsn: !Ref AmazonAsn
         AutoAcceptSharedAttachments: "enable"
         DefaultRouteTableAssociation: "enable"
         DefaultRouteTablePropagation: "enable"
@@ -60,6 +70,6 @@ Resources:
         Structure: Public-Private
         NumberAZ: "2"
         Environment: !Ref Environment
-        VPCCidrBlockAddress: 100.96.193.128
+        VPCCidrBlockAddress: 100.96.193.96
         VPCCidrBlockSize: 27
 

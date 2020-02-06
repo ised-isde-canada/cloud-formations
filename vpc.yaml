@@ -85,7 +85,7 @@ Conditions:
   HasNoNATGatewayC: !And [!Condition HasNoNATGatewayA, !Condition HasAZ3 ]
   Has1Subnet: !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "1" ]]
   Has2Subnets: !Or [ !And [!Equals [ !Ref Structure, Public-Private ],!Equals [ !Ref NumberAZ, "1" ]] , !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "2" ]]] 
-  Has4Subnets: !Or [ !And [!Equals [ !Ref Structure, Public-Private ],!Equals [ !Ref NumberAZ, "2" ]] , !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "4" ]]] 
+  Has4Subnets: !Or [ !And [!Equals [ !Ref Structure, Public-Private ],!Equals [ !Ref NumberAZ, "2" ]] , !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "3" ]]] 
   Has8Subnets: !And [!Equals [ !Ref Structure, Public-Private ], !Equals [ !Ref NumberAZ, "3" ]]
   IsCots: !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCots ]
 Resources:
@@ -146,7 +146,8 @@ Resources:
     Condition: HasSubnetPubA
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: !Select [ !If [ HasSubnetA, !If [ HasAZ3, 3, !If [ HasAZ3, 2, 1 ] ], 0 ], !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has8Subnets, 8, !If [ Has4Subnets, 4, !If [ Has2Subnets, 2, 1 ] ] ], !GetAtt SubnetCidrBlockSize.Value ] ]
+#      CidrBlock: !Select [ !If [ HasSubnetA, !If [ HasAZ3, 3, !If [ HasAZ2, 2, 1 ] ], 0 ], !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has8Subnets, 8, !If [ Has4Subnets, 4, !If [ Has2Subnets, 2, 1 ] ] ], !GetAtt SubnetCidrBlockSize.Value ] ]
+      CidrBlock: !Select [ 2, !Cidr [ !GetAtt VPC.CidrBlock, 4, !GetAtt SubnetCidrBlockSize.Value ] ]
       AvailabilityZone: !Select [ 0, !GetAZs '']
       Tags:
       - Key: Name
