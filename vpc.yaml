@@ -146,7 +146,7 @@ Resources:
     Condition: HasSubnetPubA
     Properties:
       VpcId: !Ref VPC
-#      CidrBlock: !Select [ !If [ HasSubnetA, !If [ HasAZ3, 3, !If [ HasAZ2, 2, 1 ] ], 0 ], !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has8Subnets, 8, !If [ Has4Subnets, 4, !If [ Has2Subnets, 2, 1 ] ] ], !GetAtt SubnetCidrBlockSize.Value ] ]
+      CidrBlock: !Select [ !If [ HasSubnetA, !If [ HasAZ3, 3, !If [ HasAZ2, 2, 1 ] ], 0 ], !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has8Subnets, 8, !If [ Has4Subnets, 4, !If [ Has2Subnets, 2, 1 ] ] ], !GetAtt SubnetCidrBlockSize.Value ] ]
       CidrBlock: !Select [ 2, !Cidr [ !GetAtt VPC.CidrBlock, 4, !GetAtt SubnetCidrBlockSize.Value ] ]
       AvailabilityZone: !Select [ 0, !GetAZs '']
       Tags:
