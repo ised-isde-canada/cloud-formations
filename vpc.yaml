@@ -458,6 +458,16 @@ Resources:
       TransitGatewayId:
         Fn::ImportValue: 
           Fn::Sub:  "tgw-network-${Environment}"
+  RouteAIn:
+    Type: AWS::EC2::Route
+    Condition: HasNATGatewayA
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 100.96.192.0/20
+      RouteTableId: !Ref RouteTableA
+      TransitGatewayId:
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-network-${Environment}"
   RouteNATBOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayB
@@ -476,6 +486,16 @@ Resources:
       TransitGatewayId:
         Fn::ImportValue: 
           Fn::Sub:  "tgw-network-${Environment}"
+  RouteAIn:
+    Type: AWS::EC2::Route
+    Condition: HasNATGatewayB
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 100.96.192.0/20
+      RouteTableId: !Ref RouteTableB
+      TransitGatewayId:
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-network-${Environment}"
   RouteNATCOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayC
@@ -494,6 +514,16 @@ Resources:
       TransitGatewayId: 
         Fn::ImportValue: 
           Fn::Sub:  "tgw-network-${Environment}"
+  RouteAIn:
+    Type: AWS::EC2::Route
+    Condition: HasNATGatewayC
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 100.96.192.0/20
+      RouteTableId: !Ref RouteTableC
+      TransitGatewayId:
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-network-${Environment}"
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Condition: HasSubnetA
