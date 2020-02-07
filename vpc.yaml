@@ -437,7 +437,7 @@ Resources:
     Properties:
       DestinationCidrBlock: 100.96.192.0/20
       RouteTableId: !Ref RouteTablePublic
-      GatewayId:
+      TransitGatewayId:
         Fn::ImportValue: 
           Fn::Sub: "tgw-network-${Environment}"
   RouteNATAOut:
