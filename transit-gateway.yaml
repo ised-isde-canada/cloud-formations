@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 # Version 1.0 - Initial version
-Description: CloudFormation script for deployment of a Transit Gateway. Version 1.0
+# Version 1.1 - Add Transit Gateway Route Table
+Description: CloudFormation script for deployment of a Transit Gateway. Version 1.1
 Metadata: # Metadata Section
   AWS::CloudFormation::Interface:
     ParameterGroups: # Parameter Groups
@@ -106,9 +107,27 @@ Resources: # CloudFormation Resources
         - Key: ised-environment
           Value: !Ref Environment
       VpnEcmpSupport: !Ref VpnEcmpSupport
+  TransitGatewayRouteTable:
+    Type: AWS::EC2::TransitGatewayRouteTable
+    Properties:
+      TransitGatewayId: !Ref TransitGateway
+      Tags:
+        - Key: Name
+          Value: !Join ['-', ["tgw-rt", !Ref Name, !Ref Environment ] ]
+        - Key: ised-cost-centre
+          Value: cop-rdad
+        - Key: ised-project-id
+          Value: cops-aws
+        - Key: ised-environment
+          Value: !Ref Environment
 Outputs:
   TransitGatewayId: #Outputs the Transit Gateway ID
     Description: The Transit Gateway ID
     Value: !Ref TransitGateway
     Export: 
       Name: !Join ['-', ["tgw", !Ref "Name", !Ref "Environment" ]]
+  TransitGatewayRouteTable: #Outputs the Transit Gateway ID
+    Description: The Transit Gateway Route Table
+    Value: !Ref TransitGatewayRouteTable
+    Export: 
+      Name: !Join ['-', ["tgw-rt", !Ref "Name", !Ref "Environment" ]]
