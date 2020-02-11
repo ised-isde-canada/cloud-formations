@@ -1,0 +1,22 @@
+#!/bin/bash
+# ./add-account 989542793996
+
+echo Adding ised-secrets
+aws cloudformation create-stack-instances --stack-set-name ised-secrets --accounts $1 --regions ca-central-1
+until aws cloudformation describe-stack-instance --stack-set-name ised-secrets --stack-instance-account $1 --stack-instance-region ca-central-1 | grep -m 1 "CURRENT"; do sleep 1 ; done
+echo Adding ised-roles
+aws cloudformation create-stack-instances --stack-set-name ised-roles --accounts $1 --regions ca-central-1
+until aws cloudformation describe-stack-instance --stack-set-name ised-roles --stack-instance-account $1 --stack-instance-region ca-central-1 | grep -m 1 "CURRENT"; do sleep 1 ; done
+
+echo Adding ised-cloud-watch
+aws cloudformation create-stack-instances --stack-set-name ised-cloud-watch --accounts $1 --regions ca-central-1
+echo Adding ised-guard-duty
+aws cloudformation create-stack-instances --stack-set-name ised-guard-duty --accounts $1 --regions ca-central-1
+echo Adding ised-s3-log
+aws cloudformation create-stack-instances --stack-set-name ised-s3-log --accounts $1 --regions ca-central-1
+echo Adding ised-backup
+aws cloudformation create-stack-instances --stack-set-name ised-backup --accounts $1 --regions ca-central-1
+echo Adding ised-config
+aws cloudformation create-stack-instances --stack-set-name ised-config --accounts $1 --regions ca-central-1
+echo Adding ised-ec2-patching
+aws cloudformation create-stack-instances --stack-set-name ised-ec2-patching --accounts $1 --regions ca-central-1
