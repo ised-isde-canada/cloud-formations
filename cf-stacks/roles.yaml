@@ -8,7 +8,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.5 - Update to use Parameter Store
 Description: Template to create all required roles. Version 1.5
 Conditions:
-  IsNotMaster: !Not [!Equals  !Ref "AWS::AccountId", !Ref AccountIDMaster ]]
+  IsNotMaster: !Not [!Equals [ !Ref "AWS::AccountId", !Ref AccountIDMaster ]]
   IsCotsAccount: !Or [ !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCots ] , !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCotsDev ]]
   IsOpenShiftAccount: !Or [ !Equals [ !Ref "AWS::AccountId", !Ref OpenShiftAccountID ] , !Equals [ !Ref "AWS::AccountId", !Ref OpenShiftDevAccountID ], !Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ]]
 Resources:
