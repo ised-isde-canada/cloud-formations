@@ -2,35 +2,25 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 Parameters:
   SubnetAName:
-    Type: AWS::EC2::Subnet::Id
+    # Type: AWS::EC2::Subnet::Id
+    Type: String
     Description: Subnet Identifier 
   SubnetBName:
-    Type: AWS::EC2::Subnet::Id
-    Description: Subnet Identifier 
+    # Type: AWS::EC2::Subnet::Id
+    Type: String
+    Description: Subnet Identifier
   SubnetCName:
-    Type: AWS::EC2::Subnet::Id
+    # Type: AWS::EC2::Subnet::Id
+    Type: String
     Description: Subnet Identifier 
-    Default: 'Not selected'
+    # Default: 'Not selected'
   S3BucketName:
     Type: String
     Description: Name of the S3 bucket
-    Default: ised-s3-355322244959-chendy-s3-test
   CertsDomainNameParam:
     Type: String
-    Default: new.ised-isde.canada.ca
-  CFTempateURLDefaultFixedResponse:
+  CFTempateURLDefaultAction:
     Type: String
-    Default: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/AELB-Listener-Default-certs-fixedResponse.yaml
-  # CFTempateURL2:
-  #   Type: String
-  #   Default: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/AELB-certsListener.yaml
-  # CFTempateURL3:
-  #   Type: String
-  #   Default: https://ised-s3-355322244959-chendy-s3-test.s3.ca-central-1.amazonaws.com/CF/AELB-Lisenter-TargetGroup2.yaml
-  # TargetTest:
-  #   Type: String
-  # TargetTest2:
-  #   Type: String    
   NumberOfAz:
     Type: String
     Default: 2
@@ -64,24 +54,27 @@ Resources:
     CreateListener443DefaultFixedResponse:
       Type: AWS::CloudFormation::Stack
       Properties:
-        TemplateURL: !Ref CFTempateURLDefaultFixedResponse
+        TemplateURL: !Ref CFTempateURLDefaultAction
         Parameters:
           AELBarn: !Ref AELB
+          DefaultType: "fixed-response"
           ListenerPort: 443
           ListenerProtocol: HTTPS
           CertDomainName: !Ref CertsDomainNameParam
+          CreateRobotTxtParam: "true"
+          RedirectingProtocol: " "
+          TargetTypeParam: " "
+          TargetGroupPort: " "
+          TargetGroupVPCId: " "
+          TargetGroupProtocol: " "
+          TargetIp: " "
+          TargetPortNumber: " "
+          RedirectingPort: " "
+          TargetGroupName: " "
+          PriorityParam: 1
+
       DependsOn: AELB 
     
-    CreateListenerxxx1DefaultRedirect:
-      Type: AWS::CloudFormation::Stack
-      Properties:
-        TemplateURL: !Ref CFTempateURLDefaultFixedResponse
-        Parameters:
-          AELBarn: !Ref AELB
-          ListenerPort: 443
-          ListenerProtocol: HTTPS
-          CertDomainName: !Ref CertsDomainNameParam
-      DependsOn: AELB 
 
 Outputs:
   TestCondition:
@@ -91,20 +84,3 @@ Outputs:
       - Has3Az
       - "It Has 3AZ"
       - "Does not have 3Az"
-
-    # TargetAndListener:
-    #   Type: AWS::CloudFormation::Stack
-    #   Properties:
-    #     TemplateURL: !Ref CFTempateURL
-    #     Parameters:
-    #       # VPCId: !Ref VpcName
-    #       # TargetGroupName: !Ref TargetTest
-    #       AELBarn: !Ref AELB
-    #       ListenerPort: 80
-    #       RedirectingPort1: 443
-    #       RedirectingProtocol: HTTPS
-    #       RedirectinStatusCode1: HTTP_301
-    #       ListenerProtocol: HTTP
-    #   DependsOn: TargetAndListener2   
-
-
