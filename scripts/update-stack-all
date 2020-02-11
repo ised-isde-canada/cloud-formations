@@ -1,0 +1,5 @@
+#!/bin/bash
+# ./update-stack secret
+
+aws cloudformation update-stack-set --stack-set-name ised-secrets --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/secrets.yaml --parameters file:./../cf-parameters/secrets.json --accounts "file://c:\Users\przybyla\OneDrive - ISED-ISDE\AWS\cf\scripts\accounts.json" --regions ca-central-1
+aws cloudformation update-stack-set --stack-set-name ised-s3-log --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/s3-log.yaml --parameters "file://c:\Users\przybyla\OneDrive - ISED-ISDE\AWS\cf\cf-parameters\\"s3-log.json --accounts "file://c:\Users\przybyla\OneDrive - ISED-ISDE\AWS\cf\scripts\accounts.json" --regions ca-central-1
