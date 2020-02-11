@@ -1,0 +1,4 @@
+#!/bin/bash
+# ./update-stack 
+
+aws cloudformation update-stack-set --stack-set-name $1 --template-body  "file://c:\Users\przybyla\OneDrive - ISED-ISDE\AWS\cf\cf-stacks\secrets.yaml" --parameters "file://c:\Users\przybyla\OneDrive - ISED-ISDE\AWS\cf\cf-stacks\secrets.json" --accounts "file://c:\Users\przybyla\OneDrive - ISED-ISDE\AWS\cf\scripts\accounts.json" --regions ca-central-1
