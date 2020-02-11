@@ -2,11 +2,15 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Link to s3 template, use System Manager
 Description: Template to create the log S3 Bucket. Version 1.1
+Parameters:
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates 
 Resources:
   S3LogBucket:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: "{{resolve:ssm:TemplateS3:1}}"
+      TemplateURL: !Join [ '', [!Ref S3Templates, "s3.yaml" ]]
       Parameters:
         Name: log
         S3BucketPolicy: Local
