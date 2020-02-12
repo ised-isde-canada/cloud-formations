@@ -1,28 +1,120 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: Target Group Parameter
+        Parameters:
+          - TargetGroupName
+          - TargetGroupPort
+          - TargetGroupProtocol
+          - VPCId
+          - TargetTypeParam
+      -
+        Label: 
+          default: Target 1
+        Parameters:
+          - TargetIpOrInstance
+          - AvailabilityZoneParam
+          - TargetPortNumber
+      -
+        Label: 
+          default: Target 2
+        Parameters:
+          - TargetIpOrInstance2
+          - AvailabilityZoneParam2
+          - TargetPortNumber2          
+
+      -
+        Label: 
+          default: Target 3
+        Parameters:
+          - TargetIpOrInstance3
+          - AvailabilityZoneParam3
+          - TargetPortNumber3              
+
+      -
+        Label: 
+          default: Target 4
+        Parameters:
+          - TargetIpOrInstance4
+          - AvailabilityZoneParam4
+          - TargetPortNumber4      
+
+      -
+        Label: 
+          default: Target 5
+        Parameters:
+          - TargetIpOrInstance5
+          - AvailabilityZoneParam5
+          - TargetPortNumber5                                        
+ 
 
 Parameters:
   TargetGroupName:
     Type: String
     Default: ck-Target-Test
-  TargetPort:
+    Description: Name of the Target Group
+  TargetGroupPort:
     Type: String
     Default: 80
-  TargetProtocol:
+    Description: The port on which the targets receive traffic. This port is used unless you specify a port override when registering the target.
+  TargetGroupProtocol:
     Type: String
     Default: HTTP
+    Description: Option are HTTP or HTTPS
   VPCId:
     Type: String
     Default: vpc-0bf5da9a0aaf66c66
-  TargetIp:
+  TargetIpOrInstance:
     Type: String
     Default: 100.96.206.24
-  PortNumber:
+  AvailabilityZoneParam:
+    Type: String
+    Default: ca-central-1a
+  TargetPortNumber:
     Type: String
     Default: 8443
+  TargetTypeParam:
+    Type: String
+    Description: ip or instance
 
+  TargetIpOrInstance2:
+    Type: String
+  TargetPortNumber2:
+    Type: String
+  AvailabilityZoneParam2:
+    Type: String
 
+  TargetIpOrInstance3:
+    Type: String
+  TargetPortNumber3:
+    Type: String
+  AvailabilityZoneParam3:
+    Type: String
+ 
+  TargetIpOrInstance4:
+    Type: String
+  TargetPortNumber4:
+    Type: String
+  AvailabilityZoneParam4:
+    Type: String
+
+  TargetIpOrInstance5:
+    Type: String
+  TargetPortNumber5:
+    Type: String
+  AvailabilityZoneParam5:
+    Type: String    
+
+Conditions:
+  Has2Target: !Not [!Equals [!Ref TargetIpOrInstance2, '']]
+  Has3Target: !Not [!Equals [!Ref TargetIpOrInstance3, '']]
+  Has4Target: !Not [!Equals [!Ref TargetIpOrInstance4, '']]
+  Has5Target: !Not [!Equals [!Ref TargetIpOrInstance5, '']]
 
 Resources:
    TargetGroup:
@@ -30,9 +122,34 @@ Resources:
       Properties:
         Name: !Ref TargetGroupName
         VpcId: !Ref VPCId
-        Port: !Ref TargetPort
-        Protocol: !Ref TargetProtocol
-        TargetType: ip
+        Port: !Ref TargetGroupPort
+        Protocol: !Ref TargetGroupProtocol
+        TargetType: !Ref TargetTypeParam
         Targets:
-          - Id: !Ref TargetIp
-            Port: !Ref PortNumber
+          - Id: !Ref TargetIpOrInstance
+            Port: !Ref TargetPortNumber
+            AvailabilityZone: !Ref AvailabilityZoneParam
+          - Fn::If:
+            - Has2Target
+            - Id: !Ref TargetIpOrInstance2
+              Port: !Ref TargetPortNumber2
+              AvailabilityZone: !Ref AvailabilityZoneParam2
+            - !Ref AWS::NoValue
+          - Fn::If:
+            - Has3Target
+            - Id: !Ref TargetIpOrInstance3
+              Port: !Ref TargetPortNumber3
+              AvailabilityZone: !Ref AvailabilityZoneParam3
+            - !Ref AWS::NoValue         
+          - Fn::If:
+            - Has4Target
+            - Id: !Ref TargetIpOrInstance4
+              Port: !Ref TargetPortNumber4
+              AvailabilityZone: !Ref AvailabilityZoneParam4
+            - !Ref AWS::NoValue                
+          - Fn::If:
+            - Has5Target
+            - Id: !Ref TargetIpOrInstance5
+              Port: !Ref TargetPortNumber5
+              AvailabilityZone: !Ref AvailabilityZoneParam5
+            - !Ref AWS::NoValue          

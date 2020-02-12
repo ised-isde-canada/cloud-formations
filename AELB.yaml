@@ -4,11 +4,13 @@ Parameters:
   SubnetAName:
     # Type: AWS::EC2::Subnet::Id
     Type: String
-    Description: Subnet Identifier 
+    Description: Subnet Identifier
+    Default: subnet-00c09151ad1c9a337
   SubnetBName:
     # Type: AWS::EC2::Subnet::Id
     Type: String
     Description: Subnet Identifier
+    Default: subnet-086aefecb074e9932
   SubnetCName:
     # Type: AWS::EC2::Subnet::Id
     Type: String
@@ -17,10 +19,12 @@ Parameters:
   S3BucketName:
     Type: String
     Description: Name of the S3 bucket
+    Default: ised-s3-787897748034-artur-test-lb-log
   CertsDomainNameParam:
     Type: String
   CFTempateURLDefaultAction:
     Type: String
+    Default: https://ised-s3-787897748034-artur-test-lb-log.s3.ca-central-1.amazonaws.com/ck-elb-test/AELB-Listener-Default-Action2.yaml
   NumberOfAz:
     Type: String
     Default: 2
@@ -40,7 +44,7 @@ Resources:
           - Key: access_logs.s3.bucket
             Value: !Ref S3BucketName   
         Name: !Join ['-', [!Ref 'AWS::StackName', 'AELB']]
-        Scheme: internal
+        # Scheme: internal
         Subnets: 
           - !Ref SubnetAName
           - !Ref SubnetBName
