@@ -40,6 +40,15 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "transit-gateway.yaml" ]]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref "AWS::StackName", "transit-gateway" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
       Parameters:
         Name: "network"
         Environment: !Ref Environment
@@ -49,11 +58,29 @@ Resources:
         DefaultRouteTablePropagation: "enable"
         DnsSupport: "enable"
         VpnEcmpSupport: "enable"
+  TransitGatewayShare:
+    Type: "AWS::RAM::ResourceShare"
+    DependsOn: TransitGateway
+    Properties:
+      Name: "Transit Gateway Share"
+      ResourceArns:
+        - "arn:aws:ec2:ca-central-1:787897748034:ec2:TransitGateway/tgw-0648c5f3f768c68bb"
+      Principals:
+        - "989542792996"
   ElbVpc:
     Type: AWS::CloudFormation::Stack
     DependsOn: TransitGateway
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "vpc.yaml" ]]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref "AWS::StackName", "vpc-elb" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
       Parameters:
         Name: network-elb
         Structure: Public
@@ -66,6 +93,15 @@ Resources:
     DependsOn: TransitGateway
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "vpc.yaml" ]]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref "AWS::StackName", "vpc-nat" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
       Parameters:
         Name: network-nat
         Structure: Public-Private

@@ -12,3 +12,5 @@ echo Adding ised-cloud-watch
 aws cloudformation update-stack-set --stack-set-name ised-cloud-watch --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/cloud-watch.yaml --parameters file://./../cf-parameters/cloud-watch.json --accounts file://./../scripts/accounts.json --regions ca-central-1
 echo Adding ised-backup
 aws cloudformation update-stack-set --stack-set-name ised-backup --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/backup.yaml --parameters file://./../cf-parameters/backup.json --accounts file://./../scripts/accounts.json --regions ca-central-1
+echo Adding ised-ec2patching
+aws cloudformation update-stack-set --stack-set-name ised-ec2patching --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/ec2patching.yaml --parameters file://./../cf-parameters/ec2patching.json --accounts file://./../scripts/accounts.json --regions ca-central-1

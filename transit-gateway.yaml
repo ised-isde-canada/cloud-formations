@@ -62,14 +62,14 @@ Parameters: # CloudFormation Parameters
   DefaultRouteTableAssociation: # enable/disable automatic route table association
     Type: String
     Description: Enable or disable automatic association with the default association route table.
-    Default: "enable"
+    Default: "disable"
     AllowedValues:
       - "enable"
       - "disable"
   DefaultRouteTablePropagation: # enable/disable automatic route propagation to the default route table
     Type: String
     Description: Enable or disable automatic propagation of routes to the default propagation route table.
-    Default: "enable"
+    Default: "disable"
     AllowedValues:
       - "enable"
       - "disable"
