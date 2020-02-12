@@ -54,19 +54,10 @@ Resources:
         Environment: !Ref Environment
         AmazonAsn: !Ref AmazonAsn
         AutoAcceptSharedAttachments: "enable"
-        DefaultRouteTableAssociation: "enable"
-        DefaultRouteTablePropagation: "enable"
+        DefaultRouteTableAssociation: "disable"
+        DefaultRouteTablePropagation: "disable"
         DnsSupport: "enable"
         VpnEcmpSupport: "enable"
-  TransitGatewayShare:
-    Type: "AWS::RAM::ResourceShare"
-    DependsOn: TransitGateway
-    Properties:
-      Name: "Transit Gateway Share"
-      ResourceArns:
-        - "arn:aws:ec2:ca-central-1:787897748034:ec2:TransitGateway/tgw-0648c5f3f768c68bb"
-      Principals:
-        - "989542792996"
   ElbVpc:
     Type: AWS::CloudFormation::Stack
     DependsOn: TransitGateway

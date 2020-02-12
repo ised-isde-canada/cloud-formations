@@ -315,7 +315,7 @@ Resources:
       SubnetIds: !If [ HasSubnetA, !If [ HasAZ3, [!Ref SubnetA , !Ref SubnetB, !Ref SubnetC], !If [ HasAZ2, [!Ref SubnetA , !Ref SubnetB], [!Ref SubnetA] ] ], !If [ HasAZ3, [!Ref SubnetPubA , !Ref SubnetPubB, !Ref SubnetPubC], !If [ HasAZ2, [!Ref SubnetPubA , !Ref SubnetPubB], [!Ref SubnetPubA] ] ]]
       Tags:
       - Key: Name
-        Value: !Join ['-', ["tgw", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", "tgw-0fbd84557c80cd1ce" ] ]
+        Value: !Join ['-', ["tgw-attach", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
@@ -457,7 +457,7 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayId:
         Fn::ImportValue: 
-          Fn::Sub:  "tgw-network-${Environment}"
+          Fn::Sub: "tgw-network-${Environment}"
   RouteAIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayA
@@ -485,7 +485,7 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayId:
         Fn::ImportValue: 
-          Fn::Sub:  "tgw-network-${Environment}"
+          Fn::Sub: "tgw-network-${Environment}"
   RouteAIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayB
@@ -513,7 +513,7 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayId: 
         Fn::ImportValue: 
-          Fn::Sub:  "tgw-network-${Environment}"
+          Fn::Sub: "tgw-network-${Environment}"
   RouteAIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayC
