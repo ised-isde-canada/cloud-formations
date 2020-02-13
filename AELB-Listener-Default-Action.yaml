@@ -3,20 +3,23 @@ AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
   AELBarn:
     Type: String
-    Default: arn:aws:elasticloadbalancing:ca-central-1:355322244959:loadbalancer/app/ck-elb-test-4-AELB/4cea230a124b3610
+    Description: The Arn of the application Load balancer
   ListenerPort:
     Type: String
     # AllowedPattern: '[/d]'
   ListenerProtocol:
     Type: String
+    Description: Acceptable values are HTTPS and HTTP
     # AllowedValues:
     #   - HTTPS
     #   - HTTP
     #   - TCP
     #   - " "
-  CertDomainName:
+  # CertDomainName:
+  #   Type: String
+    # Default: new.ised-isde.canada.ca
+  CertArn:
     Type: String
-    Default: new.ised-isde.canada.ca
   DefaultType:
     Type: String
     # AllowedValues: 
@@ -56,12 +59,14 @@ Parameters:
     #   - " "
   TargetIp:
     Type: String
-    Default: 100.96.206.24
+    # Default: 100.96.206.24
   TargetPortNumber:
     Type: String
   CreateRobotTxtParam:
     Type: String
-    Default: "false"
+    Default: "true"
+  PriorityParam:
+    Type: String
 
 
 Conditions: 
@@ -76,12 +81,22 @@ Conditions:
   DefaultisRedirect: !Equals [!Ref DefaultType, "redirect"]
   DefaultIsForward: !Equals [!Ref DefaultType, "forward"]
   CreateRobotTxt: !Equals [!Ref CreateRobotTxtParam, "true"]
-  #TargetType condition
-  TargetTypeIsIp: !Equals [!Ref TargetTypeParam, "ip"]
-  # DefaultIsForwardAndTargetTypeisIp
-  # !And
-  #     - !Condition DefaultIsForward 
-  #     - !Condition DefaultIsForward
+  # TargetTypeIsIp: !Equals [!Ref TargetTypeParam, "ip"]
+
+  CreateRobotFixedCreateCerts: !And
+        - !Condition CreateRobotTxt
+        - !Condition DefaultIsFixedAndCreateCerts
+  CreateRobotFixedNoCerts: !And
+        - !Condition CreateRobotTxt
+        - !Condition DefaultIsFixedAndNoCreateCerts
+
+  CreateRobotRedirect: !And
+        - !Condition CreateRobotTxt
+        - !Condition DefaultisRedirect      
+
+  CreateRobotForward: !And
+        - !Condition CreateRobotTxt
+        - !Condition DefaultIsForward             
 
 Resources:
 
@@ -90,7 +105,8 @@ Resources:
       Type: AWS::ElasticLoadBalancingV2::Listener
       Properties:
         Certificates:
-          - CertificateArn:  !Ref mycert
+          # - CertificateArn:  !Ref mycert
+          - CertificateArn:  !Ref CertArn
         LoadBalancerArn: !Ref AELBarn
         Port: !Ref ListenerPort
         Protocol: !Ref ListenerProtocol
@@ -99,7 +115,7 @@ Resources:
            FixedResponseConfig: 
             ContentType: text/plain
             StatusCode: 503
-      DependsOn: mycert
+      # DependsOn: mycert
 
     LoadBalancerListenerDefaltIsFixedNoCerts:
       Condition: DefaultIsFixedAndNoCreateCerts
@@ -114,12 +130,12 @@ Resources:
             ContentType: text/plain
             StatusCode: 503
     
-    mycert:
-      Condition: CreateCerts
-      Type: AWS::CertificateManager::Certificate
-      Properties:
-        DomainName: !Ref CertDomainName
-        ValidationMethod: DNS
+    # mycert:
+    #   Condition: CreateCerts
+    #   Type: AWS::CertificateManager::Certificate
+    #   Properties:
+    #     DomainName: !Ref CertDomainName
+    #     ValidationMethod: DNS
 
     LoadBalancerListenerDefaltIsRedirect:
       Condition: DefaultisRedirect
@@ -138,33 +154,33 @@ Resources:
             Query: '#{query}'
             StatusCode: HTTP_301
 
-    # LoadBalancerListenerDefaultIsForward:
-    #   Condition: DefaultIsForward
-    #   Type: AWS::ElasticLoadBalancingV2::Listener
-    #   Properties:
-    #     LoadBalancerArn: !Ref AELBarn
-    #     Port: !Ref ListenerPort
-    #     Protocol: !Ref ListenerProtocol
-    #     DefaultActions:
-    #       - Type: forward
-    #         TargetGroupArn: !Ref CreateTargetGroup
-    #   DependsOn:  CreateTargetGroup
+    LoadBalancerListenerDefaultIsForward:
+      Condition: DefaultIsForward
+      Type: AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        LoadBalancerArn: !Ref AELBarn
+        Port: !Ref ListenerPort
+        Protocol: !Ref ListenerProtocol
+        DefaultActions:
+          - Type: forward
+            TargetGroupArn: !Ref CreateTargetGroup
+      DependsOn:  CreateTargetGroup
 
-    # CreateTargetGroup:
-    #   Condition: DefaultIsForward 
-    #   Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    #   Properties:
-    #     Name: !Ref TargetGroupName
-    #     VpcId: !Ref TargetGroupVPCId
-    #     Port: !Ref TargetGroupPort
-    #     Protocol: !Ref TargetGroupProtocol
-    #     TargetType: !Ref TargetTypeParam
-    #     Targets:
-    #       - Id: !Ref TargetIp
-    #         Port: !Ref TargetPortNumber
+    CreateTargetGroup:
+      Condition: DefaultIsForward 
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      Properties:
+        Name: !Ref TargetGroupName
+        VpcId: !Ref TargetGroupVPCId
+        Port: !Ref TargetGroupPort
+        Protocol: !Ref TargetGroupProtocol
+        TargetType: !Ref TargetTypeParam
+        Targets:
+          - Id: !Ref TargetIp
+            Port: !Ref TargetPortNumber
 
-    CreateListenerRuleForRobot:
-      Condition: CreateRobotTxt
+    CreateListenerRuleForRobotFixedCreateCerts:
+      Condition: CreateRobotFixedCreateCerts
       Type: AWS::ElasticLoadBalancingV2::ListenerRule
       Properties:
         ListenerArn: !Ref LoadBalancerListenerDefaltIsFixedCreateCerts
@@ -178,4 +194,55 @@ Resources:
               Values:
                 - robots.txt
             Field: path-pattern
-        Priority: 1
+        Priority: !Ref PriorityParam
+
+    CreateListenerRuleForRobotFixedNoCreateCerts:
+      Condition: CreateRobotFixedNoCerts
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref LoadBalancerListenerDefaltIsFixedNoCerts
+        Actions:
+          - Type: fixed-response
+            FixedResponseConfig: 
+              ContentType: text/plain
+              StatusCode: 200
+        Conditions:
+          - PathPatternConfig: 
+              Values:
+                - robots.txt
+            Field: path-pattern
+        Priority: !Ref PriorityParam        
+
+    CreateListenerRuleForRobotRedirect:
+      Condition: CreateRobotRedirect
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref LoadBalancerListenerDefaltIsRedirect
+        Actions:
+          - Type: fixed-response
+            FixedResponseConfig: 
+              ContentType: text/plain
+              StatusCode: 200
+        Conditions:
+          - PathPatternConfig: 
+              Values:
+                - robots.txt
+            Field: path-pattern
+        Priority: !Ref PriorityParam      
+
+    CreateListenerRuleForRobotForward:
+      Condition: CreateRobotForward
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref LoadBalancerListenerDefaultIsForward
+        Actions:
+          - Type: fixed-response
+            FixedResponseConfig: 
+              ContentType: text/plain
+              StatusCode: 200
+        Conditions:
+          - PathPatternConfig: 
+              Values:
+                - robots.txt
+            Field: path-pattern
+        Priority: !Ref PriorityParam                

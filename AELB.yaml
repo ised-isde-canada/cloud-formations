@@ -4,27 +4,25 @@ Parameters:
   SubnetAName:
     # Type: AWS::EC2::Subnet::Id
     Type: String
-    Description: Subnet Identifier
-    Default: subnet-00c09151ad1c9a337
+    Description: Public Subnet Identifier
   SubnetBName:
     # Type: AWS::EC2::Subnet::Id
     Type: String
-    Description: Subnet Identifier
-    Default: subnet-086aefecb074e9932
+    Description: Public Subnet Identifier
   SubnetCName:
     # Type: AWS::EC2::Subnet::Id
     Type: String
-    Description: Subnet Identifier 
+    Description: Public Subnet Identifier
     # Default: 'Not selected'
   S3BucketName:
     Type: String
     Description: Name of the S3 bucket
-    Default: ised-s3-787897748034-artur-test-lb-log
-  CertsDomainNameParam:
-    Type: String
+  # CertsDomainNameParam:
+  #   Type: String
+  CertsArnParam:
+    Type: String    
   CFTempateURLDefaultAction:
     Type: String
-    Default: https://ised-s3-787897748034-artur-test-lb-log.s3.ca-central-1.amazonaws.com/ck-elb-test/AELB-Listener-Default-Action2.yaml
   NumberOfAz:
     Type: String
     Default: 2
@@ -44,7 +42,7 @@ Resources:
           - Key: access_logs.s3.bucket
             Value: !Ref S3BucketName   
         Name: !Join ['-', [!Ref 'AWS::StackName', 'AELB']]
-        # Scheme: internal
+        Scheme: internal
         Subnets: 
           - !Ref SubnetAName
           - !Ref SubnetBName
@@ -64,7 +62,8 @@ Resources:
           DefaultType: "fixed-response"
           ListenerPort: 443
           ListenerProtocol: HTTPS
-          CertDomainName: !Ref CertsDomainNameParam
+          # CertDomainName: !Ref CertsDomainNameParam
+          CertArn: !Ref CertsArnParam
           CreateRobotTxtParam: "true"
           RedirectingProtocol: " "
           TargetTypeParam: " "
@@ -78,6 +77,30 @@ Resources:
           PriorityParam: 1
 
       DependsOn: AELB 
+
+    CreateListener80DefaultRedirect:
+      Type: AWS::CloudFormation::Stack
+      Properties:
+        TemplateURL: !Ref CFTempateURLDefaultAction
+        Parameters:
+          AELBarn: !Ref AELB
+          DefaultType: "redirect"
+          ListenerPort: 80
+          ListenerProtocol: HTTP
+          CertDomainName: " "
+          CreateRobotTxtParam: "true"
+          RedirectingProtocol: "HTTPS"
+          TargetTypeParam: " "
+          TargetGroupPort: " "
+          TargetGroupVPCId: " "
+          TargetGroupProtocol: " "
+          TargetIp: " "
+          TargetPortNumber: " "
+          RedirectingPort: "443"
+          TargetGroupName: " "
+          PriorityParam: 1
+
+      DependsOn: CreateListener443DefaultFixedResponse 
     
 
 Outputs:

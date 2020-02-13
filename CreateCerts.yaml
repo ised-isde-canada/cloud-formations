@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Parameters:
+  CertDomainName:
+    Type: String
+
+Resources:
+
+    mycert:
+      Type: AWS::CertificateManager::Certificate
+      Properties:
+        DomainName: !Ref CertDomainName
+        ValidationMethod: DNS
