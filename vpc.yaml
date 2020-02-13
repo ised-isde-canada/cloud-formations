@@ -325,7 +325,7 @@ Resources:
       #List All Available Transit Gateways
       TransitGatewayId: 
         Fn::ImportValue: 
-          Fn::Sub:  "tgw-network-${Environment}"
+          Fn::Sub: "tgw-network-${Environment}"
       VpcId: !Ref VPC
   TransitGatewayAssociation:
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
@@ -334,7 +334,7 @@ Resources:
       TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
       TransitGatewayRouteTableId: 
         Fn::ImportValue: 
-          Fn::Sub:  ""tgw-rt-network-${Environment}"
+          Fn::Sub: "tgw-rt-network-${Environment}"
   TransitGatewayPropagation:
     Type: AWS::EC2::TransitGatewayRouteTablePropagation
     DependsOn: TransitGatewayAttachment
@@ -342,7 +342,7 @@ Resources:
       TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
       TransitGatewayRouteTableId: 
         Fn::ImportValue: 
-          Fn::Sub:  ""tgw-rt-network-${Environment}"
+          Fn::Sub: "tgw-rt-network-${Environment}"
 # Route Table
   RouteTableA:
     Type: AWS::EC2::RouteTable
