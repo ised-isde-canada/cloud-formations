@@ -456,6 +456,16 @@ Resources:
       TransitGatewayId:
         Fn::ImportValue: 
           Fn::Sub: "tgw-network-${Environment}"
+  TransitGatewayRoutePublicOut:
+    Type: AWS::EC2::TransitGatewayRoute
+    Condition: HasNATGatewayA
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-rt-network-${Environment}"
   RouteNATAOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayA
