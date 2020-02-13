@@ -106,7 +106,7 @@ Resources:
       Properties:
         Certificates:
           # - CertificateArn:  !Ref mycert
-          - CertificateArn:  !Ref CertArn
+          - CertificateArn: !Ref CertArn
         LoadBalancerArn: !Ref AELBarn
         Port: !Ref ListenerPort
         Protocol: !Ref ListenerProtocol

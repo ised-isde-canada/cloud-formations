@@ -87,7 +87,7 @@ Resources:
           DefaultType: "redirect"
           ListenerPort: 80
           ListenerProtocol: HTTP
-          CertDomainName: " "
+          CertArn: " "
           CreateRobotTxtParam: "true"
           RedirectingProtocol: "HTTPS"
           TargetTypeParam: " "
