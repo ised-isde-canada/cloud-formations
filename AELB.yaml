@@ -17,7 +17,7 @@ Parameters:
     # Type: AWS::EC2::Subnet::Id
     Type: String
     Description: Public Subnet Identifier
-    # Default: 'Not selected'
+    Default: ""
   CertsArnParam:
     Type: String    
   NumberOfAz:
@@ -45,7 +45,7 @@ Resources:
           - Key: access_logs.s3.bucket
             Value: !Join ['-', [!Ref S3BucketNamePrefix, !Ref AccountIDLog, "logs-lb"]]   
         Name: !Join ['-', ["alb", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment"]]
-        Scheme: internal
+        #Scheme: internal
         Subnets: 
           - !Ref SubnetAName
           - !Ref SubnetBName
