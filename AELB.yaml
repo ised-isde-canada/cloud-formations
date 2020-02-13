@@ -30,6 +30,9 @@ Parameters:
   AccountIDLog:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDLog
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
 
 Conditions:
 
