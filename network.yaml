@@ -117,11 +117,11 @@ Resources:
       Parameters:
         Name: public
         Environment: !Ref Environment
-        SubnetAName:
-          Fn::ImportValue: 
-            Fn::Sub: "subnetapub-network-${Environment}"
-        SubnetBName:
-          Fn::ImportValue: 
-            Fn::Sub: "subnetbpub-network-${Environment}"
+#        SubnetAName:
+#          Fn::ImportValue: 
+#            Fn::Sub: "subneta-pub-network-${Environment}"
+#        SubnetBName:
+#          Fn::ImportValue: 
+#            Fn::Sub: "subnetb-pub-network-${Environment}"
         CertsArnParam: arn:aws:acm:ca-central-1:787897748034:certificate/9ce130e8-db35-4b61-99f2-518fdb5ddca5
         NumberOfAz: "2"

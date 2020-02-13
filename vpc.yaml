@@ -656,24 +656,24 @@ Outputs:
     Value: !Ref SubnetC
     Export: 
       Name: !Join ['-', ["subnetc", !Ref Name, !Ref "Environment" ]]
-  SubnetAPub:
-    Description: SubnetAPub
+  SubnetPubA:
+    Description: SubnetPubA
     Condition: HasSubnetPubA
-    Value: !Ref SubnetAPub 
+    Value: !Ref SubnetPubA 
     Export: 
-      Name: !Join ['-', ["subnetapub", !Ref Name, !Ref "Environment" ]]
-  SubnetBPub:
-    Description: SubnetBPub
+      Name: !Join ['-', ["subneta-pub", !Ref Name, !Ref "Environment" ]]
+  SubnetPubB:
+    Description: SubnetPubB
     Condition: HasSubnetPubB
-    Value: !Ref SubnetBPub
+    Value: !Ref SubnetPubB
     Export: 
-      Name: !Join ['-', ["subnetbpub", !Ref Name, !Ref "Environment" ]]
-  SubnetCPub:
-    Description: SubnetCPub
+      Name: !Join ['-', ["subnetb-pub", !Ref Name, !Ref "Environment" ]]
+  SubnetPubC:
+    Description: SubnetPubC
     Condition: HasSubnetPubC
-    Value: !Ref SubnetCPub
+    Value: !Ref SubnetPubC
     Export: 
-      Name: !Join ['-', ["subnetcpub", !Ref Name, !Ref "Environment" ]]
+      Name: !Join ['-', ["subnetc-pub", !Ref Name, !Ref "Environment" ]]
   DBSubnetGroup:
     Description: DBSubnetGroup
     Condition: HasSubnetA
