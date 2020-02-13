@@ -100,4 +100,28 @@ Resources:
         Environment: !Ref Environment
         VPCCidrBlockAddress: 100.96.193.128
         VPCCidrBlockSize: 26
-
+  PublicALB:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: ElbVpc
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "AELB.yaml" ]]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref "AWS::StackName", "alb-public" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+      Parameters:
+        Name: public
+        Environment: !Ref Environment
+        SubnetAName:
+          Fn::ImportValue: 
+            Fn::Sub: "subnetapub-network-${Environment}"
+        SubnetBName:
+          Fn::ImportValue: 
+            Fn::Sub: "subnetbpub-network-${Environment}"
+        CertsArnParam: arn:aws:acm:ca-central-1:787897748034:certificate/9ce130e8-db35-4b61-99f2-518fdb5ddca5
+        NumberOfAz: "2"
