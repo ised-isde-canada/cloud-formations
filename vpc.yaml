@@ -327,6 +327,22 @@ Resources:
         Fn::ImportValue: 
           Fn::Sub:  "tgw-network-${Environment}"
       VpcId: !Ref VPC
+  TransitGatewayAssociation:
+    Type: AWS::EC2::TransitGatewayRouteTableAssociation
+    DependsOn: TransitGatewayAttachment
+    Properties: 
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
+      TransitGatewayRouteTableId: 
+        Fn::ImportValue: 
+          Fn::Sub:  ""tgw-rt-network-${Environment}"
+  TransitGatewayPropagation:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    DependsOn: TransitGatewayAttachment
+    Properties: 
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
+      TransitGatewayRouteTableId: 
+        Fn::ImportValue: 
+          Fn::Sub:  ""tgw-rt-network-${Environment}"
 # Route Table
   RouteTableA:
     Type: AWS::EC2::RouteTable
