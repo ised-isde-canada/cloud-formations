@@ -1,6 +1,10 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 Parameters:
+  Name:
+    Type: String
+  Environment:
+    Type: String
   SubnetAName:
     # Type: AWS::EC2::Subnet::Id
     Type: String
@@ -14,19 +18,18 @@ Parameters:
     Type: String
     Description: Public Subnet Identifier
     # Default: 'Not selected'
-  S3BucketName:
-    Type: String
-    Description: Name of the S3 bucket
-  # CertsDomainNameParam:
-  #   Type: String
   CertsArnParam:
     Type: String    
-  CFTempateURLDefaultAction:
-    Type: String
   NumberOfAz:
     Type: String
     Default: 2
     AllowedPattern: '[2-3]'
+  S3BucketNamePrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3BucketNamePrefix
+  AccountIDLog:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDLog
 
 Conditions:
 
@@ -40,8 +43,8 @@ Resources:
           - Key: access_logs.s3.enabled
             Value: true
           - Key: access_logs.s3.bucket
-            Value: !Ref S3BucketName   
-        Name: !Join ['-', [!Ref 'AWS::StackName', 'AELB']]
+            Value: !Join ['-', [!Ref S3BucketNamePrefix, !Ref AccountIDLog, "logs-lb"]]   
+        Name: !Join ['-', ["alb", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment"]]
         Scheme: internal
         Subnets: 
           - !Ref SubnetAName
@@ -52,11 +55,10 @@ Resources:
             - !Ref AWS::NoValue
         Type: application
     
-    ## Should all load balancer have a this default action and listener?
     CreateListener443DefaultFixedResponse:
       Type: AWS::CloudFormation::Stack
       Properties:
-        TemplateURL: !Ref CFTempateURLDefaultAction
+        TemplateURL: !Join [ '', [!Ref S3Templates, "AELB-Listener-Default-Action.yaml" ]]
         Parameters:
           AELBarn: !Ref AELB
           DefaultType: "fixed-response"
@@ -81,7 +83,7 @@ Resources:
     CreateListener80DefaultRedirect:
       Type: AWS::CloudFormation::Stack
       Properties:
-        TemplateURL: !Ref CFTempateURLDefaultAction
+        TemplateURL: !Join [ '', [!Ref S3Templates, "AELB-Listener-Default-Action.yaml" ]]
         Parameters:
           AELBarn: !Ref AELB
           DefaultType: "redirect"
@@ -101,13 +103,3 @@ Resources:
           PriorityParam: 1
 
       DependsOn: CreateListener443DefaultFixedResponse 
-    
-
-Outputs:
-  TestCondition:
-    Description: Has3Az
-    Value:
-      !If
-      - Has3Az
-      - "It Has 3AZ"
-      - "Does not have 3Az"
