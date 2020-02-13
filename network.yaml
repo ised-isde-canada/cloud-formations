@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+# Version 1.1 - Add Transit Gateway
+# Version 1.2 - Add NAT VPC
+# Version 1.3 - Add Transit gateway Route Table
+Description: Creates ingress and egress VPCs. Version 1.3
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+     - Label:
+         default: "Network Configuration"
+       Parameters:
+         - Environment
+         - AmazonAsn
+    ParameterLabels:
+      Environment:
+        default: "Environment"
+      AmazonAsn:
+        default: Amazon Side ASN
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - uat
+      - qa
+      - prod
+  AmazonAsn: # Amazon side BGP ASN
+    Type: String
+    Description: A private Autonomous System Number (ASN) for the Amazon side of a BGP session.
+    MinLength: 5
+    MaxLength: 10
+    ConstraintDescription: The range is 64512 to 65534 for 16-bit ASNs and 4200000000 to 4294967294 for 32-bit ASNs.
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates 
+Resources:
+  TransitGateway:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "transit-gateway.yaml" ]]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref "AWS::StackName", "transit-gateway" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+      Parameters:
+        Name: "network"
+        Environment: !Ref Environment
+        AmazonAsn: !Ref AmazonAsn
+        AutoAcceptSharedAttachments: "enable"
+        DefaultRouteTableAssociation: "disable"
+        DefaultRouteTablePropagation: "disable"
+        DnsSupport: "enable"
+        VpnEcmpSupport: "enable"
+  ElbVpc:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: TransitGateway
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "vpc.yaml" ]]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref "AWS::StackName", "vpc-elb" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+      Parameters:
+        Name: network-elb
+        Structure: Public
+        NumberAZ: "2"
+        Environment: !Ref Environment
+        VPCCidrBlockAddress: 100.96.193.64
+        VPCCidrBlockSize: 26
+  NatVpc:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: TransitGateway
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "vpc.yaml" ]]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref "AWS::StackName", "vpc-nat" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+      Parameters:
+        Name: network-nat
+        Structure: Public-Private
+        NumberAZ: "2"
+        Environment: !Ref Environment
+        VPCCidrBlockAddress: 100.96.193.128
+        VPCCidrBlockSize: 26
+

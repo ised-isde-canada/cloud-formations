@@ -1,28 +1,44 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-# Version 1.1 - Add VPC S3 Endpoint
-# Version 1.2 - Add VPC Flow log
-# Version 2.0 - Add VPC Name; Add the option to create Public Subnets
+# Version 2.0 - Support Private & Public Subnets. Creates Internet and NAT Gateways. Add FlowLogs and S3 endpoint.
 Description: Template to create the complete VPC. Version 2.0
-Conditions:
-  IsCots: !Equals [ !Ref "AWS::AccountId", 850605615431 ]
-  IsProd: !Equals [ !Ref Environment, prod ]
-  PublicSubnetsCondition: !Or [ !Equals [ !Ref Structure, 2AZ-Public-Private ], !Equals [ !Ref Structure, 2AZ-Public ] ]
-  PrivateSubnetsCondition: !Or [ !Equals [ !Ref Structure, 2AZ-Public-Private ], !Equals [ !Ref Structure, 2AZ-Private ] ]
-  NATGatewayCondition: !And [!Condition 'PrivateSubnetsCondition', !Condition 'PublicSubnetsCondition']
-  TransitGatewayCondition: !And [!Condition 'PrivateSubnetsCondition', !Not [!Condition 'PublicSubnetsCondition'] ]
-  Has4Subnets: !Equals [ !Ref Structure, 2AZ-Public-Private ]
-  NVirginiaRegionCondition: !Equals [!Ref 'AWS::Region', us-east-1]
 Metadata:
- AWS::CloudFormation::Interface:
-   ParameterGroups:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
      - Label:
          default: "VPC Configuration"
        Parameters:
+         - Name
+         - Structure
+         - NumberAZ
          - Environment
          - VPCCidrBlockAddress
          - VPCCidrBlockSize
+    ParameterLabels:
+      Name:
+        default: "VPC Name"
+      Structure:
+        default: "VPC Structure"
+      NumberAZ:
+        default: "Number of AZ"
+      Environment:
+        default: "Environment"
 Parameters:
+  Name:
+    Type: String
+  Structure:
+    Type: String
+    Default: Private
+    AllowedValues: 
+      - Public-Private
+      - Public
+      - Private
+  NumberAZ:
+    Type: String
+    AllowedValues:
+    - 1
+    - 2
+    - 3
   Environment:
     Type: String
     Default: dev
@@ -31,16 +47,6 @@ Parameters:
       - uat
       - qa
       - prod
-  Name:
-    Type: String
-    Default: main
-  Structure:
-    Type: String
-    Default: 2AZ-Private
-    AllowedValues: 
-      - 2AZ-Public-Private
-      - 2AZ-Public
-      - 2AZ-Private
   VPCCidrBlockAddress:
     Type: String
   VPCCidrBlockSize:
@@ -52,19 +58,42 @@ Parameters:
     - 27
     - 28
     Default: 26
-  TransitGateway:
-    Type: String
-  VPCFlowlogS3:
-    Description: The S3 bucket arn where the VPC flow logs are to be publish
-    Type: String
+  S3BucketNamePrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3BucketNamePrefix
+  AccountIDLog:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDLog
+  AccountIDCots:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDCOTS       
+Conditions:
+  HasAZ2: !Or [!Equals [ !Ref NumberAZ, "2" ], !Equals [ !Ref NumberAZ, "3" ]]
+  HasAZ3: !Equals [ !Ref NumberAZ, "3" ]
+  HasSubnetA: !Or [ !Equals [ !Ref Structure, Public-Private ], !Equals [ !Ref Structure, Private ]]
+  HasSubnetB: !And [ !Condition HasAZ2, !Condition HasSubnetA]
+  HasSubnetC: !And [ !Condition HasAZ3, !Condition HasSubnetA]
+  HasSubnetPubA: !Or [ !Equals [ !Ref Structure, Public-Private ], !Equals [ !Ref Structure, Public ]]
+  HasSubnetPubB: !And [ !Condition HasAZ2, !Condition HasSubnetPubA]
+  HasSubnetPubC: !And [ !Condition HasAZ3, !Condition HasSubnetPubA]
+  HasInternetGateway: !Condition HasSubnetPubA
+  HasNATGatewayA: !And [ !Condition HasSubnetA, !Condition HasSubnetPubA]
+  HasNATGatewayB: !And [ !Condition HasNATGatewayA, !Condition HasAZ2]
+  HasNATGatewayC: !And [ !Condition HasNATGatewayA, !Condition HasAZ3]
+  HasNoNATGatewayA: !And [!Condition HasSubnetA, !Not [ !Condition HasNATGatewayA ]]
+  HasNoNATGatewayB: !And [!Condition HasNoNATGatewayA, !Condition HasAZ2 ]
+  HasNoNATGatewayC: !And [!Condition HasNoNATGatewayA, !Condition HasAZ3 ]
+  Has1Subnet: !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "1" ]]
+  Has2Subnets: !Or [ !And [!Equals [ !Ref Structure, Public-Private ],!Equals [ !Ref NumberAZ, "1" ]] , !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "2" ]]] 
+  Has4Subnets: !Or [ !And [!Equals [ !Ref Structure, Public-Private ],!Equals [ !Ref NumberAZ, "2" ]] , !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "3" ]]] 
+  Has8Subnets: !And [!Equals [ !Ref Structure, Public-Private ], !Equals [ !Ref NumberAZ, "3" ]]
+  IsCots: !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCots ]
 Resources:
   SubFunction:
     Type: AWS::Lambda::Function
     Properties:
       Handler: index.handler
-      Role:
-        Fn::ImportValue: 
-          Fn::Sub: "LambdaExecutionRole"
+      Role: !ImportValue LambdaExecutionRole
       Code:
         ZipFile: !Sub |
           var response = require('cfn-response');
@@ -72,13 +101,14 @@ Resources:
             var result = parseInt(event.ResourceProperties.Op1) - parseInt(event.ResourceProperties.Op2);
             response.send(event, context, response.SUCCESS, {Value: result});
           };
-      Runtime: nodejs8.10
+      Runtime: nodejs12.x
   SubnetCidrBlockSize:
     Type: Custom::Sub
     Properties:
       ServiceToken: !GetAtt SubFunction.Arn
-      Op1: !If [ Has4Subnets, 30, 31 ]
+      Op1: !If [ Has8Subnets, 29, !If [ Has4Subnets, 30, !If [ Has2Subnets, 31, 32 ] ] ]
       Op2: !Ref VPCCidrBlockSize
+  # VPC
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -87,100 +117,118 @@ Resources:
       EnableDnsHostnames: true
       Tags:
       - Key: Name
-        Value: !Join ['-', ["vpc", !Ref "AWS::AccountId", !Ref "Environment", !Ref "Name" ]]
+        Value: !Join ['-', ["vpc", !Ref "AWS::AccountId", !Ref Name, !Ref Environment ]]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
         Value: cops-aws
       - Key: ised-environment
-        Value: !Ref "Environment"
+        Value: !Ref Environment
+  # Subnets
   SubnetA:
     Type: AWS::EC2::Subnet
-    Condition: PrivateSubnetsCondition
+    Condition: HasSubnetA
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: !Select [ 0, !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has4Subnets, 4, 2 ], !GetAtt SubnetCidrBlockSize.Value ] ]
+      CidrBlock: !Select [ 0, !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has8Subnets, 8, !If [ Has4Subnets, 4, !If [ Has2Subnets, 2, 1 ] ] ], !GetAtt SubnetCidrBlockSize.Value ] ]
       AvailabilityZone: !Select [ 0, !GetAZs '']
       Tags:
       - Key: Name
-        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref "Environment",  !Ref "Name", "private", !Select [ 0, !GetAZs '']  ] ]
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 0, !GetAZs ''], "private" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
         Value: cops-aws
       - Key: ised-environment
-        Value: !Ref "Environment"
+        Value: !Ref Environment
+  SubnetPubA:
+    Type: AWS::EC2::Subnet
+    Condition: HasSubnetPubA
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [ !If [ HasSubnetA, !If [ HasAZ3, 3, !If [ HasAZ2, 2, 1 ] ], 0 ], !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has8Subnets, 8, !If [ Has4Subnets, 4, !If [ Has2Subnets, 2, 1 ] ] ], !GetAtt SubnetCidrBlockSize.Value ] ]
+      AvailabilityZone: !Select [ 0, !GetAZs '']
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 0, !GetAZs ''], "public" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
   SubnetB:
     Type: AWS::EC2::Subnet
-    Condition: PrivateSubnetsCondition
+    Condition: HasSubnetB
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: !Select [ 1, !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has4Subnets, 4, 2 ], !GetAtt SubnetCidrBlockSize.Value ] ]
+      CidrBlock: !Select [ 1, !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has8Subnets, 8, !If [ Has4Subnets, 4, !If [ Has2Subnets, 2, 1 ] ] ], !GetAtt SubnetCidrBlockSize.Value ] ]
       AvailabilityZone: !Select [ 1, !GetAZs '']
       Tags:
       - Key: Name
-        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref "Environment",  !Ref "Name", "private", !Select [ 1, !GetAZs '']  ] ]
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 1, !GetAZs ''], "private" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
         Value: cops-aws
       - Key: ised-environment
-        Value: !Ref "Environment"
-  PublicSubnetA:
+        Value: !Ref Environment
+  SubnetPubB:
     Type: AWS::EC2::Subnet
-    Condition: PublicSubnetsCondition
+    Condition: HasSubnetPubB
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: !Select [ !If [ Has4Subnets, 2, 0 ], !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has4Subnets, 4, 2 ], !GetAtt SubnetCidrBlockSize.Value ] ]
-      AvailabilityZone: !Select [ 0, !GetAZs '']
-      MapPublicIpOnLaunch: true
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref "Environment",  !Ref "Name", "public", !Select [ 0, !GetAZs '']  ] ]
-      - Key: ised-cost-centre
-        Value: cio-rdad
-      - Key: ised-project-id
-        Value: cops-aws
-      - Key: ised-environment
-        Value: !Ref "Environment"
-  PublicSubnetB:
-    Type: AWS::EC2::Subnet
-    Condition: PublicSubnetsCondition
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: !Select [ !If [ Has4Subnets, 3, 1 ], !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has4Subnets, 4, 2 ], !GetAtt SubnetCidrBlockSize.Value ] ]
+      CidrBlock: !Select [ !If [ HasSubnetA, !If [ HasAZ3, 4, 3 ], 1 ] , !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has8Subnets, 8, !If [ Has4Subnets, 4, !If [ Has2Subnets, 2, 1 ] ] ], !GetAtt SubnetCidrBlockSize.Value ] ]
       AvailabilityZone: !Select [ 1, !GetAZs '']
-      MapPublicIpOnLaunch: true
       Tags:
       - Key: Name
-        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref "Environment",  !Ref "Name", "public", !Select [ 1, !GetAZs '']  ] ]
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 1, !GetAZs ''], "public" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
         Value: cops-aws
       - Key: ised-environment
-        Value: !Ref "Environment"
-  # Create DHCP Options
-  DHCPOptions:
-    Type: AWS::EC2::DHCPOptions
+        Value: !Ref Environment
+  SubnetC:
+    Type: AWS::EC2::Subnet
+    Condition: HasSubnetC
     Properties:
-      DomainName: !If [NVirginiaRegionCondition, ec2.internal, !Join ['', [!Ref 'AWS::Region',
-            .compute.internal]]]
-      DomainNameServers:
-        - AmazonProvidedDNS
-  VPCDHCPOptionsAssociation:
-    Type: AWS::EC2::VPCDHCPOptionsAssociation
+      VpcId: !Ref VPC
+      CidrBlock: !Select [ 2, !Cidr [ !GetAtt VPC.CidrBlock, !If [ Has8Subnets, 8, !If [ Has4Subnets, 4, !If [ Has2Subnets, 2, 1 ] ] ], !GetAtt SubnetCidrBlockSize.Value ] ]
+      AvailabilityZone: !Select [ 2, !GetAZs '']
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 2, !GetAZs ''], "private" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+  SubnetPubC:
+    Type: AWS::EC2::Subnet
+    Condition: HasSubnetPubC
     Properties:
-      VpcId: !Ref 'VPC'
-      DhcpOptionsId: !Ref 'DHCPOptions'
-  # Create Internet Gateway if the VPC has public subnets
+      VpcId: !Ref VPC
+      CidrBlock: !Select [ !If [ HasSubnetA, 5, 2 ] ,!Cidr [ !GetAtt VPC.CidrBlock, !If [ Has8Subnets, 8, !If [ Has4Subnets, 4, !If [ Has2Subnets, 2, 1 ] ] ], !GetAtt SubnetCidrBlockSize.Value ] ]
+      AvailabilityZone: !Select [ 2, !GetAZs '']
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["subnet", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", !Select [ 2, !GetAZs ''], "public" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+# Create Internet Gateway if the VPC has public subnets
   InternetGateway:
     Type: AWS::EC2::InternetGateway
-    Condition: PublicSubnetsCondition
+    Condition: HasInternetGateway
     Properties:
       Tags:
       - Key: Name
-        Value: !Join ['-', ["igw", !Ref "AWS::AccountId", !Ref "Environment", !Ref "Name" ] ]
+        Value: !Join ['-', ["igw", !Ref "AWS::AccountId", !Ref "Name", !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
@@ -189,30 +237,36 @@ Resources:
         Value: !Ref "Environment"
   VPCInternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
-    Condition: PublicSubnetsCondition
+    Condition: HasInternetGateway
     Properties:
       VpcId: !Ref 'VPC'
-      InternetGatewayId: !Ref 'InternetGateway'
-  # Create NAT Gateway if the VPC has both public & private subnets
-  NAT1EIP:
-    Condition: NATGatewayCondition
-    DependsOn: VPCInternetGatewayAttachment
+      InternetGatewayId: !Ref InternetGateway
+# Create NAT Gateway if the VPC has both public & private subnets
+  NATAEIP:
     Type: AWS::EC2::EIP
+    Condition: HasNATGatewayA
+    DependsOn: VPCInternetGatewayAttachment
     Properties:
       Domain: vpc
-  NAT2EIP:
-    Condition: NATGatewayCondition
-    DependsOn: VPCInternetGatewayAttachment
+  NATBEIP:
     Type: AWS::EC2::EIP
+    Condition: HasNATGatewayB
+    DependsOn: VPCInternetGatewayAttachment
+    Properties:
+      Domain: vpc
+  NATCEIP:
+    Type: AWS::EC2::EIP
+    Condition: HasNATGatewayC
+    DependsOn: VPCInternetGatewayAttachment
     Properties:
       Domain: vpc
   NATGatewayA:
-    Condition: NATGatewayCondition
-    DependsOn: VPCInternetGatewayAttachment
     Type: AWS::EC2::NatGateway
+    Condition: HasNATGatewayA
+    DependsOn: VPCInternetGatewayAttachment
     Properties:
-      AllocationId: !GetAtt NAT1EIP.AllocationId
-      SubnetId: !Ref PublicSubnetA
+      AllocationId: !GetAtt NATAEIP.AllocationId
+      SubnetId: !Ref SubnetPubA
       Tags:
       - Key: Name
         Value: !Join ['-', ["natgw", !Ref "AWS::AccountId", !Ref "Environment", !Ref "Name", !Select [ 0, !GetAZs ''] ] ]
@@ -223,12 +277,12 @@ Resources:
       - Key: ised-environment
         Value: !Ref "Environment"
   NATGatewayB:
-    Condition: NATGatewayCondition
-    DependsOn: VPCInternetGatewayAttachment
     Type: AWS::EC2::NatGateway
+    Condition: HasNATGatewayB
+    DependsOn: VPCInternetGatewayAttachment
     Properties:
-      AllocationId: !GetAtt NAT2EIP.AllocationId
-      SubnetId: !Ref PublicSubnetB
+      AllocationId: !GetAtt NATBEIP.AllocationId
+      SubnetId: !Ref SubnetPubB
       Tags:
       - Key: Name
         Value: !Join ['-', ["natgw", !Ref "AWS::AccountId", !Ref "Environment", !Ref "Name", !Select [ 1, !GetAZs ''] ] ]
@@ -238,130 +292,281 @@ Resources:
         Value: cops-aws
       - Key: ised-environment
         Value: !Ref "Environment"
-  # Route Tables
-  PrivateSubnetARouteTable:
-    Type: AWS::EC2::RouteTable
-    Condition: PrivateSubnetsCondition
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["rtb", !Ref "AWS::AccountId", !Ref "Environment", !Ref "Name", "private", !Select [ 0, !GetAZs ''] ] ]
-      - Key: ised-cost-centre
-        Value: cio-rdad
-      - Key: ised-project-id
-        Value: cops-aws
-      - Key: ised-environment
-        Value: !Ref "Environment"
-  PrivateSubnetBRouteTable:
-    Type: AWS::EC2::RouteTable
-    Condition: PrivateSubnetsCondition
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["rtb", !Ref "AWS::AccountId", !Ref "Environment", !Ref "Name", "private", !Select [ 1, !GetAZs ''] ] ]
-      - Key: ised-cost-centre
-        Value: cio-rdad
-      - Key: ised-project-id
-        Value: cops-aws
-      - Key: ised-environment
-        Value: !Ref "Environment"
-  PublicSubnetRouteTable:
-    Type: AWS::EC2::RouteTable
-    Condition: PublicSubnetsCondition
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["rtb", !Ref "AWS::AccountId", !Ref "Environment", !Ref "Name", "public" ] ]
-      - Key: ised-cost-centre
-        Value: cio-rdad
-      - Key: ised-project-id
-        Value: cops-aws
-      - Key: ised-environment
-        Value: !Ref "Environment"
-  PrivateSubnetARouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: PrivateSubnetsCondition
-    Properties:
-      RouteTableId: !Ref PrivateSubnetARouteTable
-      SubnetId: !Ref SubnetA
-  PrivateSubnetBRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: PrivateSubnetsCondition
-    Properties:
-      RouteTableId: !Ref PrivateSubnetBRouteTable
-      SubnetId: !Ref SubnetB
-  PublicSubnetARouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: PublicSubnetsCondition
-    Properties:
-      RouteTableId: !Ref PublicSubnetRouteTable
-      SubnetId: !Ref PublicSubnetA
-  PublicSubnetBRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: PublicSubnetsCondition
-    Properties:
-      RouteTableId: !Ref PublicSubnetRouteTable
-      SubnetId: !Ref PublicSubnetB
-  # Create 0.0.0.0/0 Route to the Internet Gateway in the Public Subnet (if exists)
-  PublicSubnetRouteOut:
-    Condition: PublicSubnetsCondition
+  NATGatewayC:
+    Type: AWS::EC2::NatGateway
+    Condition: HasNATGatewayC
     DependsOn: VPCInternetGatewayAttachment
-    Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref PublicSubnetRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
-  # Create 0.0.0.0/0 Route to the NAT Gateway in the Private Subnet
-  PrivateSubnetARouteOut:
-    Condition: PrivateSubnetsCondition
-    DependsOn: TransitGatewayAttachment
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateSubnetARouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !If [ NATGatewayCondition, !Ref NATGatewayA, !Ref "AWS::NoValue" ]
-      TransitGatewayId: !If [ TransitGatewayCondition , !Ref TransitGateway, !Ref "AWS::NoValue" ]
-  PrivateSubnetBRouteOut:
-    Condition: PrivateSubnetsCondition
-    DependsOn: TransitGatewayAttachment
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateSubnetBRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !If [ NATGatewayCondition, !Ref NATGatewayA, !Ref "AWS::NoValue" ]
-      TransitGatewayId: !If [ TransitGatewayCondition , !Ref TransitGateway, !Ref "AWS::NoValue" ]
-  # Transit Gateway Attachement
+      AllocationId: !GetAtt NATCEIP.AllocationId
+      SubnetId: !Ref SubnetPubC
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["natgw", !Ref "AWS::AccountId", !Ref "Environment", !Ref "Name", !Select [ 2, !GetAZs ''] ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref "Environment"
+# Transit Gateways resources
   TransitGatewayAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
     Properties: 
-      SubnetIds: [ !If [ PrivateSubnetsCondition, !Ref SubnetA, !Ref PublicSubnetA ], !If [ PrivateSubnetsCondition, !Ref SubnetB, !Ref PublicSubnetB ] ]
-      TransitGatewayId: !Ref TransitGateway
-      VpcId: !Ref VPC
+      SubnetIds: !If [ HasSubnetA, !If [ HasAZ3, [!Ref SubnetA , !Ref SubnetB, !Ref SubnetC], !If [ HasAZ2, [!Ref SubnetA , !Ref SubnetB], [!Ref SubnetA] ] ], !If [ HasAZ3, [!Ref SubnetPubA , !Ref SubnetPubB, !Ref SubnetPubC], !If [ HasAZ2, [!Ref SubnetPubA , !Ref SubnetPubB], [!Ref SubnetPubA] ] ]]
       Tags:
       - Key: Name
-        Value: !Join ['-', ["tgw-attach", !Ref "AWS::AccountId",  !Ref "Environment"  ] ]
-  # Create DB Subnet for every private subnet
-  DBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Condition: PrivateSubnetsCondition
-    Properties:
-      DBSubnetGroupDescription: "DB Subnet Group"
-      SubnetIds: [ !Ref SubnetA, !Ref SubnetB ]
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["dbsubnetgroup", !Ref "AWS::AccountId",  !Ref "Environment"  ] ]
+        Value: !Join ['-', ["tgw-attach", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: cio-rdad
       - Key: ised-project-id
         Value: cops-aws
       - Key: ised-environment
-        Value: !Ref "Environment"
-  # Create S3 Endpoint
+        Value: !Ref Environment
+      #List All Available Transit Gateways
+      TransitGatewayId: 
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-network-${Environment}"
+      VpcId: !Ref VPC
+  TransitGatewayAssociation:
+    Type: AWS::EC2::TransitGatewayRouteTableAssociation
+    DependsOn: TransitGatewayAttachment
+    Properties: 
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
+      TransitGatewayRouteTableId: 
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-rt-network-${Environment}"
+  TransitGatewayPropagation:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    DependsOn: TransitGatewayAttachment
+    Properties: 
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
+      TransitGatewayRouteTableId: 
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-rt-network-${Environment}"
+# Route Table
+  RouteTableA:
+    Type: AWS::EC2::RouteTable
+    Condition: HasSubnetA
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["rtb", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", "PrivateA" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+  RouteTableB:
+    Type: AWS::EC2::RouteTable
+    Condition: HasSubnetB
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["rtb", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", "PrivateB" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+  RouteTableC:
+    Type: AWS::EC2::RouteTable
+    Condition: HasSubnetC
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["rtb", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", "PrivateC" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+  RouteTablePublic:
+    Type: AWS::EC2::RouteTable
+    Condition: HasSubnetPubA
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["rtb", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment", "Public" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+# Route Table Associations
+  SubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: HasSubnetA
+    Properties:
+      RouteTableId: !Ref RouteTableA
+      SubnetId: !Ref SubnetA
+  SubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: HasSubnetB
+    Properties:
+      RouteTableId: !Ref RouteTableB
+      SubnetId: !Ref SubnetB
+  SubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: HasSubnetC
+    Properties:
+      RouteTableId: !Ref RouteTableC
+      SubnetId: !Ref SubnetC
+  SubnetPubARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: HasSubnetPubA
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetPubA
+  SubnetPubBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: HasSubnetPubB
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetPubB
+  SubnetPubCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: HasSubnetPubC
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetPubC
+# Routes  
+  RoutePublicOut:
+    Type: AWS::EC2::Route
+    Condition: HasSubnetPubA
+    DependsOn: InternetGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref RouteTablePublic
+      GatewayId: !Ref InternetGateway
+  RoutePublicIn:
+    Type: AWS::EC2::Route
+    Condition: HasSubnetPubA
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 100.96.192.0/20
+      RouteTableId: !Ref RouteTablePublic
+      TransitGatewayId:
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-network-${Environment}"
+  TransitGatewayRoutePublicOut:
+    Type: AWS::EC2::TransitGatewayRoute
+    Condition: HasNATGatewayA
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-rt-network-${Environment}"
+  RouteNATAOut:
+    Type: AWS::EC2::Route
+    Condition: HasNATGatewayA
+    DependsOn: NATGatewayA
+    Properties:
+      RouteTableId: !Ref RouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGatewayA
+  RouteTGAOut:
+    Type: AWS::EC2::Route
+    Condition: HasNoNATGatewayA
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayId:
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-network-${Environment}"
+  RouteAIn:
+    Type: AWS::EC2::Route
+    Condition: HasNATGatewayA
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 100.96.192.0/20
+      RouteTableId: !Ref RouteTableA
+      TransitGatewayId:
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-network-${Environment}"
+  RouteNATBOut:
+    Type: AWS::EC2::Route
+    Condition: HasNATGatewayB
+    DependsOn: NATGatewayB
+    Properties:
+      RouteTableId: !Ref RouteTableB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGatewayB
+  RouteTGBOut:
+    Type: AWS::EC2::Route
+    Condition: HasNoNATGatewayB
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTableB
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayId:
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-network-${Environment}"
+  RouteAIn:
+    Type: AWS::EC2::Route
+    Condition: HasNATGatewayB
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 100.96.192.0/20
+      RouteTableId: !Ref RouteTableB
+      TransitGatewayId:
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-network-${Environment}"
+  RouteNATCOut:
+    Type: AWS::EC2::Route
+    Condition: HasNATGatewayC
+    DependsOn: NATGatewayC
+    Properties:
+      RouteTableId: !Ref RouteTableC
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGatewayC
+  RouteTGCOut:
+    Type: AWS::EC2::Route
+    Condition: HasNoNATGatewayC
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTableC
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayId: 
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-network-${Environment}"
+  RouteAIn:
+    Type: AWS::EC2::Route
+    Condition: HasNATGatewayC
+    DependsOn: TransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 100.96.192.0/20
+      RouteTableId: !Ref RouteTableC
+      TransitGatewayId:
+        Fn::ImportValue: 
+          Fn::Sub: "tgw-network-${Environment}"
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Condition: HasSubnetA
+    Properties:
+      DBSubnetGroupDescription: "DB Subnet Group"
+      SubnetIds: !If [ HasAZ3, [!Ref SubnetA , !Ref SubnetB, !Ref SubnetC], !If [ HasAZ2, [!Ref SubnetA , !Ref SubnetB], [!Ref SubnetA] ] ]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["dbsubnetgroup", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment"  ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+# Create S3 and SSM endpoints
   VPCS3Enpoint:
-    Condition: PrivateSubnetsCondition
     Type: AWS::EC2::VPCEndpoint
     Properties:
       PolicyDocument: 
@@ -372,35 +577,31 @@ Resources:
           Action: "*"
           Resource: "*"
       RouteTableIds:
-        - !Ref PrivateSubnetARouteTable
-        - !Ref PrivateSubnetBRouteTable
+        - !If [ HasSubnetA, !Ref RouteTableA, !Ref "AWS::NoValue"]
+        - !If [ HasSubnetB, !Ref RouteTableB, !Ref "AWS::NoValue"]
+        - !If [ HasSubnetC, !Ref RouteTableC, !Ref "AWS::NoValue"]
+        - !If [ HasSubnetPubA, !Ref RouteTablePublic, !Ref "AWS::NoValue"]
       ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
       VpcEndpointType: Gateway
-      VpcId: !Ref VPC      
-  # Enable Flow logs in vpc
-  VPCFlowLogRetention:
-    Type: AWS::Logs::LogGroup
-    Properties: 
-      LogGroupName: !Join ['-', [!Ref "VPC","FlowLog-LogGroup"]]
-      RetentionInDays: 90
+      VpcId: !Ref VPC
+# Enable VPC Flow logs to central S3 bucket in the Log Archive account
   VPCFlowLogs:
     Type: AWS::EC2::FlowLog
     Properties:
-      DeliverLogsPermissionArn: 
-        Fn::ImportValue: 
-          Fn::Sub:  "VPCFlowLogRole"
-      LogGroupName: !Join ['-', [!Ref "VPC","FlowLog-LogGroup"]]
+      DeliverLogsPermissionArn: !ImportValue VPCFlowLogRole
+      LogGroupName: !Join ['-', ["vpc-flow-log-group", !Ref "AWS::AccountId" ]]
       ResourceId: !Ref VPC
       ResourceType: VPC
       TrafficType: ALL
   VPCFlowLogstoS3:
     Type: AWS::EC2::FlowLog
     Properties:
-      LogDestination: !Join ['/', [!Ref "VPCFlowlogS3", !Ref "VPC"]] 
+      LogDestination: !Join [':', [ "arn:aws:s3::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref AccountIDLog, "logs-vpc"]]]]
       LogDestinationType: s3
       ResourceId: !Ref VPC
       ResourceType: VPC
       TrafficType: ALL
+# Attlassian related configuration
   SecurityGroupAtlassianEC2:
     Type: AWS::EC2::SecurityGroup
     Condition: IsCots
@@ -431,45 +632,69 @@ Outputs:
     Description: VPC
     Value: !Ref VPC
     Export: 
-      Name: !Join ['-', ["vpc", !Ref "Name", !Ref "Environment" ]]
+      Name: !Join ['-', ["vpc", !Ref Name, !Ref "Environment" ]]
   VPCCidrBlock:
     Description: VPCCidrBlock
     Value: !GetAtt VPC.CidrBlock
     Export: 
-      Name: !Join ['-', ["vpc", !Ref "Name", "cidrblock", !Ref "Environment" ]]
+      Name: !Join ['-', ["vpc-cidrblock", !Ref Name, !Ref "Environment" ]]
   SubnetA:
-    Condition: PrivateSubnetsCondition
-    Description: PrivateSubnetA
+    Description: SubnetA
+    Condition: HasSubnetA
     Value: !Ref SubnetA  
     Export: 
-      Name: !Join ['-', ["subnet", !Ref "Name", "private-1a", !Ref "Environment" ]]
+      Name: !Join ['-', ["subneta", !Ref Name, !Ref "Environment" ]]
   SubnetB:
-    Condition: PrivateSubnetsCondition
     Description: SubnetB
+    Condition: HasSubnetB
     Value: !Ref SubnetB
     Export: 
-      Name: !Join ['-', ["subnet", !Ref "Name", "private-1b", !Ref "Environment" ]]
-  PublicSubnetA:
-    Condition: PublicSubnetsCondition
-    Description: PublicSubnetA
-    Value: !Ref PublicSubnetA  
+      Name: !Join ['-', ["subnetb", !Ref Name, !Ref "Environment" ]]
+  SubnetC:
+    Description: SubnetC
+    Condition: HasSubnetC
+    Value: !Ref SubnetC
     Export: 
-      Name: !Join ['-', ["subnet", !Ref "Name", "public-1a", !Ref "Environment" ]]
-  PublicSubnetB:
-    Condition: PublicSubnetsCondition
-    Description: PublicSubnetB
-    Value: !Ref PublicSubnetB
-    Export: 
-      Name: !Join ['-', ["subnet", !Ref "Name", "public-1b", !Ref "Environment" ]]
+      Name: !Join ['-', ["subnetc", !Ref Name, !Ref "Environment" ]]
   DBSubnetGroup:
-    Condition: PrivateSubnetsCondition
     Description: DBSubnetGroup
+    Condition: HasSubnetA
     Value: !Ref DBSubnetGroup
     Export: 
-      Name: !Join ['-', ["dbsubnet", !Ref "Name", !Ref "Environment" ]]
+      Name: !Join ['-', ["dbsubnet", !Ref Name, !Ref "Environment" ]]
   SecurityGroupAtlassianEC2:
-    Condition: IsCots
     Description: Security Group for all Atlassian EC2s
+    Condition: IsCots
     Value: !Ref SecurityGroupAtlassianEC2
     Export:
       Name: !Join ['-', ["sg-ec2-atlassian", !Ref "Environment" ]]
+# This is for backward compatibility
+#  VPCOld:
+#    Description: VPC
+#    Value: !Ref VPC
+#    Export: 
+#      Name: !Join ['-', ["vpc", !Ref "Environment" ]]
+#  VPCCidrBlockOld:
+#    Description: VPCCidrBlock
+#    Value: !GetAtt VPC.CidrBlock
+#    Export: 
+#      Name: !Join ['-', ["vpc-cidrblock", !Ref "Environment" ]]
+#  SubnetAOld:
+#    Description: SubnetA
+#    Condition: HasSubnetA
+#    Value: !Ref SubnetA  
+#    Export: 
+#      Name: !Join ['-', ["subneta", !Ref "Environment" ]]
+#  SubnetBOld:
+#    Description: SubnetB
+#    Condition: HasSubnetB
+#    Value: !Ref SubnetB
+#    Export: 
+#      Name: !Join ['-', ["subnetb", !Ref "Environment" ]]
+#  DBSubnetGroup:
+#    Description: DBSubnetGroup
+#    Condition: HasSubnetA
+#    Value: !Ref DBSubnetGroup
+#    Export: 
+#      Name: !Join ['-', ["dbsubnet", !Ref "Environment" ]]
+  

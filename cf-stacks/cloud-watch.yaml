@@ -1,0 +1,9 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Resources:
+  VPCFlowLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties: 
+      LogGroupName: !Join ['-', ["vpc-flow-log-group", !Ref "AWS::AccountId" ]]
+      RetentionInDays: 30

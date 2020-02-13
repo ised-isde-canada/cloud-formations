@@ -114,11 +114,9 @@ Parameters:
   OpenShiftAccountID:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDOpenShift       
-  IsedTemplateRemediationConfig:
+  S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
-    Default: TemplateRemediationConfig          
-      
-    
+    Default: S3Templates 
 Resources:
   AWSConfigRuleTagsCost:
     Type: AWS::Config::ConfigRule
@@ -281,7 +279,7 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: IsCostRuleOn
     Properties:
-      TemplateURL: !Ref IsedTemplateRemediationConfig
+      TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsCost
@@ -296,7 +294,7 @@ Resources:
   BasicRemediationConfigurationTagsBackup:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Ref IsedTemplateRemediationConfig
+      TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsBackup
@@ -312,7 +310,7 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: IsPatchingRuleOn
     Properties:
-      TemplateURL: !Ref IsedTemplateRemediationConfig
+      TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
         AutomationRoleArm: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsPatching

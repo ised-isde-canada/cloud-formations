@@ -1,0 +1,16 @@
+#!/bin/bash
+
+echo Adding ised-roles
+aws cloudformation update-stack-set --stack-set-name ised-roles --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/roles.yaml --parameters file://./../cf-parameters/roles.json --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --accounts file://./../scripts/accounts.json --regions ca-central-1
+echo Adding ised-secrets
+aws cloudformation update-stack-set --stack-set-name ised-secrets --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/secrets.yaml --parameters file://./../cf-parameters/secrets.json --accounts file://./../scripts/accounts.json --regions ca-central-1
+echo Adding ised-s3-log
+aws cloudformation update-stack-set --stack-set-name ised-s3-log --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/s3-log.yaml --parameters file://./../cf-parameters/s3-log.json --accounts file://./../scripts/accounts.json --regions ca-central-1
+echo Adding ised-config
+aws cloudformation update-stack-set --stack-set-name ised-config --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/config.yaml --parameters file://./../cf-parameters/config.json --accounts file://./../scripts/accounts.json --regions ca-central-1
+echo Adding ised-cloud-watch
+aws cloudformation update-stack-set --stack-set-name ised-cloud-watch --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/cloud-watch.yaml --parameters file://./../cf-parameters/cloud-watch.json --accounts file://./../scripts/accounts.json --regions ca-central-1
+echo Adding ised-backup
+aws cloudformation update-stack-set --stack-set-name ised-backup --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/backup.yaml --parameters file://./../cf-parameters/backup.json --accounts file://./../scripts/accounts.json --regions ca-central-1
+echo Adding ised-ec2patching
+aws cloudformation update-stack-set --stack-set-name ised-ec2patching --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/ec2patching.yaml --parameters file://./../cf-parameters/ec2patching.json --accounts file://./../scripts/accounts.json --regions ca-central-1

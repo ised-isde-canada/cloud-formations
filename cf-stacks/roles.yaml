@@ -5,11 +5,31 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.3 - Added Backup role and DataLifeCycleManager role for RDS and EBS backups
 #             - Added 'Condtion' in 'Outputs' section related to NexusRole, otherwise deployment fails
 # Version 1.4 - Add generic ised-managed-instance-role with SSM and S3 permissions for EC2 patching
-Description: Template to create all required roles. Version 1.4
-
+# Version 1.5 - Update to use Parameter Store
+Description: Template to create all required roles. Version 1.5
 Conditions:
-  IsNotMaster: !Not [!Equals [ !Ref "AWS::AccountId", 256255698049 ]]
-  IsCotsAccount: !Equals [ !Ref "AWS::AccountId", 850605615431 ]
+  IsNotMaster: !Not [!Equals [ !Ref "AWS::AccountId", !Ref AccountIDMaster ]]
+  IsCotsAccount: !Or [ !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCots ] , !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCotsDev ]]
+  IsOpenShiftAccount: !Or [ !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShift ] , !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShiftDev ], !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShiftLab ]]
+Parameters:
+  AccountIDMaster:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDMaster
+  AccountIDCots:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShift
+  AccountIDCotsDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShift
+  AccountIDOpenShift:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShift
+  AccountIDOpenShiftDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShiftDev
+  AccountIDOpenShiftLab:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShiftLab
 Resources:
   ManagedInstanceRole:
     Type: AWS::IAM::Role

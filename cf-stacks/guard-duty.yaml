@@ -425,6 +425,7 @@ Resources:
     Type: AWS::KMS::Key
     Properties:
       Description: "Key used by GuardDuty to encrypt findings in S3"
+      EnableKeyRotation: True
       KeyPolicy:
         Version: "2012-10-17"
         Id: "key-consolepolicy-3"
@@ -504,7 +505,7 @@ Resources:
   S3Bucket:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/s3.yaml
+      TemplateURL: "{{resolve:ssm:TemplateS3:1}}"
       Parameters:
         Name: guardduty
         KmsArn: !GetAtt EncryptionKey.Arn
