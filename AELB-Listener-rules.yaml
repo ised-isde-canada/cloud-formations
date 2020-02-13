@@ -1,0 +1,329 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: Application Load balancer Arn
+        Parameters:
+          - AELBListenerArn
+
+      -
+        Label:
+          default: Listener 1
+        Parameters:
+          - Host
+          - AELBTargetGroupArn
+          - PriorityNumber
+
+      -
+        Label:
+          default: Listener 2
+        Parameters:
+          - Host2
+          - AELBTargetGroupArn2
+          - PriorityNumber2
+
+      -
+        Label:
+          default: Listener 3
+        Parameters:
+          - Host3
+          - AELBTargetGroupArn3
+          - PriorityNumber3
+
+      -
+        Label:
+          default: Listener 4
+        Parameters:
+          - Host4
+          - AELBTargetGroupArn4
+          - PriorityNumber4
+
+      -
+        Label:
+          default: Listener 5
+        Parameters:
+          - Host5
+          - AELBTargetGroupArn5
+          - PriorityNumber5
+
+      -
+        Label:
+          default: Listener 6
+        Parameters:
+          - Host6
+          - AELBTargetGroupArn6
+          - PriorityNumber6
+
+      -
+        Label:
+          default: Listener 7
+        Parameters:
+          - Host7
+          - AELBTargetGroupArn7
+          - PriorityNumber7
+
+      -
+        Label:
+          default: Listener 8
+        Parameters:
+          - Host8
+          - AELBTargetGroupArn8
+          - PriorityNumber8
+
+      -
+        Label:
+          default: Listener 9
+        Parameters:
+          - Host9
+          - AELBTargetGroupArn9
+          - PriorityNumber9
+
+      -
+        Label:
+          default: Listener 10
+        Parameters:
+          - Host10
+          - AELBTargetGroupArn10
+          - PriorityNumber10
+
+Parameters:
+  Host:
+    Type: String
+    Default: test.com
+  AELBListenerArn:                                                                                                                                                                                                                                                                                                                                                                                                       
+    Type: String
+    Default: arn:aws:elasticloadbalancing:ca-central-1:355322244959:listener/app/ck-test-AELB/f842a0d83fae13d6/cba33000e3037f32
+  PriorityNumber:
+    Type: String
+    Default: 2
+  AELBTargetGroupArn:
+    Type: String
+    Default: arn:aws:elasticloadbalancing:ca-central-1:355322244959:targetgroup/ck-Target-Test121/625d393621c4b260
+
+  Host2:
+    Type: String
+  PriorityNumber2:
+    Type: String
+  AELBTargetGroupArn2:
+    Type: String
+
+  Host3:
+    Type: String
+  PriorityNumber3:
+    Type: String
+  AELBTargetGroupArn3:
+    Type: String
+
+  Host4:
+    Type: String
+  PriorityNumber4:
+    Type: String
+  AELBTargetGroupArn4:
+    Type: String
+
+  Host5:
+    Type: String
+  PriorityNumber5:
+    Type: String
+  AELBTargetGroupArn5:
+    Type: String
+
+  Host6:
+    Type: String
+  PriorityNumber6:
+    Type: String
+  AELBTargetGroupArn6:
+    Type: String
+
+  Host7:
+    Type: String
+  PriorityNumber7:
+    Type: String
+  AELBTargetGroupArn7:
+    Type: String
+
+  Host8:
+    Type: String
+  PriorityNumber8:
+    Type: String
+  AELBTargetGroupArn8:
+    Type: String
+
+  Host9:
+    Type: String
+  PriorityNumber9:
+    Type: String
+  AELBTargetGroupArn9:
+    Type: String   
+
+  Host10:
+    Type: String
+  PriorityNumber10:
+    Type: String
+  AELBTargetGroupArn10:
+    Type: String                              
+
+Conditions:
+  Has2Listener: !Not [ !Equals [!Ref AELBTargetGroupArn2, '']]
+  Has3Listener: !Not [ !Equals [!Ref AELBTargetGroupArn3, '']]
+  Has4Listener: !Not [ !Equals [!Ref AELBTargetGroupArn4, '']]
+  Has5Listener: !Not [ !Equals [!Ref AELBTargetGroupArn5, '']]
+  Has6Listener: !Not [ !Equals [!Ref AELBTargetGroupArn6, '']]
+  Has7Listener: !Not [ !Equals [!Ref AELBTargetGroupArn7, '']]
+  Has8Listener: !Not [ !Equals [!Ref AELBTargetGroupArn8, '']]
+  Has9Listener: !Not [ !Equals [!Ref AELBTargetGroupArn9, '']]
+  Has10Listener: !Not [ !Equals [!Ref AELBTargetGroupArn10, '']]
+
+Resources:
+    LoadBalancerListenerRule:
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref AELBListenerArn
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref AELBTargetGroupArn
+        Conditions:
+          - HostHeaderConfig: 
+              Values:
+                - !Ref Host
+            Field: host-header
+        Priority: !Ref PriorityNumber
+
+    LoadBalancerListenerRule2:
+      Condition: Has2Listener
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref AELBListenerArn
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref AELBTargetGroupArn2
+        Conditions:
+          - HostHeaderConfig: 
+              Values:
+                - !Ref Host2
+            Field: host-header
+        Priority: !Ref PriorityNumber2 
+
+    LoadBalancerListenerRule3:
+      Condition: Has3Listener
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref AELBListenerArn
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref AELBTargetGroupArn3
+        Conditions:
+          - HostHeaderConfig: 
+              Values:
+                - !Ref Host3
+            Field: host-header
+        Priority: !Ref PriorityNumber3       
+
+    LoadBalancerListenerRule4:
+      Condition: Has4Listener    
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref AELBListenerArn
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref AELBTargetGroupArn4
+        Conditions:
+          - HostHeaderConfig: 
+              Values:
+                - !Ref Host4
+            Field: host-header
+        Priority: !Ref PriorityNumber4
+
+    LoadBalancerListenerRule5:
+      Condition: Has5Listener
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref AELBListenerArn
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref AELBTargetGroupArn5
+        Conditions:
+          - HostHeaderConfig: 
+              Values:
+                - !Ref Host5
+            Field: host-header
+        Priority: !Ref PriorityNumber5
+
+    LoadBalancerListenerRule6:
+      Condition: Has6Listener
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref AELBListenerArn
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref AELBTargetGroupArn6
+        Conditions:
+          - HostHeaderConfig: 
+              Values:
+                - !Ref Host6
+            Field: host-header
+        Priority: !Ref PriorityNumber6
+
+    LoadBalancerListenerRule7:
+      Condition: Has7Listener
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref AELBListenerArn
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref AELBTargetGroupArn7
+        Conditions:
+          - HostHeaderConfig: 
+              Values:
+                - !Ref Host7
+            Field: host-header
+        Priority: !Ref PriorityNumber7
+
+    LoadBalancerListenerRule8:
+      Condition: Has8Listener
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref AELBListenerArn
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref AELBTargetGroupArn8
+        Conditions:
+          - HostHeaderConfig: 
+              Values:
+                - !Ref Host8
+            Field: host-header
+        Priority: !Ref PriorityNumber8
+
+    LoadBalancerListenerRule9:
+      Condition: Has9Listener
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref AELBListenerArn
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref AELBTargetGroupArn9
+        Conditions:
+          - HostHeaderConfig: 
+              Values:
+                - !Ref Host9
+            Field: host-header
+        Priority: !Ref PriorityNumber9
+
+    LoadBalancerListenerRule10:
+      Condition: Has10Listener
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        ListenerArn: !Ref AELBListenerArn
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref AELBTargetGroupArn10
+        Conditions:
+          - HostHeaderConfig: 
+              Values:
+                - !Ref Host10
+            Field: host-header
+        Priority: !Ref PriorityNumber10

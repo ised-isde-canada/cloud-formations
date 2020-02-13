@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Template to create the RDS. Version 1.0
+Metadata:
+ AWS::CloudFormation::Interface:
+   ParameterGroups:
+     - Label:
+         default: "General"
+       Parameters:
+         - JIRAProjectKey
+         - CostCentre
+         - Environment
+         - Subnet
+         - Schedule
+     - Label:
+         default: "RDS"
+       Parameters:
+         - RDSSize
+         - RDSStorage
+         - RDSSnapshot
+         - RDSMasterUserPassword
+         - RDSBackupRetentionPeriod
+Parameters:
+# ===== General Section =====
+  JIRAProjectKey:
+    Type: String
+  CostCentre:
+    Type: String
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - uat
+      - qa
+      - prod
+  Subnet:
+    Type: String
+    AllowedValues:
+      - subneta
+      - subnetb
+  Schedule:
+    Type: String
+    AllowedValues:
+      - no
+      - end-of-week-shutdown
+      - mon-6am-fri-6pm
+      - office-hours
+      - 24-7
+# ===== RDS Section =====
+  RDSStorage:
+    Type: String
+  RDSSize:
+    Type: String
+    Default: <None>
+    AllowedValues:
+      - <None>
+      - db.t3.large
+  RDSSnapshot:
+    Description: Specify if restoring from snapshot
+    Type: String
+  RDSBackupRetentionPeriod:
+    Type: String
+    Default: <None>
+    AllowedValues:
+      - <None>
+      - 7
+      - 30
+  RDSMasterUserPassword:
+    NoEcho: true
+    Type: String
+    #MinLength: 8
+    #MaxLength: 16
+    #AllowedPattern: ^[a-zA-Z0-9]*$
+Conditions:
+  IsProd: !Equals [ !Ref Environment, prod ]
+  IsSchedule: !Not [!Equals [ !Ref Schedule, no ]]
+Resources:
+  SecurityGroupRDS:
+    Type: AWS::EC2::SecurityGroup
+    DeletionPolicy: Retain
+    Properties:
+      GroupDescription: "RDS Secuirty Group"
+      VpcId: 
+        Fn::ImportValue: 
+          Fn::Sub:  "vpc-${Environment}"
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref "JIRAProjectKey" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref JIRAProjectKey
+      - Key: ised-environment
+        Value: !Ref Environment
+  RDS:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Retain
+    Properties:
+      DBInstanceIdentifier: !Ref JIRAProjectKey
+      AllocatedStorage: !Ref RDSStorage
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: !Ref RDSSize
+      Port: 5432
+      StorageType: gp2
+      BackupRetentionPeriod: !Ref RDSBackupRetentionPeriod
+      CopyTagsToSnapshot: true
+      MasterUsername: !Ref JIRAProjectKey
+      MasterUserPassword: !Ref RDSMasterUserPassword
+      # backup is defined in UTC 
+      PreferredBackupWindow: 10:30-11:00
+      PreferredMaintenanceWindow: fri:06:00-fri:06:30
+      DBName: !Ref JIRAProjectKey
+      Engine: postgres
+      EngineVersion: 10.6
+      LicenseModel: postgresql-license
+      StorageEncrypted: true
+      DBSubnetGroupName:
+        Fn::ImportValue: 
+          Fn::Sub: "dbsubnet-${Environment}"
+      VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref JIRAProjectKey
+      - Key: ised-environment
+        Value: !Ref Environment
+      - Key: ised-backup
+        Value: !If [ IsProd, backup-prod, backup-dev ]
+      - !If
+        - IsSchedule
+        - Key: ised-schedule
+          Value: !Ref Schedule
+        - !Ref AWS::NoValue
