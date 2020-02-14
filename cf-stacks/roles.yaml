@@ -439,6 +439,14 @@ Resources:
             - tag:GetResources
             Effect: Allow
             Principal: *
+  OpenShiftInstallUser:
+    Type: AWS::IAM::User
+    Condition: IsOpenShiftAccount
+    Description: The IAM user to install OpenShift. 
+    Properties:
+      LoginProfile:
+        Password: "Canada123!"
+        PasswordResetRequired: true
 Outputs:
   RoleLambdaExecution:
     Description: LambdaExecutionRole
