@@ -288,6 +288,7 @@ Resources:
       Path: /
   OpenShiftInstallRole:
     Type: 'AWS::IAM::Role'
+    Condition: IsOpenShiftAccount
     Description: The permissions required to install OpenShift. 
     Properties:
       RoleName: ised-openshift-install
