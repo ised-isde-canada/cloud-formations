@@ -512,7 +512,7 @@ Resources:
       TransitGatewayId:
         Fn::ImportValue: 
           Fn::Sub: "tgw-network-${Environment}"
-  RouteAIn:
+  RouteBIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayB
     DependsOn: TransitGatewayAttachment
@@ -540,7 +540,7 @@ Resources:
       TransitGatewayId: 
         Fn::ImportValue: 
           Fn::Sub: "tgw-network-${Environment}"
-  RouteAIn:
+  RouteCIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayC
     DependsOn: TransitGatewayAttachment
