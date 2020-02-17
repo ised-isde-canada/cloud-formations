@@ -67,6 +67,9 @@ Parameters:
   AccountIDCots:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDCOTS       
+  AccountIDCotsDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDCOTSDev
 Conditions:
   HasAZ2: !Or [!Equals [ !Ref NumberAZ, "2" ], !Equals [ !Ref NumberAZ, "3" ]]
   HasAZ3: !Equals [ !Ref NumberAZ, "3" ]
@@ -87,7 +90,7 @@ Conditions:
   Has2Subnets: !Or [ !And [!Equals [ !Ref Structure, Public-Private ],!Equals [ !Ref NumberAZ, "1" ]] , !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "2" ]]] 
   Has4Subnets: !Or [ !And [!Equals [ !Ref Structure, Public-Private ],!Equals [ !Ref NumberAZ, "2" ]] , !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "3" ]]] 
   Has8Subnets: !And [!Equals [ !Ref Structure, Public-Private ], !Equals [ !Ref NumberAZ, "3" ]]
-  IsCots: !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCots ]
+  IsCots: !Or [ !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCots ], !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCotsDev ]]
 Resources:
   SubFunction:
     Type: AWS::Lambda::Function
