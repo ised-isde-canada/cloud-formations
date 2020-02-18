@@ -513,7 +513,7 @@ Resources:
         - !Ref OpenShiftInstallUser
   OpenShiftInstallUser:
     Type: AWS::IAM::User
-    Condition: IsOpenshiftAccount
+    Condition: IsOpenShiftAccount
     Properties:
       UserName: ised-openshift-install-user
       LoginProfile:
