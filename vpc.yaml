@@ -58,12 +58,17 @@ Parameters:
     - 27
     - 28
     Default: 26
+  TransitGatewayId:
+    Type: String
   S3BucketNamePrefix:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3BucketNamePrefix
   AccountIDLog:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDLog
+  AccountIDSharedServices:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSharedServices
   AccountIDCots:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDCOTS       
@@ -87,7 +92,9 @@ Conditions:
   Has2Subnets: !Or [ !And [!Equals [ !Ref Structure, Public-Private ],!Equals [ !Ref NumberAZ, "1" ]] , !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "2" ]]] 
   Has4Subnets: !Or [ !And [!Equals [ !Ref Structure, Public-Private ],!Equals [ !Ref NumberAZ, "2" ]] , !And [!Or [!Equals [ !Ref Structure, Private ], !Equals [ !Ref Structure, Public ]], !Equals [ !Ref NumberAZ, "3" ]]] 
   Has8Subnets: !And [!Equals [ !Ref Structure, Public-Private ], !Equals [ !Ref NumberAZ, "3" ]]
-  IsCots: !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCots ]
+  IsCots: !Or [ !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCots ], !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCotsDev ]]
+  IsSharedServices: !Equals [ !Ref "AWS::AccountId", !Ref AccountIDSharedServices ]
+  IsSharedServicesAndHasNATGatewayA: !And [ !Condition IsSharedServices, !Condition HasNATGatewayA ]
 Resources:
   SubFunction:
     Type: AWS::Lambda::Function
@@ -323,25 +330,26 @@ Resources:
       - Key: ised-environment
         Value: !Ref Environment
       #List All Available Transit Gateways
-      TransitGatewayId: 
-        Fn::ImportValue: 
-          Fn::Sub: "tgw-network-${Environment}"
+      TransitGatewayId: !Ref TransitGatewayId
       VpcId: !Ref VPC
   TransitGatewayAssociation:
+    Condition: IsSharedServices
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
     DependsOn: TransitGatewayAttachment
     Properties: 
       TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
-      TransitGatewayRouteTableId: 
-        Fn::ImportValue: 
+      TransitGatewayRouteTableId:
+        Fn::ImportValue:
           Fn::Sub: "tgw-rt-network-${Environment}"
+
   TransitGatewayPropagation:
+    Condition: IsSharedServices
     Type: AWS::EC2::TransitGatewayRouteTablePropagation
     DependsOn: TransitGatewayAttachment
     Properties: 
       TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
-      TransitGatewayRouteTableId: 
-        Fn::ImportValue: 
+      TransitGatewayRouteTableId:
+        Fn::ImportValue:
           Fn::Sub: "tgw-rt-network-${Environment}"
 # Route Table
   RouteTableA:
@@ -453,18 +461,16 @@ Resources:
     Properties:
       DestinationCidrBlock: 100.96.192.0/20
       RouteTableId: !Ref RouteTablePublic
-      TransitGatewayId:
-        Fn::ImportValue: 
-          Fn::Sub: "tgw-network-${Environment}"
+      TransitGatewayId: !Ref TransitGatewayId
   TransitGatewayRoutePublicOut:
     Type: AWS::EC2::TransitGatewayRoute
-    Condition: HasNATGatewayA
+    Condition: IsSharedServicesAndHasNATGatewayA
     DependsOn: TransitGatewayAttachment
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
       TransitGatewayRouteTableId:
-        Fn::ImportValue: 
+        Fn::ImportValue:
           Fn::Sub: "tgw-rt-network-${Environment}"
   RouteNATAOut:
     Type: AWS::EC2::Route
@@ -481,9 +487,7 @@ Resources:
     Properties:
       RouteTableId: !Ref RouteTableA
       DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId:
-        Fn::ImportValue: 
-          Fn::Sub: "tgw-network-${Environment}"
+      TransitGatewayId: !Ref TransitGatewayId
   RouteAIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayA
@@ -491,9 +495,7 @@ Resources:
     Properties:
       DestinationCidrBlock: 100.96.192.0/20
       RouteTableId: !Ref RouteTableA
-      TransitGatewayId:
-        Fn::ImportValue: 
-          Fn::Sub: "tgw-network-${Environment}"
+      TransitGatewayId: !Ref TransitGatewayId
   RouteNATBOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayB
@@ -509,9 +511,7 @@ Resources:
     Properties:
       RouteTableId: !Ref RouteTableB
       DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId:
-        Fn::ImportValue: 
-          Fn::Sub: "tgw-network-${Environment}"
+      TransitGatewayId: !Ref TransitGatewayId
   RouteBIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayB
@@ -519,9 +519,7 @@ Resources:
     Properties:
       DestinationCidrBlock: 100.96.192.0/20
       RouteTableId: !Ref RouteTableB
-      TransitGatewayId:
-        Fn::ImportValue: 
-          Fn::Sub: "tgw-network-${Environment}"
+      TransitGatewayId: !Ref TransitGatewayId
   RouteNATCOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayC
@@ -537,9 +535,7 @@ Resources:
     Properties:
       RouteTableId: !Ref RouteTableC
       DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId: 
-        Fn::ImportValue: 
-          Fn::Sub: "tgw-network-${Environment}"
+      TransitGatewayId: !Ref TransitGatewayId
   RouteCIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayC
@@ -547,9 +543,7 @@ Resources:
     Properties:
       DestinationCidrBlock: 100.96.192.0/20
       RouteTableId: !Ref RouteTableC
-      TransitGatewayId:
-        Fn::ImportValue: 
-          Fn::Sub: "tgw-network-${Environment}"
+      TransitGatewayId: !Ref TransitGatewayId
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Condition: HasSubnetA
