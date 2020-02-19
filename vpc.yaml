@@ -512,7 +512,7 @@ Resources:
       RouteTableId: !Ref RouteTableB
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayId: !Ref TransitGatewayId
-  RouteAIn:
+  RouteBIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayB
     DependsOn: TransitGatewayAttachment
@@ -536,7 +536,7 @@ Resources:
       RouteTableId: !Ref RouteTableC
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayId: !Ref TransitGatewayId
-  RouteAIn:
+  RouteCIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayC
     DependsOn: TransitGatewayAttachment
