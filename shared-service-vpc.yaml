@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - prod
+  CIDRBlock:
+    Type: String
+    Description: The CIDR block of the newly created account
+  TransitGatewayAttachmentId:
+    Type: String
+
+Resources:
+  TGWRouteTableAssociation:
+    Type: AWS::EC2::TransitGatewayRouteTableAssociation
+    Properties: 
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentId
+      TransitGatewayRouteTableId:
+        Fn::ImportValue:
+          Fn::Sub: "tgw-rt-network-${Environment}"
+
+  TGWRouteTablePropagation:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    Properties: 
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentId
+      TransitGatewayRouteTableId:
+        Fn::ImportValue:
+          Fn::Sub: "tgw-rt-network-${Environment}"
+
+  Route:
+    Type: AWS::EC2::Route
+    Properties: 
+      RouteTableId:
+        Fn::ImportValue: StackSet-AWS-Landing-Zone-SharedServicesAccountVPC-8ece3fe3-06fd-4341-8d91-7a4e3ddb9fd8-PublicSubnetRouteTable
+      DestinationCidrBlock: !Ref CIDRBlock
+      TransitGatewayId:
+        Fn::ImportValue:
+          Fn::Sub: "tgw-network-${Environment}"
