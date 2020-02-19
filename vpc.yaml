@@ -71,7 +71,10 @@ Parameters:
     Default: AccountIDSharedServices
   AccountIDCots:
     Type: AWS::SSM::Parameter::Value<String>
-    Default: AccountIDCOTS       
+    Default: AccountIDCOTS
+  AccountIDCotsDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDCOTSDev
 Conditions:
   HasAZ2: !Or [!Equals [ !Ref NumberAZ, "2" ], !Equals [ !Ref NumberAZ, "3" ]]
   HasAZ3: !Equals [ !Ref NumberAZ, "3" ]
