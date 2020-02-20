@@ -58,6 +58,25 @@ Resources:
         DefaultRouteTablePropagation: "disable"
         DnsSupport: "enable"
         VpnEcmpSupport: "enable"
+  TransitGatewayManagementAttachment:
+    Type: AWS::EC2::TransitGatewayAttachment
+    Properties:
+      TransitGatewayId:
+        Fn::ImportValue: !Join ['-', ["tgw", "network", !Ref "Environment" ] ]
+      VpcId:
+        Fn::ImportValue: DefaultVPCId
+      SubnetIds:
+        - Fn::ImportValue: StackSet-AWS-Landing-Zone-SharedServicesAccountVPC-8ece3fe3-06fd-4341-8d91-7a4e3ddb9fd8-PublicSubnet1ID
+        - Fn::ImportValue: StackSet-AWS-Landing-Zone-SharedServicesAccountVPC-8ece3fe3-06fd-4341-8d91-7a4e3ddb9fd8-PublicSubnet2ID
+      Tags:
+        - Key: Name
+          Value: !Join ['-', ["tgw-attach", !Ref "AWS::AccountId", "maintenance", !Ref "Environment" ] ]
+        - Key: ised-cost-centre
+          Value: cio-rdad
+        - Key: ised-project-id
+          Value: cops-aws
+        - Key: ised-environment
+          Value: !Ref Environment
   ElbVpc:
     Type: AWS::CloudFormation::Stack
     DependsOn: TransitGateway
