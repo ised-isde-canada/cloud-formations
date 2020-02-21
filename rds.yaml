@@ -12,6 +12,7 @@ Metadata:
          - Environment
          - Subnet
          - Schedule
+         - VPCName
      - Label:
          default: "RDS"
        Parameters:
@@ -34,6 +35,8 @@ Parameters:
       - uat
       - qa
       - prod
+  VPCName:
+    Type: String
   Subnet:
     Type: String
     AllowedValues:
@@ -83,7 +86,7 @@ Resources:
       GroupDescription: "RDS Secuirty Group"
       VpcId: 
         Fn::ImportValue: 
-          Fn::Sub:  "vpc-${Environment}"
+          Fn::Sub:  "vpc-${VPCName}-${Environment}"
       Tags:
       - Key: Name
         Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref "JIRAProjectKey" ] ]
@@ -118,7 +121,7 @@ Resources:
       StorageEncrypted: true
       DBSubnetGroupName:
         Fn::ImportValue: 
-          Fn::Sub: "dbsubnet-${Environment}"
+          Fn::Sub: "dbsubnet-${VPCName}-${Environment}"
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
       - Key: Name
