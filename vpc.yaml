@@ -23,6 +23,12 @@ Metadata:
         default: "Number of AZ"
       Environment:
         default: "Environment"
+Mappings:
+  EnvironmentMap:
+    dev:
+      TransitGatewayId: "tgw-0ce6830db4d15fcbc"
+    prod:
+      TransitGatewayId: "tgw-"
 Parameters:
   Name:
     Type: String
@@ -58,8 +64,6 @@ Parameters:
     - 27
     - 28
     Default: 26
-  TransitGatewayId:
-    Type: String
   S3BucketNamePrefix:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3BucketNamePrefix
@@ -333,7 +337,7 @@ Resources:
       - Key: ised-environment
         Value: !Ref Environment
       #List All Available Transit Gateways
-      TransitGatewayId: !Ref TransitGatewayId
+      TransitGatewayId: !FindInMap [EnvironmentMap, !Ref Environment, TransitGatewayId]
       VpcId: !Ref VPC
   TransitGatewayAssociation:
     Condition: IsSharedServices
@@ -464,7 +468,7 @@ Resources:
     Properties:
       DestinationCidrBlock: 100.96.192.0/20
       RouteTableId: !Ref RouteTablePublic
-      TransitGatewayId: !Ref TransitGatewayId
+      TransitGatewayId: !FindInMap [EnvironmentMap, !Ref Environment, TransitGatewayId]
   TransitGatewayRoutePublicOut:
     Type: AWS::EC2::TransitGatewayRoute
     Condition: IsSharedServicesAndHasNATGatewayA
@@ -490,7 +494,7 @@ Resources:
     Properties:
       RouteTableId: !Ref RouteTableA
       DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId: !Ref TransitGatewayId
+      TransitGatewayId: !FindInMap [EnvironmentMap, !Ref Environment, TransitGatewayId]
   RouteAIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayA
@@ -498,7 +502,7 @@ Resources:
     Properties:
       DestinationCidrBlock: 100.96.192.0/20
       RouteTableId: !Ref RouteTableA
-      TransitGatewayId: !Ref TransitGatewayId
+      TransitGatewayId: !FindInMap [EnvironmentMap, !Ref Environment, TransitGatewayId]
   RouteNATBOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayB
@@ -514,7 +518,7 @@ Resources:
     Properties:
       RouteTableId: !Ref RouteTableB
       DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId: !Ref TransitGatewayId
+      TransitGatewayId: !FindInMap [EnvironmentMap, !Ref Environment, TransitGatewayId]
   RouteBIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayB
@@ -522,7 +526,7 @@ Resources:
     Properties:
       DestinationCidrBlock: 100.96.192.0/20
       RouteTableId: !Ref RouteTableB
-      TransitGatewayId: !Ref TransitGatewayId
+      TransitGatewayId: !FindInMap [EnvironmentMap, !Ref Environment, TransitGatewayId]
   RouteNATCOut:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayC
@@ -538,7 +542,7 @@ Resources:
     Properties:
       RouteTableId: !Ref RouteTableC
       DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId: !Ref TransitGatewayId
+      TransitGatewayId: !FindInMap [EnvironmentMap, !Ref Environment, TransitGatewayId]
   RouteCIn:
     Type: AWS::EC2::Route
     Condition: HasNATGatewayC
@@ -546,7 +550,7 @@ Resources:
     Properties:
       DestinationCidrBlock: 100.96.192.0/20
       RouteTableId: !Ref RouteTableC
-      TransitGatewayId: !Ref TransitGatewayId
+      TransitGatewayId: !FindInMap [EnvironmentMap, !Ref Environment, TransitGatewayId]
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Condition: HasSubnetA
