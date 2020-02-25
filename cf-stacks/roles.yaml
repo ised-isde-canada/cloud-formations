@@ -288,6 +288,7 @@ Resources:
       Path: /
   OpenShiftEC2Policy:
     Type: 'AWS::IAM::ManagedPolicy'
+    Condition: IsOpenShiftAccount
     Properties:
       ManagedPolicyName: ised-opeenshift-ec2-policy
       PolicyDocument:
@@ -345,6 +346,7 @@ Resources:
         - !Ref OpenShiftInstallUser
   OpenShiftElbPolicy:
     Type: 'AWS::IAM::ManagedPolicy'
+    Condition: IsOpenShiftAccount
     Properties:
       ManagedPolicyName: ised-opeenshift-elb-policy
       PolicyDocument:
@@ -382,6 +384,7 @@ Resources:
         - !Ref OpenShiftInstallUser
   OpenShiftIamPolicy:
     Type: 'AWS::IAM::ManagedPolicy'
+    Condition: IsOpenShiftAccount
     Properties:
       ManagedPolicyName: ised-opeenshift-iam-policy
       PolicyDocument:
@@ -413,6 +416,7 @@ Resources:
         - !Ref OpenShiftInstallUser
   OpenShiftRoute53Policy:
     Type: 'AWS::IAM::ManagedPolicy'
+    Condition: IsOpenShiftAccount
     Properties:
       ManagedPolicyName: ised-opeenshift-route53-policy
       PolicyDocument:
@@ -437,6 +441,7 @@ Resources:
         - !Ref OpenShiftInstallUser
   OpenShiftS3Policy:
     Type: 'AWS::IAM::ManagedPolicy'
+    Condition: IsOpenShiftAccount
     Properties:
       ManagedPolicyName: ised-opeenshift-s3-policy
       PolicyDocument:
@@ -469,6 +474,7 @@ Resources:
         - !Ref OpenShiftInstallUser
   OpenShiftS3ClusterPolicy:
     Type: 'AWS::IAM::ManagedPolicy'
+    Condition: IsOpenShiftAccount
     Properties:
       ManagedPolicyName: ised-opeenshift-s3-cluster-policy
       PolicyDocument:
@@ -490,6 +496,7 @@ Resources:
         - !Ref OpenShiftInstallUser
   OpenShiftDeleteClusterPolicy:
     Type: 'AWS::IAM::ManagedPolicy'
+    Condition: IsOpenShiftAccount
     Properties:
       ManagedPolicyName: ised-opeenshift-delete-cluster-policy
       PolicyDocument:
