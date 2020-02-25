@@ -1,0 +1,234 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Template to create the client ec2s. Version 1.0
+
+Metadata:
+ AWS::CloudFormation::Interface:
+   ParameterGroups:
+     - Label:
+         default: "General"
+       Parameters:
+         - JIRAProjectKey
+         - CostCentre
+         - Environment
+         - VPCName
+         - Subnet
+         - Schedule
+     - Label:
+         default: "EC2"
+       Parameters:
+         - CreateEC2
+         - EC2Size
+         - EC2Ami
+         - EC2RootVolumeSize
+     - Label:
+         default: "EBS"
+       Parameters:
+         - EBSMount
+         - EBSSize
+
+Parameters:
+# ===== General Section =====
+  JIRAProjectKey:
+    Type: String
+  CostCentre:
+    Type: String
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - uat
+      - qa
+      - prod
+  VPCName:
+    Type: String
+  Subnet:
+    Type: String
+    AllowedValues:
+      - subneta
+      - subnetb
+  Schedule:
+    Type: String
+    AllowedValues:
+      - no
+      - end-of-week-shutdown
+      - mon-6am-fri-6pm
+      - office-hours
+      - 24-7
+
+# ===== EC2 Section =====
+  CreateEC2:
+    Type: String
+    Default: Linux
+    AllowedValues:
+      - Linux
+      - Windows-2016
+  EC2Size:
+    Type: String
+    Default: <None>
+    AllowedValues:
+      - <None>
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+  EC2Ami:
+    Type: String
+    Description: Specify if restoring from Ami, otherwise leave blank
+  LatestLinuxAmiId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Description: Reference to the latest Amazon Linux 2 AMI
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+  LatestWindowsAmiId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Description: Reference to the latest Windows Server 2016 AMI
+    Default: "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base"
+  EC2RootVolumeSize:
+    Type: String
+    Default: 8
+
+# ===== EBS Section =====
+  EBSMount:
+    Type: String
+    Default: no
+    AllowedValues:
+      - no
+      - /dev/sdf
+  EBSSize:
+    Type: String
+
+Conditions:
+  IsProd: !Equals [ !Ref Environment, prod ]
+  IsWindows: !Equals [ !Ref CreateEC2, Windows-2016 ]
+  IsLinux: !Equals [ !Ref CreateEC2, Linux ]
+  IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ]]
+  IsEBS: !Not [!Equals [ !Ref EBSMount, no ]]
+  IsSchedule: !Not [!Equals [ !Ref Schedule, no ]]
+
+Resources:
+  SecurityGroupEC2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "EC2 Security Group"
+      VpcId: 
+        Fn::ImportValue: 
+          Fn::Sub: "vpc-${VPCName}-${Environment}"
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["sg-ec2", !Ref "AWS::AccountId", !Ref "JIRAProjectKey" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref JIRAProjectKey
+      - Key: ised-environment
+        Value: !Ref Environment
+
+  # Open SSH Port
+  Ingress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: IsLinux
+    Properties:
+      GroupId: !Ref SecurityGroupEC2
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: 100.96.192.0/24
+
+  # Open RDP Port
+  IngressRDP:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: IsWindows
+    Properties:
+      GroupId: !Ref SecurityGroupEC2
+      IpProtocol: tcp
+      FromPort: 3389
+      ToPort: 3389
+      CidrIp: 100.96.192.0/24
+
+  Egress1:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref SecurityGroupEC2
+      IpProtocol: -1
+      CidrIp: 0.0.0.0/0
+
+  EC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: false
+      IamInstanceProfile:
+        Fn::ImportValue: ManagedInstanceProfile
+      InstanceInitiatedShutdownBehavior: stop
+      EbsOptimized: true
+      # If restoring an EC2, use the provided AMI. Otherwise use the latest AMI
+      # for the OS type chosen
+      ImageId: !If [ IsEC2Restore, !Ref EC2Ami,
+        !If [ IsWindows, !Ref LatestWindowsAmiId, !Ref LatestLinuxAmiId ] ]
+      InstanceType: !Ref EC2Size
+      KeyName: !Ref JIRAProjectKey
+      Monitoring: false
+      BlockDeviceMappings:
+        - DeviceName: !If [ IsLinux, "/dev/xvda", "/dev/sda1" ]
+          Ebs:
+            DeleteOnTermination: true
+            VolumeSize: !Ref EC2RootVolumeSize
+      NetworkInterfaces: 
+        - DeleteOnTermination: true
+          DeviceIndex: 0
+          GroupSet: [ !Ref SecurityGroupEC2 ]
+          SubnetId: 
+            Fn::ImportValue: 
+              Fn::Sub: "${Subnet}-${VPCName}-${Environment}"
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["ec2", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref JIRAProjectKey
+      - Key: ised-environment
+        Value: !Ref Environment
+      - Key: ised-backup
+        Value: !If [ IsProd, backup-prod, backup-dev ]
+      - Key: Patch Group
+        Value: !If [ IsProd, prod-linux2, dev-linux2 ]
+      - !If
+        - IsSchedule
+        - Key: ised-schedule
+          Value: !Ref Schedule
+        - !Ref AWS::NoValue
+
+  EBSVolume:
+    Type: AWS::EC2::Volume
+    Condition: IsEBS
+    Properties:
+      Size: !Ref EBSSize
+      AvailabilityZone: !GetAtt EC2.AvailabilityZone
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref JIRAProjectKey
+      - Key: ised-environment
+        Value: !Ref Environment
+      - Key: ised-backup
+        Value: !If [ IsProd, backup-prod, backup-dev ]
+    DeletionPolicy: Snapshot
+
+  EBSMountPoint:
+    Type: AWS::EC2::VolumeAttachment
+    Condition: IsEBS
+    Properties:
+      InstanceId: !Ref EC2
+      VolumeId: !Ref EBSVolume
+      Device: !Ref EBSMount
+
+Outputs:
+  InstanceId:
+    Value: !Ref EC2
+
+  AvailabilityZone:
+    Value: !GetAtt EC2.AvailabilityZone
