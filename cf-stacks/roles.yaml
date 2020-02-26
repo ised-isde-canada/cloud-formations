@@ -420,6 +420,7 @@ Resources:
               - iam:ListAccessKeys
               - iam:PutUserPolicy
               - iam:TagUser
+              - iam:CreateServiceLinkedRole 
             Resource: '*'
       Users: 
         - !Ref OpenShiftInstallUser
