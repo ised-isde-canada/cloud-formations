@@ -527,6 +527,7 @@ Resources:
               - iam:ListUserPolicies
               - s3:DeleteObject
               - tag:GetResources
+              - tag:TagResources
             Resource: '*'
       Users: 
         - !Ref OpenShiftInstallUser
