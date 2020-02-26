@@ -411,6 +411,15 @@ Resources:
               - iam:RemoveRoleFromInstanceProfile
               - iam:SimulatePrincipalPolicy
               - iam:TagRole
+              - iam:CreateAccessKey
+              - iam:CreateUser
+              - iam:DeleteAccessKey
+              - iam:DeleteUser
+              - iam:DeleteUserPolicy
+              - iam:GetUserPolicy
+              - iam:ListAccessKeys
+              - iam:PutUserPolicy
+              - iam:TagUser
             Resource: '*'
       Users: 
         - !Ref OpenShiftInstallUser
@@ -469,6 +478,9 @@ Resources:
               - s3:PutBucketAcl
               - s3:PutBucketTagging
               - s3:PutEncryptionConfiguration
+              - s3:PutLifecycleConfiguration
+              - s3:HeadBucket
+              - s3:ListBucketMultipartUploads
             Resource: '*'
       Users: 
         - !Ref OpenShiftInstallUser
