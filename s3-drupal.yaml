@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Create an S3 Bucket and IAM User for Drupal
+Parameters:
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+  S3BucketNamePrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3BucketNamePrefix
+  BucketName:
+    Type: String
+
+Resources:
+  S3LogBucket:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "s3.yaml" ]]
+      Parameters:
+        Name:
+          Fn::Sub: "drupal-${BucketName}"
+        S3BucketPolicy: Local
+        S3BucketAccess: Private
+        KmsArn: NA
+
+  IAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: ised-drupal-s3-user
+
+  IAMPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName:
+        Fn::Sub: "ised-drupal-s3-${BucketName}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action: "s3:*"
+            Resource:
+              - Fn::Sub: "arn:aws:s3:::${S3BucketNamePrefix}-${AWS::AccountId}-drupal-${BucketName}"
+              - Fn::Sub: "arn:aws:s3:::${S3BucketNamePrefix}-${AWS::AccountId}-drupal-${BucketName}/*"
+      Users:
+        - !Ref IAMUser
