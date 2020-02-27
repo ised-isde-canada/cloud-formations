@@ -529,6 +529,7 @@ Resources:
               - s3:DeleteObject
               - tag:GetResources
               - tag:TagResources
+              - tag:UntagResources
             Resource: '*'
       Users: 
         - !Ref OpenShiftInstallUser
