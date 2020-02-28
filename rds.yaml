@@ -62,6 +62,12 @@ Parameters:
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
+  RDSEngine:
+    Type: String
+    Default: postgres
+  RDSEngineVersion:
+    Type: String
+    Default: 10.6
   RDSBackupRetentionPeriod:
     Type: String
     Default: <None>
@@ -115,8 +121,8 @@ Resources:
       PreferredBackupWindow: 10:30-11:00
       PreferredMaintenanceWindow: fri:06:00-fri:06:30
       DBName: !Ref JIRAProjectKey
-      Engine: postgres
-      EngineVersion: 10.6
+      Engine: !Ref RDSEngine
+      EngineVersion: !Ref RDSEngineVersion
       LicenseModel: postgresql-license
       StorageEncrypted: true
       DBSubnetGroupName:
