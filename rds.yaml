@@ -84,6 +84,7 @@ Parameters:
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
   IsSchedule: !Not [!Equals [ !Ref Schedule, no ]]
+  IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ]]
 Resources:
   SecurityGroupRDS:
     Type: AWS::EC2::SecurityGroup
@@ -116,15 +117,16 @@ Resources:
       MultiAZ: !If [ IsProd, True, False ]
       BackupRetentionPeriod: !Ref RDSBackupRetentionPeriod
       CopyTagsToSnapshot: true
-      MasterUsername: !Ref JIRAProjectKey
-      MasterUserPassword: !Ref RDSMasterUserPassword
+      DBSnapshotIdentifier: !If [ IsRDSRestore, !Ref RDSSnapshot, !Ref "AWS::NoValue" ]
+      MasterUsername: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref JIRAProjectKey ]
+      MasterUserPassword: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref RDSMasterUserPassword ]
       # Some applications recommend backing up the filesystem and the database
       # at the same time. Here, we match the EBS Backup Window
       PreferredBackupWindow: 06:00-07:00 # UTC
       # Maintenance window happens after the backup window, overnight to reduce
       # downtime impact
       PreferredMaintenanceWindow: tue:08:30-tue:09:00 # UTC
-      DBName: !Ref JIRAProjectKey
+      DBName: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref JIRAProjectKey ]
       Engine: !Ref RDSEngine
       EngineVersion: !Ref RDSEngineVersion
       LicenseModel: postgresql-license
