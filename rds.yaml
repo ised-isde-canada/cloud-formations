@@ -145,3 +145,15 @@ Resources:
         - Key: ised-schedule
           Value: !Ref Schedule
         - !Ref AWS::NoValue
+
+Outputs:
+  RDS:
+    Description: RDS
+    Value: !Ref RDS
+    Export:
+      Name: !Join ['-', [!Ref "JIRAProjectKey", !Ref "Environment", "rds" ] ]
+  RDSEndpoint:
+    Description: RDS Endpoint
+    Value: !GetAtt RDS.Endpoint.Address
+    Export:
+      Name: !Join ['-', [!Ref "JIRAProjectKey", !Ref "Environment", "rds-endpoint" ] ]
