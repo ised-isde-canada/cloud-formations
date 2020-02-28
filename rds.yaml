@@ -12,6 +12,7 @@ Metadata:
          - Environment
          - Subnet
          - Schedule
+         - VPCName
      - Label:
          default: "RDS"
        Parameters:
@@ -34,6 +35,8 @@ Parameters:
       - uat
       - qa
       - prod
+  VPCName:
+    Type: String
   Subnet:
     Type: String
     AllowedValues:
@@ -59,6 +62,12 @@ Parameters:
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
+  RDSEngine:
+    Type: String
+    Default: postgres
+  RDSEngineVersion:
+    Type: String
+    Default: 10.6
   RDSBackupRetentionPeriod:
     Type: String
     Default: <None>
@@ -83,7 +92,7 @@ Resources:
       GroupDescription: "RDS Secuirty Group"
       VpcId: 
         Fn::ImportValue: 
-          Fn::Sub:  "vpc-${Environment}"
+          Fn::Sub:  "vpc-${VPCName}-${Environment}"
       Tags:
       - Key: Name
         Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref "JIRAProjectKey" ] ]
@@ -108,17 +117,20 @@ Resources:
       CopyTagsToSnapshot: true
       MasterUsername: !Ref JIRAProjectKey
       MasterUserPassword: !Ref RDSMasterUserPassword
-      # backup is defined in UTC 
-      PreferredBackupWindow: 10:30-11:00
-      PreferredMaintenanceWindow: fri:06:00-fri:06:30
+      # Some applications recommend backing up the filesystem and the database
+      # at the same time. Here, we match the EBS Backup Window
+      PreferredBackupWindow: 06:00-07:00 # UTC
+      # Maintenance window happens after the backup window, overnight to reduce
+      # downtime impact
+      PreferredMaintenanceWindow: tue:08:30-tue:09:00 # UTC
       DBName: !Ref JIRAProjectKey
-      Engine: postgres
-      EngineVersion: 10.6
+      Engine: !Ref RDSEngine
+      EngineVersion: !Ref RDSEngineVersion
       LicenseModel: postgresql-license
       StorageEncrypted: true
       DBSubnetGroupName:
         Fn::ImportValue: 
-          Fn::Sub: "dbsubnet-${Environment}"
+          Fn::Sub: "dbsubnet-${VPCName}-${Environment}"
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
       - Key: Name
