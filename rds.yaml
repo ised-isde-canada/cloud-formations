@@ -10,7 +10,6 @@ Metadata:
          - JIRAProjectKey
          - CostCentre
          - Environment
-         - Subnet
          - Schedule
          - VPCName
      - Label:
@@ -37,11 +36,6 @@ Parameters:
       - prod
   VPCName:
     Type: String
-  Subnet:
-    Type: String
-    AllowedValues:
-      - subneta
-      - subnetb
   Schedule:
     Type: String
     AllowedValues:
