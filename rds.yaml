@@ -117,9 +117,12 @@ Resources:
       CopyTagsToSnapshot: true
       MasterUsername: !Ref JIRAProjectKey
       MasterUserPassword: !Ref RDSMasterUserPassword
-      # backup is defined in UTC 
-      PreferredBackupWindow: 10:30-11:00
-      PreferredMaintenanceWindow: fri:06:00-fri:06:30
+      # Some applications recommend backing up the filesystem and the database
+      # at the same time. Here, we match the EBS Backup Window
+      PreferredBackupWindow: 06:00-07:00 # UTC
+      # Maintenance window happens after the backup window, overnight to reduce
+      # downtime impact
+      PreferredMaintenanceWindow: tue:08:30-tue:09:00 # UTC
       DBName: !Ref JIRAProjectKey
       Engine: !Ref RDSEngine
       EngineVersion: !Ref RDSEngineVersion
