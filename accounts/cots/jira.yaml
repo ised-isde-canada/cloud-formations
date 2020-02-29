@@ -1,0 +1,207 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: JIRA
+
+Parameters:
+  # ===== General Section =====
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+  VPCName:
+    Type: String
+    Default: ised
+  JIRAProjectKey:
+    Type: String
+    Default: jira
+  ISEDProjectId:
+    Type: String
+    Default: ccots-jira
+  CostCentre:
+    Type: String
+    Default: cio-rdad
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+  Subnet:
+    Type: String
+    Default: subneta
+    AllowedValues:
+      - subneta
+      - subnetb
+  EC2Ami:
+    Type: String
+    Description: Specify if restoring from Ami, otherwise leave blank
+
+  # ===== EBS Volumes =====
+  EC2RootVolumeSize:
+    Type: String
+    Default: 8
+  EC2AppVolumeSize:
+    Type: String
+    Default: 2
+  EC2AppVolumeMount:
+    Type: String
+    Default: /dev/sdg
+  EC2DataVolumeSize:
+    Type: String
+    Default: 20
+  EC2DataVolumeMount:
+    Type: String
+    Default: /dev/sdf
+
+  # ===== RDS Section =====
+  RDSStorage:
+    Type: String
+    Default: 20
+  RDSSize:
+    Type: String
+    Default: db.t3.large
+  RDSEngine:
+    Type: String
+    Default: postgres
+  RDSEngineVersion:
+    Type: String
+    Default: 9.6.15
+  RDSSnapshot:
+    Description: Specify if restoring from snapshot
+    Type: String
+  RDSMasterUserPassword:
+    NoEcho: true
+    Type: String
+
+Conditions:
+  IsProd: !Equals [ !Ref Environment, prod ]
+  IsEC2Restore: !Equals [ !Ref EC2Ami, "" ]
+  IsRDSRestore: !Equals [ !Ref RDSSnapshot, "" ]
+
+Resources:
+
+  EC2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        JIRAProjectKey: !Ref JIRAProjectKey
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre
+        Environment: !Ref Environment
+        VPCName: !Ref VPCName
+        Subnet: !Ref Subnet
+        Schedule: !If [ IsProd, 24-7, office-hours ]
+
+        # ===== EC2 Section =====
+        CreateEC2: Linux
+        EC2Size: t3.large
+        EC2Ami: !Ref EC2Ami
+        EC2RootVolumeSize: !Ref EC2RootVolumeSize
+
+  EBSAppVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !Ref EC2AppVolumeSize
+      AvailabilityZone: !GetAtt EC2.Outputs.AvailabilityZone
+      Encrypted: true
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: ccots-jira
+      - Key: ised-environment
+        Value: !Ref Environment
+      - Key: ised-backup
+        Value: !If [ IsProd, backup-prod, backup-dev ]
+    DeletionPolicy: Snapshot
+
+  EBSAppMountPoint:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      InstanceId: !GetAtt EC2.Outputs.InstanceId
+      VolumeId: !Ref EBSAppVolume
+      Device: !Ref EC2AppVolumeMount
+
+  EBSDataVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !Ref EC2DataVolumeSize
+      AvailabilityZone: !GetAtt EC2.Outputs.AvailabilityZone
+      Encrypted: true
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: ccots-jira
+      - Key: ised-environment
+        Value: !Ref Environment
+      - Key: ised-backup
+        Value: !If [ IsProd, backup-prod, backup-dev ]
+    DeletionPolicy: Snapshot
+
+  EBSDataMountPoint:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      InstanceId: !GetAtt EC2.Outputs.InstanceId
+      VolumeId: !Ref EBSDataVolume
+      Device: !Ref EC2DataVolumeMount
+
+  # Allow incoming connection on JIRA's listening port from ALB VPC
+  IngressJIRA:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt EC2.Outputs.EC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      CidrIp: 100.96.192.0/24
+
+  # Allow incoming connection on Crowd's listening port from JIRA's sg
+  IngressCrowd:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId:
+        Fn::ImportValue:
+          Fn::Sub:  "sg-ec2-crowd-${Environment}"
+      IpProtocol: tcp
+      FromPort: 8095
+      ToPort: 8095
+      SourceSecurityGroupId: !GetAtt EC2.Outputs.EC2SecurityGroup
+
+  RDS:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "rds.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        JIRAProjectKey: !Ref JIRAProjectKey
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre
+        Environment: !Ref Environment
+        VPCName: !Ref VPCName
+        Schedule: !If [ IsProd, 24-7, office-hours ]
+        # ===== RDS Section =====
+        RDSEngine: !Ref RDSEngine
+        RDSEngineVersion: !Ref RDSEngineVersion
+        RDSStorage: !Ref RDSStorage
+        RDSSize: !Ref RDSSize
+        RDSSnapshot: !Ref RDSSnapshot
+        RDSBackupRetentionPeriod: !If [ IsProd, 30, 7 ]
+        RDSMasterUserPassword: !Ref RDSMasterUserPassword
+
+  IngressPostgres:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Allow incoming connections from EC2s from VPC to RDS on port 5432 (Postgresql)
+      GroupId: !GetAtt RDS.Outputs.RDSSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      CidrIp:
+        Fn::ImportValue:
+          Fn::Sub:  "vpc-cidrblock-${VPCName}-${Environment}"
