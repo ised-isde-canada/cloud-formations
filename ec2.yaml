@@ -21,11 +21,6 @@ Metadata:
          - EC2Size
          - EC2Ami
          - EC2RootVolumeSize
-     - Label:
-         default: "EBS"
-       Parameters:
-         - EBSMount
-         - EBSSize
 
 Parameters:
 # ===== General Section =====
@@ -88,22 +83,11 @@ Parameters:
     Type: String
     Default: 8
 
-# ===== EBS Section =====
-  EBSMount:
-    Type: String
-    Default: no
-    AllowedValues:
-      - no
-      - /dev/sdf
-  EBSSize:
-    Type: String
-
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
   IsWindows: !Equals [ !Ref CreateEC2, Windows-2016 ]
   IsLinux: !Equals [ !Ref CreateEC2, Linux ]
   IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ]]
-  IsEBS: !Not [!Equals [ !Ref EBSMount, no ]]
   IsSchedule: !Not [!Equals [ !Ref Schedule, no ]]
 
 Resources:
@@ -198,33 +182,6 @@ Resources:
         - Key: ised-schedule
           Value: !Ref Schedule
         - !Ref AWS::NoValue
-
-  EBSVolume:
-    Type: AWS::EC2::Volume
-    Condition: IsEBS
-    Properties:
-      Size: !Ref EBSSize
-      AvailabilityZone: !GetAtt EC2.AvailabilityZone
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
-      - Key: ised-cost-centre
-        Value: !Ref CostCentre
-      - Key: ised-project-id
-        Value: !Ref JIRAProjectKey
-      - Key: ised-environment
-        Value: !Ref Environment
-      - Key: ised-backup
-        Value: !If [ IsProd, backup-prod, backup-dev ]
-    DeletionPolicy: Snapshot
-
-  EBSMountPoint:
-    Type: AWS::EC2::VolumeAttachment
-    Condition: IsEBS
-    Properties:
-      InstanceId: !Ref EC2
-      VolumeId: !Ref EBSVolume
-      Device: !Ref EBSMount
 
 Outputs:
   InstanceId:
