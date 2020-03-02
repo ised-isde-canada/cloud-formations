@@ -9,6 +9,7 @@ Metadata:
        Parameters:
          - JIRAProjectKey
          - CostCentre
+         - ISEDProjectId
          - Environment
          - Schedule
          - VPCName
@@ -23,6 +24,8 @@ Metadata:
 Parameters:
 # ===== General Section =====
   JIRAProjectKey:
+    Type: String
+  ISEDProjectId:
     Type: String
   CostCentre:
     Type: String
@@ -94,7 +97,7 @@ Resources:
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
-        Value: !Ref JIRAProjectKey
+        Value: !Ref ISEDProjectId
       - Key: ised-environment
         Value: !Ref Environment
   RDS:
@@ -135,7 +138,7 @@ Resources:
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
-        Value: !Ref JIRAProjectKey
+        Value: !Ref ISEDProjectId
       - Key: ised-environment
         Value: !Ref Environment
       - Key: ised-backup
