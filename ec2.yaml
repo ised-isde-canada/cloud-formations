@@ -192,3 +192,6 @@ Outputs:
 
   AvailabilityZone:
     Value: !GetAtt EC2.AvailabilityZone
+
+  EC2SecurityGroup:
+    Value: !Ref SecurityGroupEC2
