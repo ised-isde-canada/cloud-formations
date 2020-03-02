@@ -160,3 +160,5 @@ Outputs:
     Value: !GetAtt RDS.Endpoint.Address
     Export:
       Name: !Join ['-', [!Ref "JIRAProjectKey", !Ref "Environment", "rds-endpoint" ] ]
+  RDSSecurityGroup:
+    Value: !Ref SecurityGroupRDS
