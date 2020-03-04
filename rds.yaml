@@ -55,7 +55,10 @@ Parameters:
     Default: <None>
     AllowedValues:
       - <None>
+      - db.t3.small
+      - db.t3.medium
       - db.t3.large
+      - db.t3.xlarge
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
