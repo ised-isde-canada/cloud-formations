@@ -9,8 +9,8 @@ Metadata:
        Parameters:
          - JIRAProjectKey
          - CostCentre
+         - ISEDProjectId
          - Environment
-         - Subnet
          - Schedule
          - VPCName
      - Label:
@@ -25,6 +25,8 @@ Parameters:
 # ===== General Section =====
   JIRAProjectKey:
     Type: String
+  ISEDProjectId:
+    Type: String
   CostCentre:
     Type: String
   Environment:
@@ -37,11 +39,6 @@ Parameters:
       - prod
   VPCName:
     Type: String
-  Subnet:
-    Type: String
-    AllowedValues:
-      - subneta
-      - subnetb
   Schedule:
     Type: String
     AllowedValues:
@@ -58,7 +55,10 @@ Parameters:
     Default: <None>
     AllowedValues:
       - <None>
+      - db.t3.small
+      - db.t3.medium
       - db.t3.large
+      - db.t3.xlarge
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
@@ -84,6 +84,7 @@ Parameters:
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
   IsSchedule: !Not [!Equals [ !Ref Schedule, no ]]
+  IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ]]
 Resources:
   SecurityGroupRDS:
     Type: AWS::EC2::SecurityGroup
@@ -99,7 +100,7 @@ Resources:
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
-        Value: !Ref JIRAProjectKey
+        Value: !Ref ISEDProjectId
       - Key: ised-environment
         Value: !Ref Environment
   RDS:
@@ -113,17 +114,19 @@ Resources:
       DBInstanceClass: !Ref RDSSize
       Port: 5432
       StorageType: gp2
+      MultiAZ: !If [ IsProd, True, False ]
       BackupRetentionPeriod: !Ref RDSBackupRetentionPeriod
       CopyTagsToSnapshot: true
-      MasterUsername: !Ref JIRAProjectKey
-      MasterUserPassword: !Ref RDSMasterUserPassword
+      DBSnapshotIdentifier: !If [ IsRDSRestore, !Ref RDSSnapshot, !Ref "AWS::NoValue" ]
+      MasterUsername: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref JIRAProjectKey ]
+      MasterUserPassword: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref RDSMasterUserPassword ]
       # Some applications recommend backing up the filesystem and the database
       # at the same time. Here, we match the EBS Backup Window
       PreferredBackupWindow: 06:00-07:00 # UTC
       # Maintenance window happens after the backup window, overnight to reduce
       # downtime impact
       PreferredMaintenanceWindow: tue:08:30-tue:09:00 # UTC
-      DBName: !Ref JIRAProjectKey
+      DBName: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref JIRAProjectKey ]
       Engine: !Ref RDSEngine
       EngineVersion: !Ref RDSEngineVersion
       LicenseModel: postgresql-license
@@ -138,7 +141,7 @@ Resources:
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
-        Value: !Ref JIRAProjectKey
+        Value: !Ref ISEDProjectId
       - Key: ised-environment
         Value: !Ref Environment
       - Key: ised-backup
@@ -148,3 +151,17 @@ Resources:
         - Key: ised-schedule
           Value: !Ref Schedule
         - !Ref AWS::NoValue
+
+Outputs:
+  RDS:
+    Description: RDS
+    Value: !Ref RDS
+    Export:
+      Name: !Join ['-', [!Ref "JIRAProjectKey", !Ref "Environment", "rds" ] ]
+  RDSEndpoint:
+    Description: RDS Endpoint
+    Value: !GetAtt RDS.Endpoint.Address
+    Export:
+      Name: !Join ['-', [!Ref "JIRAProjectKey", !Ref "Environment", "rds-endpoint" ] ]
+  RDSSecurityGroup:
+    Value: !Ref SecurityGroupRDS
