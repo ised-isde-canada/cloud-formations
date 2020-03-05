@@ -27,7 +27,7 @@ Resources:
   S3PatchingLogs:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: "{{resolve:ssm:TemplateS3:1}}"
+      TemplateURL: "{{resolve:ssm:S3Templates:1}}"
       Parameters:
         Name: ec2patching
         KmsArn: ""
