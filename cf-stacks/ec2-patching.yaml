@@ -14,6 +14,15 @@ Parameters:
     Description: "Start Date of Maintenance Window (i.e. format: YYYY-MM-DD): "
     Type: String
     AllowedPattern: "^([12]\\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01]))$"
+  # We want PatchingTime to be 07:00 Canada/Eastern
+  # This needs to be changed twice a year for EST/EDT (see: COPS-2174)
+  PatchingTime:
+    Description: "Select 07:00:00-04:00 when it's daylight saving time, 07:00:00-05:00 when it's standard time)"
+    Type: String
+    Default: "07:00:00-04:00"
+    AllowedValues:
+      - "07:00:00-04:00"
+      - "07:00:00-05:00"
 Resources:
   AutoUpdateSSMAgent:
     Type: AWS::SSM::Association
@@ -216,7 +225,7 @@ Resources:
       Cutoff: 0
       StartDate: 
         !Sub 
-        - "${sDate}T07:00:00-04:00"
+        - "${sDate}T${PatchingTime}"
         - { sDate: !Ref MaintenanceWindowStartDate}
   MaintenanceWindowTargetForLinux:
     Type: AWS::SSM::MaintenanceWindowTarget

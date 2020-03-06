@@ -4,6 +4,16 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.4 - Updated AWS Backup Plan time to 8:00 AM (local)
 # Version 1.5 - Extract IAM roles and put them in roles.yaml template 
 Description: Template to create backups using AWS Backup and LifeCycleManager policies for RDS instances and EBS volumes. Version 1.5
+Parameters:
+  BackupTime:
+    # We want this to be 01:00 Canada/Eastern (05:00 for daylight saving, 06:00 for standard time)
+    # This needs to be changed twice a year for EST/EDT (see: COPS-2174)
+    Description: "The time at which backups will be done (select 05:00 when it's daylight saving, 06:00 when it's standard time)"
+    Type: String
+    Default: "06:00"
+    AllowedValues:
+      - "05:00"
+      - "06:00"
 Resources:
   KMSKey:
     Type: AWS::KMS::Key
@@ -67,7 +77,7 @@ Resources:
               Interval: 24
               IntervalUnit: "HOURS"
               Times:
-                - "06:00"
+                - !Ref BackupTime
             RetainRule:
               Count: 7
             CopyTags: true
@@ -89,7 +99,7 @@ Resources:
               Interval: 24
               IntervalUnit: "HOURS"
               Times:
-                - "06:00"
+                - !Ref BackupTime
             RetainRule:
               Count: 30
             CopyTags: true
@@ -111,7 +121,7 @@ Resources:
               Interval: 24
               IntervalUnit: "HOURS"
               Times:
-                - "06:00"
+                - !Ref BackupTime
             RetainRule:
               Count: 30
             CopyTags: true
