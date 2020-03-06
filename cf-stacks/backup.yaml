@@ -46,7 +46,7 @@ Resources:
             Lifecycle:
               MoveToColdStorageAfterDays: 7
               DeleteAfterDays: 2555
-    DependsOn: BackupVault
+
   AssignProdBackupResources:
     Type: "AWS::Backup::BackupSelection"
     Properties:
@@ -58,7 +58,7 @@ Resources:
            ConditionKey: "ised-backup"
            ConditionValue: "backup-prod"
       BackupPlanId: !Ref BackupPlanForProdBackups
-    DependsOn: BackupPlanForProdBackups
+
   LifecyclePolicyForDevEBS:
     Type: "AWS::DLM::LifecyclePolicy"
     Properties:
