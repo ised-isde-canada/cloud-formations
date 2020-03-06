@@ -23,6 +23,9 @@ Parameters:
     AllowedValues:
       - "07:00:00-04:00"
       - "07:00:00-05:00"
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
 Resources:
   AutoUpdateSSMAgent:
     Type: AWS::SSM::Association
@@ -36,7 +39,7 @@ Resources:
   S3PatchingLogs:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: "{{resolve:ssm:S3Templates:1}}"
+      TemplateURL: !Join [ '', [!Ref S3Templates, "s3.yaml" ]]
       Parameters:
         Name: ec2patching
         KmsArn: ""
