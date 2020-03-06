@@ -68,6 +68,24 @@ Parameters:
   RDSEngineVersion:
     Type: String
     Default: 10.6
+  PreferredBackupWindowTime:
+    # We want this to be 01:00 Canada/Eastern (05:00-06:00 for daylight saving, 06:00-07:00 for standard time)
+    # This needs to be changed twice a year for EST/EDT (see: COPS-2174)
+    Description: "The time at which backups will be done (select 05:00-06:00 when it's daylight saving, 06:00-07:00 when it's standard time)"
+    Type: String
+    Default: "06:00-07:00"
+    AllowedValues:
+      - "05:00-06:00"
+      - "06:00-07:00"
+  PreferredMaintenanceWindow:
+    # We want this to be 03:30 Canada/Eastern (07:30-08:00 for daylight saving, 08:30-09:00 for standard time)
+    # This needs to be changed twice a year for EST/EDT (see: COPS-2174)
+    Description: "The time at which maintenance will be done (select 07:30-08:00 when it's daylight saving, 08:30-09:00 when it's standard time)"
+    Type: String
+    Default: "tue:08:30-tue:09:00"
+    AllowedValues:
+      - "tue:07:30-tue:08:00"
+      - "tue:08:30-tue:09:00"
   RDSBackupRetentionPeriod:
     Type: String
     Default: <None>
@@ -122,10 +140,12 @@ Resources:
       MasterUserPassword: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref RDSMasterUserPassword ]
       # Some applications recommend backing up the filesystem and the database
       # at the same time. Here, we match the EBS Backup Window
-      PreferredBackupWindow: 06:00-07:00 # UTC
+      # We want this to be 01:00 Canada/Eastern -- need to change the time twice a year
+      PreferredBackupWindow: !Ref PreferredBackupWindowTime
       # Maintenance window happens after the backup window, overnight to reduce
       # downtime impact
-      PreferredMaintenanceWindow: tue:08:30-tue:09:00 # UTC
+      # We want this to be 03:30-04:00 Canada/Eastern -- need to change the time twice a year
+      PreferredMaintenanceWindow: !Ref PreferredMaintenanceWindow
       DBName: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref JIRAProjectKey ]
       Engine: !Ref RDSEngine
       EngineVersion: !Ref RDSEngineVersion

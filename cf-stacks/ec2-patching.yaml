@@ -14,6 +14,15 @@ Parameters:
     Description: "Start Date of Maintenance Window (i.e. format: YYYY-MM-DD): "
     Type: String
     AllowedPattern: "^([12]\\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01]))$"
+  # We want PatchingTime to be 07:00 Canada/Eastern
+  # This needs to be changed twice a year for EST/EDT (see: COPS-2174)
+  PatchingTime:
+    Description: "Select 07:00:00-04:00 when it's daylight saving time, 07:00:00-05:00 when it's standard time)"
+    Type: String
+    Default: "07:00:00-04:00"
+    AllowedValues:
+      - "07:00:00-04:00"
+      - "07:00:00-05:00"
 Resources:
   AutoUpdateSSMAgent:
     Type: AWS::SSM::Association
@@ -216,7 +225,7 @@ Resources:
       Cutoff: 0
       StartDate: 
         !Sub 
-        - "${sDate}T07:00:00-04:00"
+        - "${sDate}T${PatchingTime}"
         - { sDate: !Ref MaintenanceWindowStartDate}
   MaintenanceWindowTargetForLinux:
     Type: AWS::SSM::MaintenanceWindowTarget
@@ -228,7 +237,7 @@ Resources:
         - Key: "tag:Patch Group"
           Values: ["dev-linux","prod-linux"]
       WindowId: !Ref EC2MaintenanceWindow
-    DependsOn: EC2MaintenanceWindow
+
   MaintenanceWindowTargetForLinux2:
     Type: AWS::SSM::MaintenanceWindowTarget
     Properties: 
@@ -239,7 +248,7 @@ Resources:
         - Key: "tag:Patch Group"
           Values: ["dev-linux2","prod-linux2"]
       WindowId: !Ref EC2MaintenanceWindow
-    DependsOn: EC2MaintenanceWindow
+
   MaintenanceWindowTargetForWindows:
     Type: AWS::SSM::MaintenanceWindowTarget
     Properties: 
@@ -250,7 +259,7 @@ Resources:
         - Key: "tag:Patch Group"
           Values: ["dev-windows","prod-windows"]
       WindowId: !Ref EC2MaintenanceWindow
-    DependsOn: EC2MaintenanceWindow
+
   MaintenanceWindowTargetForRHEL:
     Type: AWS::SSM::MaintenanceWindowTarget
     Properties: 
@@ -261,7 +270,7 @@ Resources:
         - Key: "tag:Patch Group"
           Values: ["dev-rhel","prod-rhel"]
       WindowId: !Ref EC2MaintenanceWindow
-    DependsOn: EC2MaintenanceWindow
+
   MaintenanceWindowPatchingTaskLinux:
     Type: 'AWS::SSM::MaintenanceWindowTask'
     Properties:
@@ -287,7 +296,7 @@ Resources:
             - "{{WINDOW_EXECUTION_ID}}"
           Comment: "Patching Task for Amazon Linux"
           TimeoutSeconds: 600
-    DependsOn: MaintenanceWindowTargetForLinux
+
   MaintenanceWindowPatchingTaskLinux2:
     Type: 'AWS::SSM::MaintenanceWindowTask'
     Properties:
@@ -313,7 +322,7 @@ Resources:
             - "{{WINDOW_EXECUTION_ID}}"
           Comment: "Patching Task for Amazon Linux2"
           TimeoutSeconds: 600
-    DependsOn: MaintenanceWindowTargetForLinux2
+
   MaintenanceWindowPatchingTaskWindows:
     Type: 'AWS::SSM::MaintenanceWindowTask'
     Properties:
@@ -339,7 +348,7 @@ Resources:
             - "{{WINDOW_EXECUTION_ID}}"
           Comment: "Patching Task for Windows"
           TimeoutSeconds: 600
-    DependsOn: MaintenanceWindowTargetForWindows
+
   MaintenanceWindowPatchingTaskRHEL:
     Type: 'AWS::SSM::MaintenanceWindowTask'
     Properties:
@@ -365,4 +374,3 @@ Resources:
             - "{{WINDOW_EXECUTION_ID}}"
           Comment: "Patching Task for Red Hat Enterprise Linux"
           TimeoutSeconds: 600
-    DependsOn: MaintenanceWindowTargetForRHEL
