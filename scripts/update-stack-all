@@ -15,4 +15,4 @@ aws cloudformation update-stack-set --stack-set-name ised-backup --template-url 
 echo Adding ised-ec2patching
 aws cloudformation update-stack-set --stack-set-name ised-ec2patching --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/ec2patching.yaml --parameters file://./../cf-parameters/ec2patching.json --accounts file://./../scripts/accounts.json --regions ca-central-1
 echo Adding rds-parameter-groups
-aws cloudformation update-stack-set --stack-set-name rds-parameter-groups --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/rds-parameter-groups.yaml --parameters file://./../cf-parameters/rds-parameter-groups.json --accounts file://./../scripts/accounts.json --regions ca-central-1
+aws cloudformation update-stack-set --stack-set-name ised-rds-parameter-groups --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/rds-parameter-groups.yaml --parameters file://./../cf-parameters/rds-parameter-groups.json --accounts file://./../scripts/accounts.json --regions ca-central-1
