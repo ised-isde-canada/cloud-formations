@@ -68,6 +68,8 @@ Parameters:
   RDSEngineVersion:
     Type: String
     Default: 10.6
+  DBParameterGroupName:
+    Type: String
   PreferredBackupWindowTime:
     # We want this to be 01:00 Canada/Eastern (05:00-06:00 for daylight saving, 06:00-07:00 for standard time)
     # This needs to be changed twice a year for EST/EDT (see: COPS-2174)
@@ -103,6 +105,7 @@ Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
   IsSchedule: !Not [!Equals [ !Ref Schedule, no ]]
   IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ]]
+  HasRDSParamGroup: !Not [ !Equals [ !Ref DBParameterGroupName, "" ] ]
 Resources:
   SecurityGroupRDS:
     Type: AWS::EC2::SecurityGroup
@@ -151,6 +154,11 @@ Resources:
       EngineVersion: !Ref RDSEngineVersion
       LicenseModel: postgresql-license
       StorageEncrypted: true
+      DBParameterGroupName:
+        !If
+          - HasRDSParamGroup
+          - Fn::ImportValue: !Ref DBParameterGroupName
+          - !Ref "AWS::NoValue"
       DBSubnetGroupName:
         Fn::ImportValue: 
           Fn::Sub: "dbsubnet-${VPCName}-${Environment}"
