@@ -20,3 +20,5 @@ echo Adding ised-config
 aws cloudformation create-stack-instances --stack-set-name ised-config --accounts $1 --regions ca-central-1
 echo Adding ised-ec2-patching
 aws cloudformation create-stack-instances --stack-set-name ised-ec2-patching --accounts $1 --regions ca-central-1
+echo Adding rds-parameter-groups
+aws cloudformation create-stack-instances --stack-set-name rds-parameter-groups --accounts $1 --regions ca-central-1
