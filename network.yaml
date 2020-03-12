@@ -77,6 +77,20 @@ Resources:
           Value: cops-aws
         - Key: ised-environment
           Value: !Ref Environment
+  TGWRouteTableAssociation:
+    Type: AWS::EC2::TransitGatewayRouteTableAssociation
+    Properties:
+      TransitGatewayAttachmentId: !Ref TransitGatewayManagementAttachment
+      TransitGatewayRouteTableId:
+        Fn::ImportValue:
+          Fn::Sub: "tgw-rt-network-${Environment}"
+  TGWRouteTablePropagation:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    Properties:
+      TransitGatewayAttachmentId: !Ref TransitGatewayManagementAttachment
+      TransitGatewayRouteTableId:
+        Fn::ImportValue:
+          Fn::Sub: "tgw-rt-network-${Environment}"
   ElbVpc:
     Type: AWS::CloudFormation::Stack
     DependsOn: TransitGateway
