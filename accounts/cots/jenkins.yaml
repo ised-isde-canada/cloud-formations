@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Jenkins
+
+Parameters:
+#===== Jenkins Section =====
+  JenkinsDockerImage:
+    Description: Jenkins docker image
+    Type: String
+    MinLength: 1
+    Default: jenkinsci/blueocean
+  JenkinsDataPath:
+    Description: Jenkins data path
+    Type: String
+    MinLength: 1
+    Default: /opt/jenkins
+
+  # ===== General Section =====
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+  VPCName:
+    Type: String
+    Default: ised
+  JIRAProjectKey:
+    Type: String
+    Default: jenkins
+  ISEDProjectId:
+    Type: String
+    Default: ccots
+  CostCentre:
+    Type: String
+    Default: cio-rdad
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+  Subnet:
+    Type: String
+    Default: subneta
+    AllowedValues:
+      - subneta
+      - subnetb
+  EC2Ami:
+    Type: String
+    Description: Specify if restoring from Ami, otherwise leave blank
+
+  # ===== EBS Volumes =====
+  EC2RootVolumeSize:
+    Type: String
+    Default: 8
+  EC2DataVolumeSize:
+    Type: String
+    Default: 100
+  EC2DataVolumeMount:
+    Type: String
+    Default: /dev/sdb
+
+Conditions:
+  IsProd: !Equals [ !Ref Environment, prod ]
+
+Resources:
+
+  EC2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        JIRAProjectKey: !Ref JIRAProjectKey
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre
+        Environment: !Ref Environment
+        VPCName: !Ref VPCName
+        Subnet: !Ref Subnet
+        Schedule: !If [ IsProd, 24-7, office-hours ]
+
+        # ===== EC2 Section =====
+        CreateEC2: Linux
+        EC2Size: t3.large
+        EC2Ami: !Ref EC2Ami
+        EC2RootVolumeSize: !Ref EC2RootVolumeSize
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+
+            # Install/start docker
+            sudo yum update -y
+            sudo amazon-linux-extras install docker -y
+            sudo usermod -a -G docker ec2-user
+            sudo systemctl enable docker.service
+            sudo systemctl start docker.service
+
+            sudo docker pull ${JenkinsDockerImage}
+
+            # Wait until the volume shows up
+            while [ ! -e ${EC2DataVolumeMount} ]; do echo Waiting for EBS Data volume to attach; sleep 5; done
+
+            # Create filesystem
+            mkfs -t xfs "${EC2DataVolumeMount}"
+
+            mkdir -p ${JenkinsDataPath}
+
+            # Add an entry to fstab to mount volume during boot
+            echo "${EC2DataVolumeMount}    /opt/jenkins xfs    defaults,noatime,nofail    0    2" >> /etc/fstab
+
+            # Mount the volumes on current boot
+            mount -a
+
+            chmod 775 /opt/jenkins
+            chown ec2-user:docker /opt/jenkins
+
+            docker run --restart=unless-stopped -d -p 8080:8080 -p 50000:50000 -v ${JenkinsDataPath}:/var/jenkins_home ${JenkinsDockerImage}
+
+  EBSDataVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !Ref EC2DataVolumeSize
+      AvailabilityZone: !GetAtt EC2.Outputs.AvailabilityZone
+      Encrypted: true
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: ccots
+      - Key: ised-environment
+        Value: !Ref Environment
+      - Key: ised-backup
+        Value: !If [ IsProd, backup-prod, backup-dev ]
+    DeletionPolicy: Snapshot
+
+  EBSDataMountPoint:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      InstanceId: !GetAtt EC2.Outputs.InstanceId
+      VolumeId: !Ref EBSDataVolume
+      Device: !Ref EC2DataVolumeMount
+
+  # Jenkins Web Console from Load Balancer
+  IngressWebConsoleLB:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt EC2.Outputs.EC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      CidrIp: 100.96.194.128/27
+
+  # Jenkins Web Console
+  IngressWebConsole:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt EC2.Outputs.EC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      CidrIp: 100.96.192.0/24
+
+  # Jenkins Slave Communication
+  IngressSlave:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt EC2.Outputs.EC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: 50000
+      ToPort: 50000
+      CidrIp: 100.96.0.0/16
