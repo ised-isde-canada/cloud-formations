@@ -182,6 +182,7 @@ Resources:
         RDSSnapshot: !Ref RDSSnapshot
         RDSBackupRetentionPeriod: !If [ IsProd, 30, 7 ]
         RDSMasterUserPassword: !Ref RDSMasterUserPassword
+        DBParameterGroupName: db-parameter-group-postgres96
 
   # Allow incoming connections on port 5432 from this VPC
   IngressPostgres:

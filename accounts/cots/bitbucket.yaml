@@ -64,7 +64,7 @@ Parameters:
     Default: postgres
   RDSEngineVersion:
     Type: String
-    Default: 10.10
+    Default: "10.10"
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
@@ -193,6 +193,7 @@ Resources:
         RDSSnapshot: !Ref RDSSnapshot
         RDSBackupRetentionPeriod: !If [ IsProd, 30, 7 ]
         RDSMasterUserPassword: !Ref RDSMasterUserPassword
+        DBParameterGroupName: db-parameter-group-postgres10
 
   IngressPostgres:
     Type: AWS::EC2::SecurityGroupIngress
