@@ -17,10 +17,10 @@ Parameters:
     Default: AccountIDMaster
   AccountIDCots:
     Type: AWS::SSM::Parameter::Value<String>
-    Default: AccountIDOpenShift
+    Default: AccountIDCots
   AccountIDCotsDev:
     Type: AWS::SSM::Parameter::Value<String>
-    Default: AccountIDOpenShift
+    Default: AccountIDCotsDev
   AccountIDOpenShift:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDOpenShift
