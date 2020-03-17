@@ -193,6 +193,7 @@ Resources:
         RDSSnapshot: !Ref RDSSnapshot
         RDSBackupRetentionPeriod: !If [ IsProd, 30, 7 ]
         RDSMasterUserPassword: !Ref RDSMasterUserPassword
+        DBParameterGroupName: db-parameter-group-postgres96
 
   IngressPostgres:
     Type: AWS::EC2::SecurityGroupIngress
