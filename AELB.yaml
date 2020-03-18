@@ -109,41 +109,6 @@ Resources:
       SecurityGroups:
         - !Ref SecurityGroup
       Type: application
-  Listener443:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      Certificates:
-        - CertificateArn: !Ref CertsArnParam
-      LoadBalancerArn: !Ref AELB
-      Port: 443
-      Protocol: HTTPS
-      DefaultActions:
-        - Type: fixed-response
-          FixedResponseConfig: 
-            ContentType: text/plain
-            StatusCode: 503
-  CreateListener80DefaultRedirect:
-    Type: AWS::CloudFormation::Stack
-    DependsOn: Listener443 
-    Properties:
-      TemplateURL: !Join [ '', [!Ref S3Templates, "AELB-Listener-Default-Action.yaml" ]]
-      Parameters:
-        AELBarn: !Ref AELB
-        DefaultType: "redirect"
-        ListenerPort: 80
-        ListenerProtocol: HTTP
-        CertArn: " "
-        CreateRobotTxtParam: "true"
-        RedirectingProtocol: "HTTPS"
-        TargetTypeParam: " "
-        TargetGroupPort: " "
-        TargetGroupVPCId: " "
-        TargetGroupProtocol: " "
-        TargetIp: " "
-        TargetPortNumber: " "
-        RedirectingPort: "443"
-        TargetGroupName: " "
-        PriorityParam: 1
 Outputs:
   AELB:
     Description: LoadBalancerARN
