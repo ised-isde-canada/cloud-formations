@@ -164,3 +164,34 @@ Resources:
             Fn::Sub: "subnetb-pub-network-elb-${Environment}"
         CertsArnParam: arn:aws:acm:ca-central-1:787897748034:certificate/9ce130e8-db35-4b61-99f2-518fdb5ddca5
         NumberOfAz: "2"
+  ISEDALB:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: ElbVpc
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "AELB.yaml" ]]
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref "AWS::StackName", "alb-ised" ] ]
+      - Key: ised-cost-centre
+        Value: cio-rdad
+      - Key: ised-project-id
+        Value: cops-aws
+      - Key: ised-environment
+        Value: !Ref Environment
+      Parameters:
+        Name: ised
+        Access: Ised
+        Environment: !Ref Environment
+        ISEDProjectId: cops-aws
+        CostCentre: cio-rdad
+        VPCName: 
+          Fn::ImportValue: 
+            Fn::Sub: "vpc-network-elb-${Environment}"
+        SubnetAName:
+          Fn::ImportValue: 
+            Fn::Sub: "subneta-pub-network-elb-${Environment}"
+        SubnetBName:
+          Fn::ImportValue: 
+            Fn::Sub: "subnetb-pub-network-elb-${Environment}"
+        CertsArnParam: arn:aws:acm:ca-central-1:787897748034:certificate/9ce130e8-db35-4b61-99f2-518fdb5ddca5
+        NumberOfAz: "2"
