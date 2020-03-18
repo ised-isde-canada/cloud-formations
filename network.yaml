@@ -149,7 +149,10 @@ Resources:
         Value: !Ref Environment
       Parameters:
         Name: public
+        Access: Public
         Environment: !Ref Environment
+        ISEDProjectId: cops-aws
+        CostCentre: cio-rdad
         SubnetAName:
           Fn::ImportValue: 
             Fn::Sub: "subneta-pub-network-elb-${Environment}"
