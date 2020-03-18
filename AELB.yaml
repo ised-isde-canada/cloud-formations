@@ -158,6 +158,6 @@ Resources:
 Outputs:
   AELB:
     Description: LoadBalancerARN
-    Value: !GetAtt AELB.Arn
+    Value: !Ref AELB
     Export: 
       Name: !Join ['-', ["alb", !Ref Name, !Ref "Environment" ]]
