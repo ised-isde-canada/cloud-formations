@@ -120,8 +120,8 @@ Resources:
         DefaultActions:
           - Type: fixed-response
             FixedResponseConfig: 
-            ContentType: text/plain
-            StatusCode: 503
+              ContentType: text/plain
+              StatusCode: 503
   CreateListener80DefaultRedirect:
     Type: AWS::CloudFormation::Stack
     DependsOn: CreateListener443DefaultFixedResponse 
