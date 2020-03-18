@@ -124,7 +124,7 @@ Resources:
             StatusCode: 503
   CreateListener80DefaultRedirect:
     Type: AWS::CloudFormation::Stack
-    DependsOn: CreateListener443DefaultFixedResponse 
+    DependsOn: Listener443 
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "AELB-Listener-Default-Action.yaml" ]]
       Parameters:
