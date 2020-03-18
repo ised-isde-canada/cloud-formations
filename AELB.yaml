@@ -1,10 +1,19 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
+# Version 1.1 - Add Security Group
+Description: Template to create the Application Laod Balancer. Version 1.1
 Parameters:
   Name:
     Type: String
-  Environment:
+  Access:
     Type: String
+    AllowedValues:
+      - Public
+      - Ised
+  VPCName:
+    # Type: AWS::EC2::VPC::Id
+    Type: String
+    Description: VPC Identifier
   SubnetAName:
     # Type: AWS::EC2::Subnet::Id
     Type: String
@@ -33,76 +42,114 @@ Parameters:
   S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates
+  ISEDProjectId:
+    Type: String
+  CostCentre:
+    Type: String
+  Environment:
+    Type: String
+Mappings:
+  AccessMap:
+    Public:
+      SourceCidr: "0.0.0.0/0"
+    Ised:
+      SourceCidr: "192.197.178.0/30"
 
 Conditions:
-
   Has3Az: !Equals [ !Ref NumberOfAz, 3 ]
 
 Resources:
-    AELB:
-      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-      Properties:
-        LoadBalancerAttributes:
-          - Key: access_logs.s3.enabled
-            Value: true
-          - Key: access_logs.s3.bucket
-            Value: !Join ['-', [!Ref S3BucketNamePrefix, !Ref AccountIDLog, "logs-lb"]]   
-        Name: !Join ['-', ["alb", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment"]]
-        #Scheme: internal
-        Subnets: 
-          - !Ref SubnetAName
-          - !Ref SubnetBName
-          - Fn::If:
-            - Has3Az
-            - !Ref SubnetCName
-            - !Ref AWS::NoValue
-        Type: application
-    
-    CreateListener443DefaultFixedResponse:
-      Type: AWS::CloudFormation::Stack
-      Properties:
-        TemplateURL: !Join [ '', [!Ref S3Templates, "AELB-Listener-Default-Action.yaml" ]]
-        Parameters:
-          AELBarn: !Ref AELB
-          DefaultType: "fixed-response"
-          ListenerPort: 443
-          ListenerProtocol: HTTPS
-          # CertDomainName: !Ref CertsDomainNameParam
-          CertArn: !Ref CertsArnParam
-          CreateRobotTxtParam: "true"
-          RedirectingProtocol: " "
-          TargetTypeParam: " "
-          TargetGroupPort: " "
-          TargetGroupVPCId: " "
-          TargetGroupProtocol: " "
-          TargetIp: " "
-          TargetPortNumber: " "
-          RedirectingPort: " "
-          TargetGroupName: " "
-          PriorityParam: 1
-
-      DependsOn: AELB 
-
-    CreateListener80DefaultRedirect:
-      Type: AWS::CloudFormation::Stack
-      Properties:
-        TemplateURL: !Join [ '', [!Ref S3Templates, "AELB-Listener-Default-Action.yaml" ]]
-        Parameters:
-          AELBarn: !Ref AELB
-          DefaultType: "redirect"
-          ListenerPort: 80
-          ListenerProtocol: HTTP
-          CertArn: " "
-          CreateRobotTxtParam: "true"
-          RedirectingProtocol: "HTTPS"
-          TargetTypeParam: " "
-          TargetGroupPort: " "
-          TargetGroupVPCId: " "
-          TargetGroupProtocol: " "
-          TargetIp: " "
-          TargetPortNumber: " "
-          RedirectingPort: "443"
-          TargetGroupName: " "
-          PriorityParam: 1
-
-      DependsOn: CreateListener443DefaultFixedResponse 
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "ALB Security Group"
+      VpcId: !Ref VPCName
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["sg", !Ref "AWS::AccountId", !Ref Name, !Ref Environment ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref ISEDProjectId
+      - Key: ised-environment
+        Value: !Ref Environment
+  Ingress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: !FindInMap [AccessMap, !Ref Access, SourceCidr]
+  Ingress2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: !FindInMap [AccessMap, !Ref Access, SourceCidr]
+  AELB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      LoadBalancerAttributes:
+        - Key: access_logs.s3.enabled
+          Value: true
+        - Key: access_logs.s3.bucket
+          Value: !Join ['-', [!Ref S3BucketNamePrefix, !Ref AccountIDLog, "logs-lb"]]   
+      Name: !Join ['-', ["alb", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment"]]
+      #Scheme: internal
+      Subnets: 
+        - !Ref SubnetAName
+        - !Ref SubnetBName
+        - Fn::If:
+          - Has3Az
+          - !Ref SubnetCName
+          - !Ref AWS::NoValue
+      Type: application
+  
+  CreateListener443DefaultFixedResponse:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: AELB 
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "AELB-Listener-Default-Action.yaml" ]]
+      Parameters:
+        AELBarn: !Ref AELB
+        DefaultType: "fixed-response"
+        ListenerPort: 443
+        ListenerProtocol: HTTPS
+        # CertDomainName: !Ref CertsDomainNameParam
+        CertArn: !Ref CertsArnParam
+        CreateRobotTxtParam: "true"
+        RedirectingProtocol: " "
+        TargetTypeParam: " "
+        TargetGroupPort: " "
+        TargetGroupVPCId: " "
+        TargetGroupProtocol: " "
+        TargetIp: " "
+        TargetPortNumber: " "
+        RedirectingPort: " "
+        TargetGroupName: " "
+        PriorityParam: 1
+  CreateListener80DefaultRedirect:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: CreateListener443DefaultFixedResponse 
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "AELB-Listener-Default-Action.yaml" ]]
+      Parameters:
+        AELBarn: !Ref AELB
+        DefaultType: "redirect"
+        ListenerPort: 80
+        ListenerProtocol: HTTP
+        CertArn: " "
+        CreateRobotTxtParam: "true"
+        RedirectingProtocol: "HTTPS"
+        TargetTypeParam: " "
+        TargetGroupPort: " "
+        TargetGroupVPCId: " "
+        TargetGroupProtocol: " "
+        TargetIp: " "
+        TargetPortNumber: " "
+        RedirectingPort: "443"
+        TargetGroupName: " "
+        PriorityParam: 1
