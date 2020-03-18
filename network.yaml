@@ -153,6 +153,9 @@ Resources:
         Environment: !Ref Environment
         ISEDProjectId: cops-aws
         CostCentre: cio-rdad
+        VPCName: 
+          Fn::ImportValue: 
+            Fn::Sub: "vpc-network-elb-${Environment}"
         SubnetAName:
           Fn::ImportValue: 
             Fn::Sub: "subneta-pub-network-elb-${Environment}"

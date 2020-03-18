@@ -106,6 +106,8 @@ Resources:
           - Has3Az
           - !Ref SubnetCName
           - !Ref AWS::NoValue
+      SecurityGroups:
+        - !Ref SecurityGroup
       Type: application
   
   CreateListener443DefaultFixedResponse:
