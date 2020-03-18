@@ -3,13 +3,11 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.1 - Add Security Group
 Description: Template to create the Application Laod Balancer. Version 1.1
 Parameters:
-  Name:
-    Type: String
   Access:
     Type: String
     AllowedValues:
-      - Public
-      - Ised
+      - public
+      - ised
   VPCName:
     # Type: AWS::EC2::VPC::Id
     Type: String
@@ -66,7 +64,7 @@ Resources:
       VpcId: !Ref VPCName
       Tags:
       - Key: Name
-        Value: !Join ['-', ["sg", !Ref "AWS::AccountId", !Ref Name, !Ref Environment ] ]
+        Value: !Join ['-', ["sg", !Ref "AWS::AccountId", !Ref Access, !Ref Environment ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
@@ -97,7 +95,7 @@ Resources:
           Value: true
         - Key: access_logs.s3.bucket
           Value: !Join ['-', [!Ref S3BucketNamePrefix, !Ref AccountIDLog, "logs-lb"]]   
-      Name: !Join ['-', ["alb", !Ref "AWS::AccountId", !Ref Name,  !Ref "Environment"]]
+      Name: !Join ['-', ["alb", !Ref "AWS::AccountId", !Ref Access,  !Ref "Environment"]]
       #Scheme: internal
       Subnets: 
         - !Ref SubnetAName
@@ -156,7 +154,7 @@ Resources:
       Priority: 1
 Outputs:
   AELB:
-    Description: LoadBalancerARN
-    Value: !Ref AELB
+    Description: Listener443
+    Value: !Ref Listener443
     Export: 
-      Name: !Join ['-', ["alb", !Ref Name, !Ref "Environment" ]]
+      Name: !Join ['-', ["alb", !Ref Access, !Ref "Environment" ]]
