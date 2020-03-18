@@ -46,11 +46,12 @@ Parameters:
     Type: String
   Environment:
     Type: String
+
 Mappings:
   AccessMap:
-    Public:
+    public:
       SourceCidr: "0.0.0.0/0"
-    Ised:
+    ised:
       SourceCidr: "192.197.178.0/30"
 
 Conditions:
