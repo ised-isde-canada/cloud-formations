@@ -109,30 +109,19 @@ Resources:
       SecurityGroups:
         - !Ref SecurityGroup
       Type: application
-  
-  CreateListener443DefaultFixedResponse:
-    Type: AWS::CloudFormation::Stack
-    DependsOn: AELB 
-    Properties:
-      TemplateURL: !Join [ '', [!Ref S3Templates, "AELB-Listener-Default-Action.yaml" ]]
-      Parameters:
-        AELBarn: !Ref AELB
-        DefaultType: "fixed-response"
-        ListenerPort: 443
-        ListenerProtocol: HTTPS
-        # CertDomainName: !Ref CertsDomainNameParam
-        CertArn: !Ref CertsArnParam
-        CreateRobotTxtParam: "true"
-        RedirectingProtocol: " "
-        TargetTypeParam: " "
-        TargetGroupPort: " "
-        TargetGroupVPCId: " "
-        TargetGroupProtocol: " "
-        TargetIp: " "
-        TargetPortNumber: " "
-        RedirectingPort: " "
-        TargetGroupName: " "
-        PriorityParam: 1
+    Listener443:
+      Type: AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        Certificates:
+          - CertificateArn: !Ref CertsArnParam
+        LoadBalancerArn: !Ref AELB
+        Port: 443
+        Protocol: HTTPS
+        DefaultActions:
+          - Type: fixed-response
+            FixedResponseConfig: 
+            ContentType: text/plain
+            StatusCode: 503
   CreateListener80DefaultRedirect:
     Type: AWS::CloudFormation::Stack
     DependsOn: CreateListener443DefaultFixedResponse 
