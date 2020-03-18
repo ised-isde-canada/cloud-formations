@@ -155,3 +155,9 @@ Resources:
         RedirectingPort: "443"
         TargetGroupName: " "
         PriorityParam: 1
+Outputs:
+  AELB:
+    Description: LoadBalancerARN
+    Value: !GetAtt AELB.ARN
+    Export: 
+      Name: !Join ['-', ["alb", !Ref Name, !Ref "Environment" ]]
