@@ -148,8 +148,7 @@ Resources:
       - Key: ised-environment
         Value: !Ref Environment
       Parameters:
-        Name: public
-        Access: Public
+        Access: public
         Environment: !Ref Environment
         ISEDProjectId: cops-aws
         CostCentre: cio-rdad
@@ -179,8 +178,7 @@ Resources:
       - Key: ised-environment
         Value: !Ref Environment
       Parameters:
-        Name: ised
-        Access: Ised
+        Access: ised
         Environment: !Ref Environment
         ISEDProjectId: cops-aws
         CostCentre: cio-rdad
