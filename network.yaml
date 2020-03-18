@@ -3,7 +3,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.1 - Add Transit Gateway
 # Version 1.2 - Add NAT VPC
 # Version 1.3 - Add Transit gateway Route Table
-Description: Creates ingress and egress VPCs. Version 1.3
+# Version 1.4 - Add Application Load Balancers
+Description: Creates ingress and egress VPCs. Version 1.4
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:

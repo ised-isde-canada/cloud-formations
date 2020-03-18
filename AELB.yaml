@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Add Security Group
-Description: Template to create the Application Laod Balancer. Version 1.1
+# Version 1.2 - Update Listeners
+Description: Template to create the Application Laod Balancer. Version 1.2
 Parameters:
   Access:
     Type: String
@@ -46,11 +47,12 @@ Parameters:
     Type: String
   Environment:
     Type: String
+
 Mappings:
   AccessMap:
-    Public:
+    public:
       SourceCidr: "0.0.0.0/0"
-    Ised:
+    ised:
       SourceCidr: "192.197.178.0/30"
 
 Conditions:
