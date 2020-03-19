@@ -160,3 +160,13 @@ Outputs:
     Value: !Ref Listener443
     Export: 
       Name: !Join ['-', ["alb", !Ref Access, !Ref "Environment" ]]
+  AELBHostedZoneId:
+    Description: ElasticLoadBalancer Hosted Zone ID
+    Value: !GetAtt 'AELB.CanonicalHostedZoneID'
+    Export: 
+      Name: !Join ['-', ["alb-hosted-zone-id", !Ref Access, !Ref "Environment" ]]
+  AELBHostedDNSName:
+    Description: ElasticLoadBalancer DNA Name
+    Value: !GetAtt 'AELB.DNSName'
+    Export: 
+      Name: !Join ['-', ["alb-dns-name", !Ref Access, !Ref "Environment" ]]
