@@ -1,0 +1,181 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: "Temaplte to create the routing for an application. Version 1.0"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+     - Label:
+         default: "General Configuration"
+       Parameters:
+         - ApplicationName
+         - Production
+         - Development
+     - Label:
+         default: "Listener Configuration"
+       Parameters:
+         - ApplicationPort
+         - ApplicationProtocol
+     - Label:
+         default: "Target Configuration"
+       Parameters:
+         - TargetType
+         - TargetIpOrInstanceProd
+         - TargetIpOrInstanceDev
+         - TargetPortNumber 
+    ParameterLabels:
+      ApplicationName:
+        default: "Application Name"
+      Production:
+        default: "Create Production Route?"
+      Development:
+        default: "Create Developemnt Route?"
+      ApplicationPort:
+        default: "Application Port"
+      ApplicationProtocol:
+        default: "Application Protocol"
+      TargetType:
+        default: "Target Type"
+      TargetIpOrInstanceProd:
+        default: "Tyrget IP or Instance - Production"
+      TargetIpOrInstanceDev:
+        default: "Tyrget IP or Instance - Development"
+      TargetPortNumber:
+        default: "Target Port Number"
+Conditions:
+  HasProd: !Not [!Equals [ !Ref Production, none ]]
+  HasDev: !Not [!Equals [ !Ref Development, none ]]
+Parameters:
+  ApplicationName:
+    Type: String
+  Production:
+    Type: String
+    Default: none
+    AllowedValues: 
+      - none
+      - public
+      - ised
+  Development:
+    Type: String
+    Default: none
+    AllowedValues: 
+      - none
+      - public
+      - ised
+  ApplicationPort:
+    Type: String
+    Description: The port on which the targets receive traffic. This port is used unless you specify a port override when registering the target.
+  ApplicationProtocol:
+    Type: String
+    Description: Option are HTTP or HTTPS
+    Default: HTTP
+    AllowedValues: 
+      - HTTP
+      - HTTPS
+  TargetType:
+    Type: String
+    Description: ip or instance
+    Default: ip
+    AllowedValues: 
+      - ip
+      - instance
+  TargetIpOrInstanceProd:
+    Type: String
+  TargetIpOrInstanceDev:
+    Type: String
+  TargetPortNumber:
+    Type: String
+Resources:
+  TargetGroupProd:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: HasProd
+    Properties:
+      Name: !Join ['-', ["tg", !Ref "AWS::AccountId", !Ref ApplicationName, "prod" ] ]
+      VpcId:
+        Fn::ImportValue: 
+          Fn::Sub: "vpc-network-elb-prod"
+      Port: !Ref ApplicationPort
+      Protocol: !Ref ApplicationProtocol
+      TargetType: !Ref TargetType
+      Targets:
+        - Id: !Ref TargetIpOrInstanceProd
+          Port: !Ref TargetPortNumber
+          AvailabilityZone: all
+  TargetGroupDev:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: HasDev
+    Properties:
+      Name: !Join ['-', ["tg", !Ref "AWS::AccountId", !Ref ApplicationName, "dev"] ]
+      VpcId:
+        Fn::ImportValue: 
+          Fn::Sub: "vpc-network-elb-dev"
+      Port: !Ref ApplicationPort
+      Protocol: !Ref ApplicationProtocol
+      TargetType: !Ref TargetType
+      Targets:
+        - Id: !Ref TargetIpOrInstanceDev
+          Port: !Ref TargetPortNumber
+          AvailabilityZone: all
+  LoadBalancerListenerRuleProd:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: HasProd
+    Properties:
+      ListenerArn:
+        Fn::ImportValue: 
+          Fn::Sub: "alb-${Production}-prod"
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroupProd
+      Conditions:
+        - HostHeaderConfig: 
+            Values: 
+            - !Join ['.', [!Ref ApplicationName, "ised-isde.canada.ca"] ]
+          Field: host-header
+      Priority: 2
+  LoadBalancerListenerRuleDev:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: HasDev
+    Properties:
+      ListenerArn:
+        Fn::ImportValue: 
+          Fn::Sub: "alb-${Development}-dev"
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroupDev
+      Conditions:
+        - HostHeaderConfig: 
+            Values: 
+            - !Join ['.', [!Ref ApplicationName, "dev.ised-isde.canada.ca"] ]
+          Field: host-header
+      Priority: 2
+  Router53RecordSetProd:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: HasProd
+    Properties:
+      HostedZoneName: ised-isde.canada.ca.
+      Comment: Zone apex alias targeted to myELB LoadBalancer.
+      RecordSets:
+      - Name: !Join ['.', [!Ref ApplicationName, "ised-isde.canada.ca."] ]
+        Type: A
+        AliasTarget:
+          HostedZoneId:
+            Fn::ImportValue: 
+              Fn::Sub: "alb-hosted-zone-id-${Production}-prod"
+          DNSName:
+            Fn::ImportValue: 
+              Fn::Sub: "alb-dns-name-${Production}-prod"
+  Router53RecordSetDev:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: HasDev
+    Properties:
+      HostedZoneName: ised-isde.canada.ca.
+      Comment: Zone apex alias targeted to myELB LoadBalancer.
+      RecordSets:
+      - Name: !Join ['.', [!Ref ApplicationName, "dev.ised-isde.canada.ca."] ]
+        Type: A
+        AliasTarget:
+          HostedZoneId:
+            Fn::ImportValue: 
+              Fn::Sub: "alb-hosted-zone-id-${Development}-dev"
+          DNSName:
+            Fn::ImportValue: 
+              Fn::Sub: "alb-dns-name-${Development}-dev"
