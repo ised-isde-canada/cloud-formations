@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: "Temaplte to create the routing for an application. Version 1.0"
+Description: "Template to create the routing for an application. Version 1.0"
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -28,7 +28,7 @@ Metadata:
       Production:
         default: "Create Production Route?"
       Development:
-        default: "Create Developemnt Route?"
+        default: "Create Development Route?"
       ApplicationPort:
         default: "Application Port"
       ApplicationProtocol:
@@ -36,9 +36,9 @@ Metadata:
       TargetType:
         default: "Target Type"
       TargetIpOrInstanceProd:
-        default: "Tyrget IP or Instance - Production"
+        default: "Target IP or Instance - Production"
       TargetIpOrInstanceDev:
-        default: "Tyrget IP or Instance - Development"
+        default: "Target IP or Instance - Development"
       TargetPortNumber:
         default: "Target Port Number"
 Conditions:
