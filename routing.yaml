@@ -90,7 +90,8 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Condition: HasProd
     Properties:
-      Name: !Join ['-', ["tg", !Ref "AWS::AccountId", !Ref ApplicationName, "prod" ] ]
+      # Custom named TargetGroup cannot be updated when requires replacing (ex: changing the port number)
+      #Name: !Join ['-', ["tg", !Ref "AWS::AccountId", !Ref ApplicationName, "prod" ] ]
       VpcId:
         Fn::ImportValue: 
           Fn::Sub: "vpc-network-elb-prod"
@@ -105,7 +106,8 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Condition: HasDev
     Properties:
-      Name: !Join ['-', ["tg", !Ref "AWS::AccountId", !Ref ApplicationName, "dev"] ]
+      # Custom named TargetGroup cannot be updated when requires replacing (ex: changing the port number)
+      #Name: !Join ['-', ["tg", !Ref "AWS::AccountId", !Ref ApplicationName, "dev"] ]
       VpcId:
         Fn::ImportValue: 
           Fn::Sub: "vpc-network-elb-dev"
