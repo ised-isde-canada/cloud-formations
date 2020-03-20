@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: "Template to create the routing for an application. Version 1.0"
+# Version 1.1 - Add lambda-backed mechanism to get available "Listener Rule" priority
+Description: "Template to create the routing for an application. Version 1.1"
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -130,7 +131,7 @@ Resources:
             Values: 
             - !Join ['.', [!Ref ApplicationName, "ised-isde.canada.ca"] ]
           Field: host-header
-      Priority: 2
+      Priority: !GetAtt NextPriorityProd.Value
   LoadBalancerListenerRuleDev:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Condition: HasDev
@@ -146,7 +147,7 @@ Resources:
             Values: 
             - !Join ['.', [!Ref ApplicationName, "dev.ised-isde.canada.ca"] ]
           Field: host-header
-      Priority: 2
+      Priority: !GetAtt NextPriorityDev.Value
   Router53RecordSetProd:
     Type: AWS::Route53::RecordSetGroup
     Condition: HasProd
@@ -179,3 +180,17 @@ Resources:
           DNSName:
             Fn::ImportValue: 
               Fn::Sub: "alb-dns-name-${Development}-dev"
+  NextPriorityDev:
+    Condition: HasDev
+    Type: Custom::Priority
+    Properties:
+      ServiceToken:
+        Fn::ImportValue:
+          Fn::Sub: "alb-lambda-tg-priority-${Development}-dev"
+  NextPriorityProd:
+    Condition: HasProd
+    Type: Custom::Priority
+    Properties:
+      ServiceToken:
+        Fn::ImportValue:
+          Fn::Sub: "alb-lambda-tg-priority-${Production}-prod"
