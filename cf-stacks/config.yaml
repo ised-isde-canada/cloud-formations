@@ -233,12 +233,13 @@ Resources:
               fields = issue["fields"]
               fields["duedate"] = due_date
 
-          def lookup(rid):
+          def lookup(rid, resource_types):
               def lookup_for_tags(token):
                   clientResourceGroupTag = boto3.client('resourcegroupstaggingapi')
                   response = clientResourceGroupTag.get_resources(
                       PaginationToken=token,
                       ResourcesPerPage=100,
+                      ResourceTypeFilters=resource_types
                   )
                   return response
               total_results = []
@@ -262,9 +263,36 @@ Resources:
               return resourceInfo
 
           def handler(event, context):
-
               client = boto3.client("ssm")
+              config_client = boto3.client('config')
 
+              # Get the list of "resource types" this rule applies to
+              config_rule_name = event["ConfigRuleName"].strip()
+              config_rule = config_client.describe_config_rules(ConfigRuleNames=[config_rule_name])
+              config_rule_resource_types = config_rule["ConfigRules"][0]["Scope"]["ComplianceResourceTypes"]
+              resource_types = []
+
+              # Resource not supported by "resource groups tagging"
+              # see: https://docs.aws.amazon.com/cli/latest/reference/resourcegroupstaggingapi/index.html
+              unsupported_resource_types = [
+                  "AWS::AutoScaling::AutoScalingGroup",
+                  "AWS::ElasticLoadBalancingV2::LoadBalancer",
+                  "AWS::S3::Bucket"
+              ]
+
+              # Format the "resource type" notation that "AWS Config" notation uses to something
+              # that "resource group tagging api" understands...
+              # Ex: "AWS::EC2::Volume" to "ec2:volume"
+              for config_rule_resource_type in config_rule_resource_types:
+                  # "AutoScaling" resource aren't supported by "resource groups tagging" it seems
+                  if config_rule_resource_type in unsupported_resource_types:
+                      continue
+
+                  resource_types.append(
+                      (config_rule_resource_type[5:]  # Remove assumed "AWS::" prefix
+                          .replace("::", ":")         # "::" to ":"
+                          .lower())                   # lowercase everything
+                  )
 
               ssm_parameter_name = event["SSMParameterName"].strip()
 
@@ -274,7 +302,7 @@ Resources:
               url = event["JiraURL"].strip()
               resourceId = event["IssueDescription"].strip()
 
-              resourceInfoDescrip = lookup(resourceId)
+              resourceInfoDescrip = lookup(resourceId, resource_types)
 
               issue = {
                   "fields": {
@@ -339,6 +367,9 @@ Resources:
         schemaVersion: "0.3"
         assumeRole: "{{ AutomationAssumeRole }}"
         parameters:
+          ConfigRuleName:
+            type: "String"
+            description: "(Required) The config rule name."
           JiraUsername:
             type: "String"
             description: "(Required) The name of the user the issue will be created with."
@@ -386,7 +417,8 @@ Resources:
           action: "aws:invokeLambdaFunction"
           inputs:
             FunctionName: "Ised-CreateJiraIssue"
-            Payload: "{\"JiraUsername\": \"{{JiraUsername}}\", \"SSMParameterName\": \"{{SSMParameterName}}\"\
+            Payload: "{\"ConfigRuleName\": \"{{ConfigRuleName}}\", \"JiraUsername\": \"{{JiraUsername}}\"\
+              , \"SSMParameterName\": \"{{SSMParameterName}}\"\
               , \"JiraURL\": \"{{JiraURL}}\", \"ProjectKey\": \"{{ProjectKey}}\", \"IssueSummary\"\
               : \"{{IssueSummary}}\", \"IssueDescription\": \"{{IssueDescription}}\", \"IssueTypeName\"\
               : \"{{IssueTypeName}}\", \"PriorityName\": \"{{PriorityName}}\", \"AssigneeName\"\

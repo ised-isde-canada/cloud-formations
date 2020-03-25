@@ -34,6 +34,10 @@ Resources:
       Properties:
         ConfigRuleName: !Ref ConfigRuleName
         Parameters:
+          ConfigRuleName:
+            StaticValue:
+              Values:
+                - !Ref ConfigRuleName
           AutomationAssumeRole:
             StaticValue:
               Values: 
