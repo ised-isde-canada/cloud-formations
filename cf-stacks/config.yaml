@@ -347,7 +347,7 @@ Resources:
       Handler: index.handler
       MemorySize: 128
       Role: !ImportValue ConfigLambdaRole
-      Runtime: python2.7
+      Runtime: python3.7
       Timeout: 300
       Layers:
         # From version 1.13.0, the "requests" module is no longer part of the AWS SDK for Python.
