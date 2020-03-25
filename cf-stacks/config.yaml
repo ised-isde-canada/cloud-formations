@@ -210,7 +210,111 @@ Resources:
 
   CreateJiraIssue:
     Properties:
-      Code: {ZipFile: "#\n# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n#\n# Permission is hereby granted, free of charge, to any person obtaining a copy of this\n# software and associated documentation files (the \"Software\"), to deal in the Software\n# without restriction, including without limitation the rights to use, copy, modify,\n# merge, publish, distribute, sublicense, and/or sell copies of the Software, and to\n# permit persons to whom the Software is furnished to do so.\n#\n# THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,\n# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A\n# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT\n# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\n# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE\n# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n#\nimport boto3\nimport json\nfrom botocore.vendored import requests\n\ndef add_priority(issue, priority):\n\tfields = issue[\"fields\"]\n\tfields[\"priority\"] = {\"name\": priority}\n\ndef add_assignee(issue, assignee):\n\tfields = issue[\"fields\"]\n\tfields[\"assignee\"] = {\"name\": assignee}\n\ndef add_due_date(issue, due_date):\n\tfields = issue[\"fields\"]\n\tfields[\"duedate\"] = due_date\n\ndef lookup(rid):\n    def lookup_for_tags(token):\n    \tclientResourceGroupTag = boto3.client('resourcegroupstaggingapi')\n        response = clientResourceGroupTag.get_resources(\n            PaginationToken=token,\n            ResourcesPerPage=100,\n        )\n        return response\n    total_results = []\n    response = lookup_for_tags(\"\")\n    page_token = \"\"\n    resourceInfo = \"\"\n    while True:\n        total_results += response[\"ResourceTagMappingList\"]\n        page_token = response[\"PaginationToken\"]\n        if page_token == \"\":\n            break\n        response = lookup_for_tags(page_token)\n\n    for r in total_results:\n        findResult = r[\"ResourceARN\"].find(rid)\n        if findResult != -1:\n        \tresourceInfo +=  'The resource ARN '+r[\"ResourceARN\"] + '\\n'\n        \tprint resourceInfo\n        \tprint len(r[\"Tags\"])\n        \tresourceInfo += '\\nTags already applied to the resource: \\n'\n        \tfor t in r[\"Tags\"]:\n        \t\tprint t['Key']\n        \t\tprint t['Value']\n        \t\tresourceInfo += 'Key:' + t['Key'] +  '\\t\\tValue:'+t['Value'] + '\\n'\n    return resourceInfo\n\ndef handler(event, context):\n\n\tclient = boto3.client(\"ssm\")\n\n\n\tssm_parameter_name = event[\"SSMParameterName\"].strip()\n\n\tsecret = client.get_parameter(Name=ssm_parameter_name, WithDecryption=True)['Parameter']['Value']\n\n\tusername = event[\"JiraUsername\"].strip()\n\turl = event[\"JiraURL\"].strip()\n\tresourceId = event[\"IssueDescription\"].strip()\n\n\tresourceInfoDescrip = lookup(resourceId)\n\n\tissue = {\n\t\t\"fields\": {\n\t\t\t\"summary\": event[\"IssueSummary\"].strip() + '-' + resourceId,\n\t\t\t\"project\": {\n\t\t\t\t\"key\": event[\"ProjectKey\"].strip()\n\t\t\t},\n\t\t\t#\"description\": event[\"IssueDescription\"].strip(),\n\t\t\t\"description\": resourceInfoDescrip.strip(),\n\t\t\t\"issuetype\": {\n\t\t\t\t\"name\": event[\"IssueTypeName\"].strip()\n\t\t\t}\n\t\t}\n\t}\n\n\tpriority = event[\"PriorityName\"].strip()\n\tif priority:\n\t\tadd_priority(issue, priority)\n\n\tassignee = event[\"AssigneeName\"].strip()\n\tif assignee:\n\t\tadd_assignee(issue, assignee)\n\n\tdue_date = event[\"DueDate\"].strip()\n\tif due_date:\n\t\tadd_due_date(issue, due_date)\n\n\tdata = json.dumps(issue)\n\n\theaders = {'Content-Type':'application/json'}\n\n\tresponse = requests.post('{0}/rest/api/2/issue/'.format(url),\n\t\t\t\t\t\t\t headers=headers,\n\t\t\t\t\t\t\t data=data,\n\t\t\t\t\t\t\t auth=(username, secret))\n\n\tif not response.ok:\n\t\traise Exception(\"Received error with status code \" + str(response.status_code) + \" from Jira\")\n\telse:\n\t\tissue_key = (response.json()[\"key\"])\n\t\treturn {\"IssueKey\": issue_key}"}
+      Code:
+        ZipFile: |
+          #
+          # Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+          #
+          # MIT License
+
+          import boto3
+          import json
+          from botocore.vendored import requests
+
+          def add_priority(issue, priority):
+              fields = issue["fields"]
+              fields["priority"] = {"name": priority}
+
+          def add_assignee(issue, assignee):
+              fields = issue["fields"]
+              fields["assignee"] = {"name": assignee}
+
+          def add_due_date(issue, due_date):
+              fields = issue["fields"]
+              fields["duedate"] = due_date
+
+          def lookup(rid):
+              def lookup_for_tags(token):
+                  clientResourceGroupTag = boto3.client('resourcegroupstaggingapi')
+                  response = clientResourceGroupTag.get_resources(
+                      PaginationToken=token,
+                      ResourcesPerPage=100,
+                  )
+                  return response
+              total_results = []
+              response = lookup_for_tags("")
+              page_token = ""
+              resourceInfo = ""
+              while True:
+                  total_results += response["ResourceTagMappingList"]
+                  page_token = response["PaginationToken"]
+                  if page_token == "":
+                      break
+                  response = lookup_for_tags(page_token)
+
+              for r in total_results:
+                  findResult = r["ResourceARN"].find(rid)
+                  if findResult != -1:
+                      resourceInfo +=  'The resource ARN '+r["ResourceARN"] + '\n'
+                      resourceInfo += '\nTags already applied to the resource: \n'
+                      for t in r["Tags"]:
+                          resourceInfo += 'Key:' + t['Key'] +  ' Value:' + t['Value'] + '\n'
+              return resourceInfo
+
+          def handler(event, context):
+
+              client = boto3.client("ssm")
+
+
+              ssm_parameter_name = event["SSMParameterName"].strip()
+
+              secret = client.get_parameter(Name=ssm_parameter_name, WithDecryption=True)['Parameter']['Value']
+
+              username = event["JiraUsername"].strip()
+              url = event["JiraURL"].strip()
+              resourceId = event["IssueDescription"].strip()
+
+              resourceInfoDescrip = lookup(resourceId)
+
+              issue = {
+                  "fields": {
+                      "summary": event["IssueSummary"].strip() + '-' + resourceId,
+                      "project": {
+                          "key": event["ProjectKey"].strip()
+                      },
+                      "description": resourceInfoDescrip.strip(),
+                      "issuetype": {
+                          "name": event["IssueTypeName"].strip()
+                      }
+                  }
+              }
+
+              priority = event["PriorityName"].strip()
+              if priority:
+                  add_priority(issue, priority)
+
+              assignee = event["AssigneeName"].strip()
+              if assignee:
+                  add_assignee(issue, assignee)
+
+              due_date = event["DueDate"].strip()
+              if due_date:
+                  add_due_date(issue, due_date)
+
+              data = json.dumps(issue)
+
+              headers = {'Content-Type':'application/json'}
+
+              response = requests.post('{0}/rest/api/2/issue/'.format(url),
+                                       headers=headers,
+                                       data=data,
+                                       auth=(username, secret))
+
+              if not response.ok:
+                  raise Exception("Received error with status code " + str(response.status_code) + " from Jira")
+              else:
+                  issue_key = (response.json()["key"])
+                  return {"IssueKey": issue_key}
       FunctionName: Ised-CreateJiraIssue
       Handler: index.handler
       MemorySize: 128
