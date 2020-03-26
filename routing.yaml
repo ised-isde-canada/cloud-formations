@@ -118,6 +118,7 @@ Resources:
   LoadBalancerListenerRuleProd:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Condition: HasProd
+    DependsOn: TargetGroupProd
     Properties:
       ListenerArn:
         Fn::ImportValue: 
@@ -134,6 +135,7 @@ Resources:
   LoadBalancerListenerRuleDev:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Condition: HasDev
+    DependsOn: TargetGroupDev
     Properties:
       ListenerArn:
         Fn::ImportValue: 
@@ -150,6 +152,7 @@ Resources:
   Router53RecordSetProd:
     Type: AWS::Route53::RecordSetGroup
     Condition: HasProd
+    DependsOn: LoadBalancerListenerRuleProd
     Properties:
       HostedZoneName: ised-isde.canada.ca.
       Comment: Zone apex alias targeted to myELB LoadBalancer.
@@ -166,6 +169,7 @@ Resources:
   Router53RecordSetDev:
     Type: AWS::Route53::RecordSetGroup
     Condition: HasDev
+    DependsOn: LoadBalancerListenerRuleDev
     Properties:
       HostedZoneName: ised-isde.canada.ca.
       Comment: Zone apex alias targeted to myELB LoadBalancer.
