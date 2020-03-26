@@ -97,7 +97,7 @@ Parameters:
     Default: JiraUser     
   SSMParamName:
     Type: String
-    Default: ised-jira-password
+    Default: JiraPassRemediation
   CostTagConfigRuleName:
     Type: String
     Default: ised-mandatory-tags-cost
