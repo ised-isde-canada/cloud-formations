@@ -2,7 +2,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Add Security Group
 # Version 1.2 - Update Listeners
-Description: Template to create the Application Laod Balancer. Version 1.2
+# Version 1.3 - Add lambda-backed mechanism to get available "Listener Rule" priority
+Description: Template to create the Application Laod Balancer. Version 1.3
 Parameters:
   Access:
     Type: String
@@ -154,6 +155,62 @@ Resources:
               - robots.txt
           Field: path-pattern
       Priority: 1
+  DescribeALBRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName:
+        Fn::Sub: ised-describe-alb-${Access}-${Environment}-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+  DescribeALBPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref DescribeALBRole
+      PolicyName:
+        Fn::Sub: ised-describe-alb-${Access}-${Environment}-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action: "elasticloadbalancing:DescribeRules"
+            # DescribeRules doesn't support resource-level permissions at the moment
+            # https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/load-balancer-authentication-access-control.html
+            Resource: "*"
+  TargetGroupPriorityFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt DescribeALBRole.Arn
+      Code:
+        ZipFile: !Sub |
+          import boto3
+          import cfnresponse
+
+          elb_client = boto3.client('elbv2')
+
+          def lambda_handler(event, context):
+              priorities = []
+
+              for pages in elb_client.get_paginator("describe_rules").paginate(ListenerArn=${Listener443}):
+                  for rule in pages["Rules"]:
+                      priority = rule["Priority"]
+                      if priority != "default":
+                          priorities.append(int(priority))
+
+              new_priority = max(priorities) + 1
+
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {"Value": new_priority})
+
+              return new_priority
+      Runtime: python3.7
+
 Outputs:
   AELB:
     Description: Listener443
@@ -170,3 +227,8 @@ Outputs:
     Value: !GetAtt 'AELB.DNSName'
     Export: 
       Name: !Join ['-', ["alb-dns-name", !Ref Access, !Ref "Environment" ]]
+  TargetGroupPriorityFunction:
+    Description: Lambda Function to get the next available "Priority" slot on a listener
+    Value: !Ref TargetGroupPriorityFunction
+    Export:
+      Name: !Join ['-', ["alb-lambda-tg-priority", !Ref Access, !Ref "Environment" ]]

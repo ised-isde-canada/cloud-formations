@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: "Temaplte to create the routing for an application. Version 1.0"
+# Version 1.1 - Add lambda-backed mechanism to get available "Listener Rule" priority
+Description: "Template to create the routing for an application. Version 1.1"
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -28,7 +29,7 @@ Metadata:
       Production:
         default: "Create Production Route?"
       Development:
-        default: "Create Developemnt Route?"
+        default: "Create Development Route?"
       ApplicationPort:
         default: "Application Port"
       ApplicationProtocol:
@@ -36,9 +37,9 @@ Metadata:
       TargetType:
         default: "Target Type"
       TargetIpOrInstanceProd:
-        default: "Tyrget IP or Instance - Production"
+        default: "Target IP or Instance - Production"
       TargetIpOrInstanceDev:
-        default: "Tyrget IP or Instance - Development"
+        default: "Target IP or Instance - Development"
       TargetPortNumber:
         default: "Target Port Number"
 Conditions:
@@ -89,7 +90,8 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Condition: HasProd
     Properties:
-      Name: !Join ['-', ["tg", !Ref "AWS::AccountId", !Ref ApplicationName, "prod" ] ]
+      # Custom named TargetGroup cannot be updated when requires replacing (ex: changing the port number)
+      #Name: !Join ['-', ["tg", !Ref "AWS::AccountId", !Ref ApplicationName, "prod" ] ]
       VpcId:
         Fn::ImportValue: 
           Fn::Sub: "vpc-network-elb-prod"
@@ -104,7 +106,8 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Condition: HasDev
     Properties:
-      Name: !Join ['-', ["tg", !Ref "AWS::AccountId", !Ref ApplicationName, "dev"] ]
+      # Custom named TargetGroup cannot be updated when requires replacing (ex: changing the port number)
+      #Name: !Join ['-', ["tg", !Ref "AWS::AccountId", !Ref ApplicationName, "dev"] ]
       VpcId:
         Fn::ImportValue: 
           Fn::Sub: "vpc-network-elb-dev"
@@ -130,7 +133,7 @@ Resources:
             Values: 
             - !Join ['.', [!Ref ApplicationName, "ised-isde.canada.ca"] ]
           Field: host-header
-      Priority: 2
+      Priority: !GetAtt NextPriorityProd.Value
   LoadBalancerListenerRuleDev:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Condition: HasDev
@@ -146,7 +149,7 @@ Resources:
             Values: 
             - !Join ['.', [!Ref ApplicationName, "dev.ised-isde.canada.ca"] ]
           Field: host-header
-      Priority: 2
+      Priority: !GetAtt NextPriorityDev.Value
   Router53RecordSetProd:
     Type: AWS::Route53::RecordSetGroup
     Condition: HasProd
@@ -179,3 +182,17 @@ Resources:
           DNSName:
             Fn::ImportValue: 
               Fn::Sub: "alb-dns-name-${Development}-dev"
+  NextPriorityDev:
+    Condition: HasDev
+    Type: Custom::Priority
+    Properties:
+      ServiceToken:
+        Fn::ImportValue:
+          Fn::Sub: "alb-lambda-tg-priority-${Development}-dev"
+  NextPriorityProd:
+    Condition: HasProd
+    Type: Custom::Priority
+    Properties:
+      ServiceToken:
+        Fn::ImportValue:
+          Fn::Sub: "alb-lambda-tg-priority-${Production}-prod"
