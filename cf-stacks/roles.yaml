@@ -224,6 +224,18 @@ Resources:
         - arn:aws:iam::aws:policy/AWSLambdaExecute
         - arn:aws:iam::aws:policy/ResourceGroupsandTagEditorReadOnlyAccess
       Path: /
+  ConfigLambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref ConfigLambdaRole
+      PolicyName: ised-config-lambda-desc-rules-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action: "config:DescribeConfigRules"
+            Resource: "*"
   AutomationRole:
     Type: AWS::IAM::Role
     Description: This role is used by the SSM document to invoke the lambda function "Ised-CreateJiraIssue"
