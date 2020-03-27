@@ -10,7 +10,6 @@ Resources:
       Family: postgres9.6
       Parameters:
         rds.force_ssl: "1"
-
   postgres10:
     Type: AWS::RDS::DBParameterGroup
     Properties:
@@ -18,16 +17,26 @@ Resources:
       Family: postgres10
       Parameters:
         rds.force_ssl: "1"
-
+  postgres11:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: "ISED RDS Parameter Group for PostgreSQL 11"
+      Family: postgres11
+      Parameters:
+        rds.force_ssl: "1"
 Outputs:
   postgres96:
     Description: "ISED RDS Parameter Group for PostgreSQL 9.6"
     Value: !Ref postgres96
     Export:
       Name: "db-parameter-group-postgres96"
-
   postgres10:
     Description: "ISED RDS Parameter Group for PostgreSQL 10"
     Value: !Ref postgres10
     Export:
       Name: "db-parameter-group-postgres10"
+  postgres11:
+    Description: "ISED RDS Parameter Group for PostgreSQL 11"
+    Value: !Ref postgres11
+    Export:
+      Name: "db-parameter-group-postgres11"
