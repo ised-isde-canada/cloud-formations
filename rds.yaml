@@ -43,7 +43,7 @@ Parameters:
     Default: postgres
     AllowedValues: 
       - postgres
-   RDSEngineVersion:
+  RDSEngineVersion:
     Type: String
     Description: Engine Version
     Default: 11.5
