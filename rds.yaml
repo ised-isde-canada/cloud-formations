@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: Template to create the RDS. Version 1.0
+# Version 1.1 - Template Updated 
+Description: Template to create the RDS. Version 1.1
 Metadata:
  AWS::CloudFormation::Interface:
    ParameterGroups:
@@ -14,10 +15,11 @@ Metadata:
          default: "General Settings"
        Parameters:
          - Environment
-         - JIRAProjectKey
+         - DBIdentifier
          - RDSMasterUserPassword
          - RDSSize
          - RDSStorage
+         - VPCId
          - VPCName
      - Label:
          default: "Additional Section"
@@ -35,8 +37,18 @@ Mappings:
   MasterUserNameMap:
     postgres:
       MasterUserName: "postgres"
+  DBParameterGroupPostgresMap:
+    "11.5":
+      DBParameterGroupPostgres: "db-parameter-group-postgres11"
+    "9.6":
+      DBParameterGroupPostgres: "db-parameter-group-postgres96"
+    "10.6":
+      DBParameterGroupPostgres: "db-parameter-group-postgres10"
 Parameters:
 # ===== Engine Options Section =====
+  RDSSnapshot:
+    Description: Specify if restoring from snapshot
+    Type: String
   RDSEngine:
     Type: String
     Description: Engine Type
@@ -57,8 +69,8 @@ Parameters:
       - uat
       - qa
       - prod
-  JIRAProjectKey:
-    Description: DB Instance Identifier (Should match to JIRA project key)
+  DBIdentifier:
+    Description: DB Instance Identifier
     Type: String
   RDSMasterUserPassword:
     NoEcho: true
@@ -70,9 +82,8 @@ Parameters:
   RDSSize:
     Type: String
     Description: DB Instance Class
-    Default: <None>
+    Default: db.t3.small
     AllowedValues:
-      - <None>
       - db.t3.small
       - db.t3.medium
       - db.t3.large
@@ -80,9 +91,12 @@ Parameters:
   RDSStorage:
     Type: String
     Description: Allocated Storage
-  VPCName:
-    Type: AWS::EC2::VPC
+  VPCId:
+    Type: "AWS::EC2::VPC::Id"
     Description: Virtual Private Cloud
+  VPCName:
+    Type: String
+    Description: Virtual Private Cloud Name (Portion between account id and environemnt)
 # ===== Additional Section =====
   RDSBackupRetentionPeriod:
     Type: String
@@ -110,42 +124,34 @@ Parameters:
     AllowedValues:
       - "tue:07:30-tue:08:00"
       - "tue:08:30-tue:09:00"
-  DBParameterGroupName:
-    Type: AWS::RDS::DBParameterGroup
-    Description: DB Parameter Group
   Schedule:
     Type: String
+    Default: <None>
     AllowedValues:
-      - no
+      - <None>
       - end-of-week-shutdown
       - mon-6am-fri-6pm
       - office-hours
       - 24-7 
+# ===== Tags Section =====
   ISEDProjectId:
     Type: String
   CostCentre:
     Type: String
-# ===== RDS Section =====
-  RDSSnapshot:
-    Description: Specify if restoring from snapshot
-    Type: String
 Conditions:
-  IsProd: !Equals [ !Ref Environment, prod ]
-  IsSchedule: !Not [!Equals [ !Ref Schedule, no ]]
   IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ]]
-  HasRDSParamGroup: !Not [ !Equals [ !Ref DBParameterGroupName, "" ] ]
+  IsProd: !Equals [ !Ref Environment, prod ]
+  IsSchedule: !Not [!Equals [ !Ref Schedule, <None> ]]
 Resources:
   SecurityGroupRDS:
     Type: AWS::EC2::SecurityGroup
-    DeletionPolicy: Retain
     Properties:
       GroupDescription: "RDS Secuirty Group"
-      VpcId: 
-        Fn::ImportValue: 
-          Fn::Sub:  "vpc-${VPCName}-${Environment}"
+      GroupName: !Join ['-', ["secg-rds", !Ref "AWS::AccountId", !Ref DBIdentifier ] ]
+      VpcId: !Ref VPCId
       Tags:
       - Key: Name
-        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref "JIRAProjectKey" ] ]
+        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref DBIdentifier ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
@@ -156,7 +162,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain
     Properties:
-      DBInstanceIdentifier: !Ref JIRAProjectKey
+      DBInstanceIdentifier: !Ref DBIdentifier
       AllocatedStorage: !Ref RDSStorage
       AllowMajorVersionUpgrade: false
       AutoMinorVersionUpgrade: true
@@ -177,23 +183,21 @@ Resources:
       # downtime impact
       # We want this to be 03:30-04:00 Canada/Eastern -- need to change the time twice a year
       PreferredMaintenanceWindow: !Ref PreferredMaintenanceWindow
-      DBName: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref JIRAProjectKey ]
+      DBName: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref DBIdentifier ]
       Engine: !Ref RDSEngine
       EngineVersion: !Ref RDSEngineVersion
       LicenseModel: postgresql-license
       StorageEncrypted: true
       DBParameterGroupName:
-        !If
-          - HasRDSParamGroup
-          - Fn::ImportValue: !Ref DBParameterGroupName
-          - !Ref "AWS::NoValue"
+        Fn::ImportValue: 
+          !FindInMap [DBParameterGroupPostgresMap, !Ref RDSEngineVersion, DBParameterGroupPostgres]
       DBSubnetGroupName:
         Fn::ImportValue: 
           Fn::Sub: "dbsubnet-${VPCName}-${Environment}"
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
       - Key: Name
-        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
+        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref DBIdentifier, !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
@@ -207,17 +211,14 @@ Resources:
         - Key: ised-schedule
           Value: !Ref Schedule
         - !Ref AWS::NoValue
-
 Outputs:
   RDS:
     Description: RDS
     Value: !Ref RDS
     Export:
-      Name: !Join ['-', [!Ref "JIRAProjectKey", !Ref "Environment", "rds" ] ]
+      Name: !Join ['-', ["rds", !Ref "DBIdentifier", !Ref "Environment" ] ]
   RDSEndpoint:
     Description: RDS Endpoint
     Value: !GetAtt RDS.Endpoint.Address
     Export:
-      Name: !Join ['-', [!Ref "JIRAProjectKey", !Ref "Environment", "rds-endpoint" ] ]
-  RDSSecurityGroup:
-    Value: !Ref SecurityGroupRDS
+      Name: !Join ['-', ["rds-endpoint", !Ref "DBIdentifier", !Ref "Environment" ] ]
