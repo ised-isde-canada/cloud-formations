@@ -198,7 +198,7 @@ Resources:
           def lambda_handler(event, context):
               priorities = []
 
-              for pages in elb_client.get_paginator("describe_rules").paginate(ListenerArn=${Listener443}):
+              for pages in elb_client.get_paginator("describe_rules").paginate(ListenerArn="${Listener443}"):
                   for rule in pages["Rules"]:
                       priority = rule["Priority"]
                       if priority != "default":
