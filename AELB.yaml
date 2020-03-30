@@ -229,6 +229,6 @@ Outputs:
       Name: !Join ['-', ["alb-dns-name", !Ref Access, !Ref "Environment" ]]
   TargetGroupPriorityFunction:
     Description: Lambda Function to get the next available "Priority" slot on a listener
-    Value: !Ref TargetGroupPriorityFunction
+    Value: !GetAtt TargetGroupPriorityFunction.Arn
     Export:
       Name: !Join ['-', ["alb-lambda-tg-priority", !Ref Access, !Ref "Environment" ]]
