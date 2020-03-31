@@ -198,7 +198,7 @@ Resources:
           def lambda_handler(event, context):
               priorities = []
 
-              for pages in elb_client.get_paginator("describe_rules").paginate(ListenerArn=${Listener443}):
+              for pages in elb_client.get_paginator("describe_rules").paginate(ListenerArn="${Listener443}"):
                   for rule in pages["Rules"]:
                       priority = rule["Priority"]
                       if priority != "default":
@@ -229,6 +229,6 @@ Outputs:
       Name: !Join ['-', ["alb-dns-name", !Ref Access, !Ref "Environment" ]]
   TargetGroupPriorityFunction:
     Description: Lambda Function to get the next available "Priority" slot on a listener
-    Value: !Ref TargetGroupPriorityFunction
+    Value: !GetAtt TargetGroupPriorityFunction.Arn
     Export:
       Name: !Join ['-', ["alb-lambda-tg-priority", !Ref Access, !Ref "Environment" ]]
