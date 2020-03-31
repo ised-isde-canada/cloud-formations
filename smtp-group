@@ -1,0 +1,12 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  SmtpGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: ses-smtp-group
+Outputs:
+  SmtpGroup:
+    Description: Group for SMTP users
+    Value: !Ref SmtpGroup
+    Export:
+      Name: ses-smtp-group

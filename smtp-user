@@ -1,0 +1,51 @@
+
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Template to create the RDS. Version 1.0
+Parameters:
+  ApplicationName:
+    Type: String
+  Email1:
+    Type: String
+  Email2:
+    Type: String
+  Email3:
+    Type: String
+  Email4:
+    Type: String
+Conditions: 
+  Has2Emails: !Not [!Equals [ !Ref Email2, "" ]]
+  Has3Emails: !Not [!Equals [ !Ref Email3, "" ]]
+  Has4Emails: !Not [!Equals [ !Ref Email4, "" ]]
+Resources:
+  SMTPUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Join ["-", [ ses-smtp-user, !Ref ApplicationName ] ]
+      Groups:
+      - !ImportValue ses-smtp-group
+      Policies:
+      - PolicyName: SendEmail
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: "ses:SendRawEmail"
+            Resource: "*"
+            Condition:
+              StringEquals:
+                'ses:FromAddress': 
+                - !Ref Email1
+                - !If [ Has2Emails, !Ref Email2, !Ref Email1 ]
+                - !If [ Has3Emails, !Ref Email3, !Ref Email1 ]
+                - !If [ Has4Emails, !Ref Email4, !Ref Email1 ]
+  AccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref SMTPUser
+  SecretKey:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: !Join ["-", [ ses-smtp-user, !Ref ApplicationName ] ]
+      Description: SMTP User Secket Key
+      SecretString: !Join [",",[!Join [":",["accesskey",!Ref AccessKey]], !Join [":",["secretkey",!GetAtt AccessKey.SecretAccessKey]]]]
