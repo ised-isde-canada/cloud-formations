@@ -229,3 +229,5 @@ Outputs:
     Value: !GetAtt RDS.Endpoint.Address
     Export:
       Name: !Join ['-', ["rds-endpoint", !Ref "DBIdentifier", !Ref "Environment" ] ]
+  RDSSecurityGroup:
+    Value: !Ref SecurityGroupRDS
