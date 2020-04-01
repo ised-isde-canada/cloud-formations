@@ -1,7 +1,7 @@
 
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: Template to create the RDS. Version 1.0
+Description: Template to create the SMTP Credentials. Version 1.0
 Parameters:
   ApplicationName:
     Type: String
@@ -44,8 +44,14 @@ Resources:
     Properties:
       UserName: !Ref SMTPUser
   SecretKey:
-    Type: 'AWS::SecretsManager::Secret'
+    Type: AWS::SecretsManager::Secret
     Properties:
       Name: !Join ["-", [ ses-smtp-user, !Ref ApplicationName ] ]
       Description: SMTP User Secket Key
-      SecretString: !Join [",",[!Join [":",["accesskey",!Ref AccessKey]], !Join [":",["secretkey",!GetAtt AccessKey.SecretAccessKey]]]]
+      SecretString: !Join [",",[!Join [":",["accesskey",!Ref AccessKey]], !Join [":",["secretkey",!GetAtt AccessKey.SecretAccessKey]], !Join [":",["smtpsecretkey",!GetAtt GenerateSmtpSecret.Value]]]]
+  GenerateSmtpSecret:
+    Type: Custom::GenerateSmtpSecret
+    Properties:
+      ServiceToken: !ImportValue lambda-generate-smtp-secret
+      Handler: index.handler
+      secret: !GetAtt AccessKey.SecretAccessKey
