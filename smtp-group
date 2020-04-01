@@ -1,12 +1,95 @@
 AWSTemplateFormatVersion: '2010-09-09'
+# Version 1.0 - Initial version
+# Version 1.1 - Add Puthon method to generate smtp key
+Description: Template to create the group for SMTP Users. Version 1.1
 Resources:
+  GenerateSmtpSecretExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: ['logs:*']
+                Resource: 'arn:aws:logs:*:*:*'
   SmtpGroup:
     Type: AWS::IAM::Group
     Properties:
       GroupName: ses-smtp-group
+  GenerateSmtpSecretFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.7
+      Role: arn:aws:iam::123456789012:role/lambda-role
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          #!/usr/bin/env python3
+
+          import hmac
+          import hashlib
+          import base64
+          import argparse
+          import json
+          import logging
+          import cfnresponse
+          from botocore.vendored import requests
+
+          # Logger settings - CloudWatch
+          # Set level to DEBUG for debugging, INFO for general usage.
+          logger = logging.getLogger()
+          logger.setLevel(logging.DEBUG)
+
+          # Values that are required to calculate the signature. These values should
+          # never change.
+          DATE = "11111111"
+          SERVICE = "ses"
+          MESSAGE = "SendRawEmail"
+          TERMINAL = "aws4_request"
+          VERSION = 0x04
+
+          def sign(key, msg):
+              return hmac.new(key, msg.encode('utf-8'), hashlib.sha256).digest()
+
+          def calculateKey(secretAccessKey, region):
+              signature = sign(("AWS4" + secretAccessKey).encode('utf-8'), DATE)
+              signature = sign(signature, region)
+              signature = sign(signature, SERVICE)
+              signature = sign(signature, TERMINAL)
+              signature = sign(signature, MESSAGE)
+              signatureAndVersion = bytes([VERSION]) + signature
+              smtpPassword = base64.b64encode(signatureAndVersion)
+              print(smtpPassword.decode('utf-8'))
+              return smtpPassword.decode('utf-8')
+
+          def handler(event,context):
+              logger.info("Received event: " + json.dumps(event, indent=2))
+              response_data = {}
+              secret = event["ResourceProperties"]["secret"]
+              smtpsecret = calculateKey(secret,'us-east-1')
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {"Value": smtpsecret})
+              return smtpsecret
+    
+      Description: Calculate smtp secret from IAM secret key
+      Role: !GetAtt GenerateSmtpSecretExecutionRole.Arn
 Outputs:
   SmtpGroup:
     Description: Group for SMTP users
     Value: !Ref SmtpGroup
     Export:
       Name: ses-smtp-group
+  GenerateSmtpSecretFunction:
+    Description: GenerateSmtpSecretFunction Lambda Function
+    Value: !GetAtt GenerateSmtpSecretFunction.Arn
+    Export:
+      Name: lambda-generate-smtp-secret
