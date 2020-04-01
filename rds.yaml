@@ -37,13 +37,6 @@ Mappings:
   MasterUserNameMap:
     postgres:
       MasterUserName: "postgres"
-  DBParameterGroupPostgresMap:
-    "11.5":
-      DBParameterGroupPostgres: "db-parameter-group-postgres11"
-    "9.6":
-      DBParameterGroupPostgres: "db-parameter-group-postgres96"
-    "10.6":
-      DBParameterGroupPostgres: "db-parameter-group-postgres10"
 Parameters:
 # ===== Engine Options Section =====
   RDSSnapshot:
@@ -142,6 +135,9 @@ Conditions:
   IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ]]
   IsProd: !Equals [ !Ref Environment, prod ]
   IsSchedule: !Not [!Equals [ !Ref Schedule, <None> ]]
+  IsPostgres9: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "9" ]
+  IsPostgres10: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "10" ]
+  IsPostgres11: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "11" ]
 Resources:
   SecurityGroupRDS:
     Type: AWS::EC2::SecurityGroup
@@ -189,8 +185,19 @@ Resources:
       LicenseModel: postgresql-license
       StorageEncrypted: true
       DBParameterGroupName:
-        Fn::ImportValue: 
-          !FindInMap [DBParameterGroupPostgresMap, !Ref RDSEngineVersion, DBParameterGroupPostgres]
+        !If
+          - IsPostgres9
+          - Fn::ImportValue:
+              db-parameter-group-postgres96
+          - !If
+            - IsPostgres10
+            - Fn::ImportValue:
+                db-parameter-group-postgres10
+            - !If
+              - IsPostgres11
+              - Fn::ImportValue:
+                  db-parameter-group-postgres11
+              - !Ref AWS::NoValue
       DBSubnetGroupName:
         Fn::ImportValue: 
           Fn::Sub: "dbsubnet-${VPCName}-${Environment}"
