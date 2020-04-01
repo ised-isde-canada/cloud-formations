@@ -200,3 +200,6 @@ Outputs:
 
   EC2SecurityGroup:
     Value: !Ref SecurityGroupEC2
+
+  EC2PrivateIp:
+    Value: !GetAtt EC2.PrivateIp
