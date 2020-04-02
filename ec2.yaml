@@ -96,6 +96,7 @@ Conditions:
   IsLinux: !Equals [ !Ref CreateEC2, Linux ]
   IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ]]
   IsSchedule: !Not [!Equals [ !Ref Schedule, no ]]
+  HasUserData: !Not [ !Equals [ !Ref UserData, "" ] ]
 
 Resources:
   SecurityGroupEC2:
@@ -159,7 +160,7 @@ Resources:
       InstanceType: !Ref EC2Size
       KeyName: !Ref JIRAProjectKey
       Monitoring: false
-      UserData: !Ref UserData
+      UserData: !If [ HasUserData, !Ref UserData, !Ref "AWS::NoValue" ]
       BlockDeviceMappings:
         - DeviceName: !If [ IsLinux, "/dev/xvda", "/dev/sda1" ]
           Ebs:
