@@ -1,0 +1,152 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template to create the infrastructure for GPC Risk Management project
+
+Metadata:
+ AWS::CloudFormation::Interface:
+   ParameterGroups:
+     - Label:
+         default: "Network Definition"
+       Parameters:
+         - VPCId
+         - VPCName
+         - Environment
+     - Label:
+         default: "RDS Configuration"
+       Parameters:
+         - DBIdentifier
+         - RDSMasterUserPassword
+         - RDSEngine
+         - RDSEngineVersion
+         - RDS Size
+         - RDSStorage
+         - RDSMaxStorage
+     - Label:
+         default: "Tags"
+       Parameters:
+         - ISEDProjectId
+         - CostCentre
+
+
+Parameters:
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+  VPCId:
+    Type: "AWS::EC2::VPC::Id"
+    Description: Virtual Private Cloud
+  VPCName:
+    Type: String
+    Default: ised
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - prod
+  # ===== RDS Section =====
+  DBIdentifier:
+    Type: String
+  RDSMasterUserPassword:
+    NoEcho: true
+    Type: String
+  RDSEngine:
+    Type: String
+    Description: Engine Type
+    Default: postgres
+    AllowedValues: 
+      - postgres
+  RDSEngineVersion:
+    Type: String
+    Description: Engine Version
+    Default: 11.5
+  RDSSize:
+    Type: String
+    Default: db.t3.small
+    AllowedValues:
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+      - db.t3.xlarge
+  RDSStorage:
+    Type: String
+    Default: 20
+  RDSMaxStorage:
+    Type: String
+    Default: 20
+
+
+
+
+  # ===== Tags Section =====
+  ISEDProjectId:
+    Type: String
+    Default: ccots-jira
+  CostCentre:
+    Type: String
+    Default: cio-rdad
+
+
+
+
+  Subnet:
+    Type: String
+    Default: subneta
+    AllowedValues:
+      - subneta
+      - subnetb
+  EC2Ami:
+    Type: String
+    Description: Specify if restoring from Ami, otherwise leave blank
+
+  # ===== EBS Volumes =====
+  EC2RootVolumeSize:
+    Type: String
+    Default: 8
+  EC2AppVolumeSize:
+    Type: String
+    Default: 2
+  EC2AppVolumeMount:
+    Type: String
+    Default: /dev/sdg
+  EC2DataVolumeSize:
+    Type: String
+    Default: 20
+  EC2DataVolumeMount:
+    Type: String
+    Default: /dev/sdf
+
+  # ===== RDS Section =====
+  RDSSnapshot:
+    Description: Specify if restoring from snapshot
+    Type: String
+
+Conditions:
+  IsProd: !Equals [ !Ref Environment, prod ]
+  IsEC2Restore: !Equals [ !Ref EC2Ami, "" ]
+  IsRDSRestore: !Equals [ !Ref RDSSnapshot, "" ]
+
+Resources:
+  RDS:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "rds.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        VPCId: !Ref VPCId
+        VPCName: !Ref VPCName
+        Environment: !Ref Environment
+        # ===== RDS Section =====
+        RDSEngine: !Ref RDSEngine
+        RDSEngineVersion: !Ref RDSEngineVersion
+        DBIdentifier: !Ref DBIdentifier
+        RDSMasterUserPassword: !Ref RDSMasterUserPassword
+        RDSStorage: !Ref RDSStorage
+        RDSMaxStorage: !Ref RDSMaxStorage
+        RDSSize: !Ref RDSSize
+        # ===== Parameters =====
+        RDSSnapshot: !Ref RDSSnapshot
+        Schedule: !If [ IsProd, 24-7, office-hours ]
+        RDSBackupRetentionPeriod: !If [ IsProd, 30, 7 ]
+        # ===== Tags =====
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre
+

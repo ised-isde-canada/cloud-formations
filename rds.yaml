@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Template Updated 
-Description: Template to create the RDS. Version 1.1
+# Version 1.2 - Add Ingress Security Group
+Description: Template to create the RDS. Version 1.2
 Metadata:
  AWS::CloudFormation::Interface:
    ParameterGroups:
@@ -19,8 +20,10 @@ Metadata:
          - RDSMasterUserPassword
          - RDSSize
          - RDSStorage
+         - RDSMaxStorage
          - VPCId
          - VPCName
+         - Ec2IpAddress
      - Label:
          default: "Additional Section"
        Parameters:
@@ -84,12 +87,18 @@ Parameters:
   RDSStorage:
     Type: String
     Description: Allocated Storage
+  RDSMaxStorage:
+    Type: String
+    Description: Maximum Allocated Storage
   VPCId:
     Type: "AWS::EC2::VPC::Id"
     Description: Virtual Private Cloud
   VPCName:
     Type: String
     Description: Virtual Private Cloud Name (Portion between account id and environemnt)
+  Ec2IpAddress:
+    Type: String
+    Description: IP Address of the EC2 to enable the connection
 # ===== Additional Section =====
   RDSBackupRetentionPeriod:
     Type: String
@@ -138,6 +147,7 @@ Conditions:
   IsPostgres9: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "9" ]
   IsPostgres10: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "10" ]
   IsPostgres11: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "11" ]
+  IsEc2IpAddress: !Not [ !Equals [ !Ref Ec2IpAddress, "" ]]
 Resources:
   SecurityGroupRDS:
     Type: AWS::EC2::SecurityGroup
@@ -154,15 +164,27 @@ Resources:
         Value: !Ref ISEDProjectId
       - Key: ised-environment
         Value: !Ref Environment
+  IngressPostgres:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: IsEc2IpAddress
+    Properties:
+      Description: Allow incoming connections from EC2s from VPC to RDS on port 5432 (Postgresql)
+      GroupId: !Ref SecurityGroupRDS
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      CidrIp: !Ref Ec2IpAddress
   RDS:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain
     Properties:
       DBInstanceIdentifier: !Ref DBIdentifier
       AllocatedStorage: !Ref RDSStorage
+      MaxAllocatedStorage: !Ref RDSMaxStorage
       AllowMajorVersionUpgrade: false
       AutoMinorVersionUpgrade: true
       DBInstanceClass: !Ref RDSSize
+      DeletionProtection: true
       Port: 5432
       StorageType: gp2
       MultiAZ: !If [ IsProd, True, False ]
