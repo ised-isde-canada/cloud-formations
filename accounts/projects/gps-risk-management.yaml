@@ -9,7 +9,13 @@ Metadata:
        Parameters:
          - VPCId
          - VPCName
+         - SubnetId
          - Environment
+     - Label:
+         default: "EC2 Configuration"
+       Parameters:
+         - EC2OS
+         - RootVolumeSize
      - Label:
          default: "RDS Configuration"
        Parameters:
@@ -20,6 +26,7 @@ Metadata:
          - RDS Size
          - RDSStorage
          - RDSMaxStorage
+         - Ec2IpAddress
      - Label:
          default: "Tags"
        Parameters:
@@ -37,11 +44,30 @@ Parameters:
   VPCName:
     Type: String
     Default: ised
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
   Environment:
     Type: String
     AllowedValues:
       - dev
       - prod
+  # ===== EC2 Section =====
+  EC2OS:
+    Type: String
+    Default: Linux
+    AllowedValues:
+      - Linux
+      - Windows-2016
+  EC2RootVolumeSize:
+    Type: String
+    Default: 8
+  # ===== EBS Volumes =====
+  EBSVolumeSize:
+    Type: String
+    Default: 2
+  EBSVolumeMount:
+    Type: String
+    Default: /dev/sdg
   # ===== RDS Section =====
   DBIdentifier:
     Type: String
@@ -72,47 +98,29 @@ Parameters:
   RDSMaxStorage:
     Type: String
     Default: 20
-
-
-
-
+  Ec2IpAddress:
+    Type: String
   # ===== Tags Section =====
   ISEDProjectId:
     Type: String
-    Default: ccots-jira
+    Default: ccots-cops
   CostCentre:
     Type: String
     Default: cio-rdad
 
-
-
-
-  Subnet:
-    Type: String
-    Default: subneta
-    AllowedValues:
-      - subneta
-      - subnetb
-  EC2Ami:
-    Type: String
-    Description: Specify if restoring from Ami, otherwise leave blank
-
-  # ===== EBS Volumes =====
-  EC2RootVolumeSize:
-    Type: String
-    Default: 8
-  EC2AppVolumeSize:
-    Type: String
-    Default: 2
-  EC2AppVolumeMount:
-    Type: String
-    Default: /dev/sdg
   EC2DataVolumeSize:
     Type: String
     Default: 20
   EC2DataVolumeMount:
     Type: String
     Default: /dev/sdf
+
+
+
+  EC2Ami:
+    Type: String
+    Description: Specify if restoring from Ami, otherwise leave blank
+
 
   # ===== RDS Section =====
   RDSSnapshot:
@@ -125,6 +133,28 @@ Conditions:
   IsRDSRestore: !Equals [ !Ref RDSSnapshot, "" ]
 
 Resources:
+  EC2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        VPCId: !Ref VPCId
+        SubnetId: !Ref SubnetId
+        Environment: !Ref Environment
+
+
+         # ===== General Section =====
+        Schedule: !If [ IsProd, 24-7, office-hours ]
+
+        # ===== EC2 Section =====
+        CreateEC2: EC2OS
+        EC2Size: t3.large
+        EC2Ami: !Ref EC2Ami
+        EC2RootVolumeSize: !Ref EC2RootVolumeSize
+        # ===== Tags =====
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre
   RDS:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -142,6 +172,7 @@ Resources:
         RDSStorage: !Ref RDSStorage
         RDSMaxStorage: !Ref RDSMaxStorage
         RDSSize: !Ref RDSSize
+        Ec2IpAddress: !Ref Ec2IpAddress
         # ===== Parameters =====
         RDSSnapshot: !Ref RDSSnapshot
         Schedule: !If [ IsProd, 24-7, office-hours ]
