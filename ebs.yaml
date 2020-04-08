@@ -56,6 +56,8 @@ Parameters:
   CostCentre:
     Type: String
     Default: cio-rdad
+Conditions:
+  IsProd: !Equals [ !Ref Environment, prod ]
 Resources:
   EBSVolume:
     Type: AWS::EC2::Volume
