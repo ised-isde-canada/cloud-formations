@@ -7,6 +7,7 @@ Metadata:
           default: "Network Definition"
         Parameters:
           - VPCId
+          - VPCName
           - SubnetId
           - Environment
       - Label:
@@ -46,6 +47,8 @@ Metadata:
     ParameterLabels:
       VPCId:
         default: "(*) The vpc ID to launch the instance into."
+      VPCName:
+        default: "(*) The vpc name to launch the instance into."
       SubnetId:
         default: "(*) The subnet ID to launch the instance into."
       Environment:
@@ -92,6 +95,8 @@ Parameters:
 # ===== Network Section =====
   VPCId:
     Type: AWS::EC2::VPC::Id
+  VPCName:
+    Type: String
   SubnetId:
     Type: AWS::EC2::Subnet::Id
   Environment:
@@ -223,6 +228,7 @@ Resources:
       Parameters:
         # ===== General Section =====
         VPCId: !Ref VPCId
+        VPCName: !Ref VPCName
         SubnetId: !Ref SubnetId
         Environment: !Ref Environment
         # ===== RDS Section =====
@@ -233,10 +239,10 @@ Resources:
         RDSStorage: !Ref RDSStorage
         RDSMaxStorage: !Ref RDSMaxStorage
         RDSSize: !Ref RDSSize
-        Ec2IpAddress: !GetAtt EC2.Outputs.PrivateIp
+        Ec2IpAddress: !GetAtt EC2.Outputs.EC2PrivateIp
         # ===== Parameters =====
         RDSSnapshot: !Ref RDSSnapshot
-        Schedule: !If [ IsProd, 24-7, office-hours ]
+        Schedule: !Ref Schedule
         RDSBackupRetentionPeriod: !If [ IsProd, 30, 7 ]
         # ===== Tags =====
         ISEDProjectId: !Ref ISEDProjectId

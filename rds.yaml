@@ -22,6 +22,7 @@ Metadata:
          - RDSStorage
          - RDSMaxStorage
          - VPCId
+         - VPCName
          - SubnetId
          - Ec2IpAddress
      - Label:
@@ -92,6 +93,8 @@ Parameters:
     Description: Maximum Allocated Storage
   VPCId:
     Type: "AWS::EC2::VPC::Id"
+  VPCName:
+    Type: String
   SubnetId:
     Type: AWS::EC2::Subnet::Id
   Ec2IpAddress:
@@ -174,20 +177,6 @@ Resources:
       FromPort: 5432
       ToPort: 5432
       CidrIp: !Ref Ec2IpAddress
-  DBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: !Join ['-', ["dbsubnetgroup", !Ref "AWS::AccountId", !Ref DBIdentifier, !Ref "Environment"  ] ]
-      SubnetIds: !Ref SubnetId
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["dbsubnetgroup", !Ref "AWS::AccountId", !Ref DBIdentifier, !Ref "Environment"  ] ]
-      - Key: ised-cost-centre
-        Value: cio-rdad
-      - Key: ised-project-id
-        Value: cops-aws
-      - Key: ised-environment
-        Value: !Ref Environment
   RDS:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain
@@ -234,7 +223,9 @@ Resources:
               - Fn::ImportValue:
                   db-parameter-group-postgres11
               - !Ref AWS::NoValue
-      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBSubnetGroupName:
+        Fn::ImportValue: 
+          Fn::Sub: "dbsubnet-${VPCName}-${Environment}"
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
       - Key: Name
