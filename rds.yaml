@@ -135,11 +135,13 @@ Parameters:
       - mon-6am-fri-6pm
       - office-hours
       - 24-7 
-# ===== Tags Section =====
+  # ===== Tags Section =====
   ISEDProjectId:
     Type: String
+    Default: ccots-cops
   CostCentre:
     Type: String
+    Default: cio-rdad
 Conditions:
   IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ]]
   IsProd: !Equals [ !Ref Environment, prod ]
