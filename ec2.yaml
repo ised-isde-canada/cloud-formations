@@ -155,6 +155,7 @@ Conditions:
   IsSchedule: !Not [!Equals [ !Ref Schedule, <Always On> ]]
   IsVolume1: !Not [ !Equals [ !Ref EBSVolume1Mount, "" ]]
   IsVolume2: !Not [ !Equals [ !Ref EBSVolume2Mount, "" ]]
+  HasUserData: !Not [ !Equals [ !Ref UserData, "" ] ]
 Resources:
   SecurityGroupEC2:
     Type: AWS::EC2::SecurityGroup
@@ -210,7 +211,7 @@ Resources:
       InstanceType: !Ref EC2Size
       KeyName: !Ref ISEDProjectId
       Monitoring: false
-      UserData: !Ref UserData
+      UserData: !If [ HasUserData, !Ref UserData, !Ref "AWS::NoValue" ]
       BlockDeviceMappings:
         - DeviceName: !If [ IsLinux, "/dev/xvda", "/dev/sda1" ]
           Ebs:
