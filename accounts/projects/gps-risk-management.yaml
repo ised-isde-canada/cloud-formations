@@ -33,6 +33,7 @@ Metadata:
           default: "RDS Configuration"
         Parameters:
           - DBIdentifier
+          - DBName
           - RDSMasterUserPassword
           - RDSEngine
           - RDSEngineVersion
@@ -149,10 +150,27 @@ Parameters:
     Type: String
   # ===== RDS Section =====
   DBIdentifier:
+    Description: My database instance
     Type: String
+    MinLength: '1'
+    MaxLength: '63'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: Must begin with a letter and must not end with a hyphen or contain two consecutive hyphens.
+  DBName:
+    Description: My database
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
   RDSMasterUserPassword:
-    NoEcho: true
+    NoEcho: 'true'
+    Description: Password database access
     Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters.
   RDSEngine:
     Type: String
     Default: postgres
@@ -235,6 +253,7 @@ Resources:
         RDSEngine: !Ref RDSEngine
         RDSEngineVersion: !Ref RDSEngineVersion
         DBIdentifier: !Ref DBIdentifier
+        DBName: !Ref DBName
         RDSMasterUserPassword: !Ref RDSMasterUserPassword
         RDSStorage: !Ref RDSStorage
         RDSMaxStorage: !Ref RDSMaxStorage

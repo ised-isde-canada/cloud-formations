@@ -17,6 +17,7 @@ Metadata:
        Parameters:
          - Environment
          - DBIdentifier
+         - DBName
          - RDSMasterUserPassword
          - RDSSize
          - RDSStorage
@@ -67,15 +68,27 @@ Parameters:
       - qa
       - prod
   DBIdentifier:
-    Description: DB Instance Identifier
+    Description: My database instance
     Type: String
+    MinLength: '1'
+    MaxLength: '63'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: Must begin with a letter and must not end with a hyphen or contain two consecutive hyphens.
+  DBName:
+    Description: My database
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
   RDSMasterUserPassword:
-    NoEcho: true
+    NoEcho: 'true'
+    Description: Password database access
     Type: String
-    Description: Master Password
-    #MinLength: 8
-    #MaxLength: 16
-    #AllowedPattern: ^[a-zA-Z0-9]*$
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters.
   RDSSize:
     Type: String
     Description: DB Instance Class
@@ -182,6 +195,7 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       DBInstanceIdentifier: !Ref DBIdentifier
+      DBName: !Ref DBName
       AllocatedStorage: !Ref RDSStorage
       MaxAllocatedStorage: !Ref RDSMaxStorage
       AllowMajorVersionUpgrade: false
@@ -204,7 +218,7 @@ Resources:
       # downtime impact
       # We want this to be 03:30-04:00 Canada/Eastern -- need to change the time twice a year
       PreferredMaintenanceWindow: !Ref PreferredMaintenanceWindow
-      DBName: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref DBIdentifier ]
+      DBName: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref DBName ]
       Engine: !Ref RDSEngine
       EngineVersion: !Ref RDSEngineVersion
       LicenseModel: postgresql-license

@@ -76,6 +76,7 @@ Resources:
         Value: !Ref Environment
       - Key: ised-backup
         Value: !If [ IsProd, backup-prod, backup-dev ]
+    DeletionPolicy: Snapshot
   EBSVolumeMountPoint:
     Type: AWS::EC2::VolumeAttachment
     Properties:
