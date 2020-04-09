@@ -242,7 +242,7 @@ Resources:
         - !Ref AWS::NoValue
   EBSVolume1:
     Type: AWS::CloudFormation::Stack
-    DependsOn: !Ref EC2
+    DependsOn: EC2
     Condition: IsVolume1
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "ebs.yaml" ]]
@@ -253,7 +253,7 @@ Resources:
         AvailabilityZone: !GetAtt EC2.AvailabilityZone
   EBSVolume2:
     Type: AWS::CloudFormation::Stack
-    DependsOn: !Ref EC2
+    DependsOn: EC2
     Condition: IsVolume2
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "ebs.yaml" ]]
