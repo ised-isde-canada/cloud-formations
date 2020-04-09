@@ -86,7 +86,7 @@ Metadata:
       RDSStorage:
         default: "(*) The amount of storage (in gigabytes) to be initially allocated for the database instance."
       RDSMaxStorage:
-        default: "(*) The upper limit to which Amazon RDS can automatically scale the storage of the DB instance."
+        default: "(*) The upper limit to which Amazon RDS can automatically scale the storage of the DB instance. The value must be greater than default storage or left blanc"
       ISEDProjectId:
         default: "(*) Project Id Cost Tag"
       CostCentre:
