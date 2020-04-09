@@ -129,13 +129,13 @@ Parameters:
       - "tue:08:30-tue:09:00"
   Schedule:
     Type: String
-    Default: <None>
+    Default: <Always On>
     AllowedValues:
-      - <None>
+      - <Always On>
       - end-of-week-shutdown
       - mon-6am-fri-6pm
       - office-hours
-      - 24-7 
+      - 24-7
   # ===== Tags Section =====
   ISEDProjectId:
     Type: String
@@ -146,7 +146,7 @@ Parameters:
 Conditions:
   IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ]]
   IsProd: !Equals [ !Ref Environment, prod ]
-  IsSchedule: !Not [!Equals [ !Ref Schedule, <None> ]]
+  IsSchedule: !Not [!Equals [ !Ref Schedule, <Always On> ]]
   IsPostgres9: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "9" ]
   IsPostgres10: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "10" ]
   IsPostgres11: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "11" ]
