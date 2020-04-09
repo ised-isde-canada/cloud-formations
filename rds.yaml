@@ -156,6 +156,7 @@ Conditions:
   IsPostgres10: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "10" ]
   IsPostgres11: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "11" ]
   IsEc2IpAddress: !Not [ !Equals [ !Ref Ec2IpAddress, "" ]]
+  IsMaxStorage: !Not [ !Equals [ !Ref RDSMaxStorage, "" ]]
 Resources:
   SecurityGroupRDS:
     Type: AWS::EC2::SecurityGroup
@@ -189,7 +190,7 @@ Resources:
       DBInstanceIdentifier: !Join [ "-", [ !Ref DBName, !Ref Environment ] ]
       DBName: !Ref DBName
       AllocatedStorage: !Ref RDSStorage
-      MaxAllocatedStorage: !Ref RDSMaxStorage
+      MaxAllocatedStorage: !If [ IsMaxStorage, !Ref RDSMaxStorage, !Ref "AWS::NoValue" ]
       AllowMajorVersionUpgrade: false
       AutoMinorVersionUpgrade: true
       DBInstanceClass: !Ref RDSSize
