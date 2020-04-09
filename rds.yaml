@@ -176,7 +176,7 @@ Resources:
       IpProtocol: tcp
       FromPort: 5432
       ToPort: 5432
-      CidrIp: !Ref Ec2IpAddress
+      CidrIp: !Join [ '/', [ !Ref Ec2IpAddress, "32" ] ]
   RDS:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain

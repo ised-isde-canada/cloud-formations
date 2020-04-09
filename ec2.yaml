@@ -161,6 +161,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "EC2 Security Group"
+      GroupName: !Join ['-', ["secg-ec2", !Ref "AWS::AccountId", !Ref ISEDProjectId ] ]
       VpcId: !Ref VPCId
       Tags:
       - Key: Name
