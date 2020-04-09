@@ -32,7 +32,6 @@ Metadata:
       - Label:
           default: "RDS Configuration"
         Parameters:
-          - DBIdentifier
           - DBName
           - RDSMasterUserPassword
           - RDSEngine
@@ -74,7 +73,7 @@ Metadata:
         default: "EBS Volume 1 mount point (Leave Blanc if attaching this volume)"
       EBSVolume2Mount:
         default: "EBS Volume 2 mount point (Leave Blanc if attaching this volume)"
-      DBIdentifier:
+      DBName:
         default: "(*) A name for the DB instance."
       RDSMasterUserPassword:
         default: "(*) The password for the master user. The password can include any printable ASCII character except /, \", or @"
@@ -149,13 +148,6 @@ Parameters:
   EBSVolume2Mount:
     Type: String
   # ===== RDS Section =====
-  DBIdentifier:
-    Description: My database instance
-    Type: String
-    MinLength: '1'
-    MaxLength: '63'
-    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
-    ConstraintDescription: Must begin with a letter and must not end with a hyphen or contain two consecutive hyphens.
   DBName:
     Description: My database
     Type: String
@@ -252,7 +244,6 @@ Resources:
         # ===== RDS Section =====
         RDSEngine: !Ref RDSEngine
         RDSEngineVersion: !Ref RDSEngineVersion
-        DBIdentifier: !Ref DBIdentifier
         DBName: !Ref DBName
         RDSMasterUserPassword: !Ref RDSMasterUserPassword
         RDSStorage: !Ref RDSStorage
