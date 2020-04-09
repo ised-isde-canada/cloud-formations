@@ -59,7 +59,7 @@ Parameters:
 # ===== General Section =====
   Environment:
     Type: String
-    Description: Environemnt
+    Description: Environment
     Default: dev
     AllowedValues: 
       - dev
@@ -161,11 +161,11 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "RDS Secuirty Group"
-      GroupName: !Join ['-', ["secg-rds", !Ref "AWS::AccountId", !Ref DBIdentifier ] ]
+      GroupName: !Join ['-', ["secg-rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
       VpcId: !Ref VPCId
       Tags:
       - Key: Name
-        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref DBIdentifier ] ]
+        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
@@ -186,7 +186,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain
     Properties:
-      DBInstanceIdentifier: !Join [ "-", [ !Ref DBName, !Ref Environemnt ] ]
+      DBInstanceIdentifier: !Join [ "-", [ !Ref DBName, !Ref Environment ] ]
       DBName: !Ref DBName
       AllocatedStorage: !Ref RDSStorage
       MaxAllocatedStorage: !Ref RDSMaxStorage
@@ -235,7 +235,7 @@ Resources:
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
       - Key: Name
-        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref DBIdentifier, !Ref "Environment" ] ]
+        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
@@ -254,11 +254,11 @@ Outputs:
     Description: RDS
     Value: !Ref RDS
     Export:
-      Name: !Join ['-', ["rds", !Ref "DBIdentifier", !Ref "Environment" ] ]
+      Name: !Join ['-', ["rds", !Ref "DBName", !Ref "Environment" ] ]
   RDSEndpoint:
     Description: RDS Endpoint
     Value: !GetAtt RDS.Endpoint.Address
     Export:
-      Name: !Join ['-', ["rds-endpoint", !Ref "DBIdentifier", !Ref "Environment" ] ]
+      Name: !Join ['-', ["rds-endpoint", !Ref "DBName", !Ref "Environment" ] ]
   RDSSecurityGroup:
     Value: !Ref SecurityGroupRDS
