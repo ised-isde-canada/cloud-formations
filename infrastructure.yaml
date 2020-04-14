@@ -179,18 +179,18 @@ Parameters:
   DBName:
     Description: My database
     Type: String
-    MinLength: '1'
-    MaxLength: '64'
-    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
-    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
+    #MinLength: '1'
+    #MaxLength: '64'
+    #AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    #ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
   RDSMasterUserPassword:
     NoEcho: 'true'
     Description: Password database access
     Type: String
-    MinLength: '8'
-    MaxLength: '41'
-    AllowedPattern: '[a-zA-Z0-9]*'
-    ConstraintDescription: must contain only alphanumeric characters.
+    #MinLength: '8'
+    #MaxLength: '41'
+    #AllowedPattern: '[a-zA-Z0-9]*'
+    #ConstraintDescription: must contain only alphanumeric characters.
   RDSEngine:
     Type: String
     Default: postgres
@@ -212,7 +212,6 @@ Parameters:
     Default: 20
   RDSMaxStorage:
     Type: String
-    Default: 20
   # ===== Tags Section =====
   ISEDProjectId:
     Type: String
@@ -229,12 +228,12 @@ Parameters:
     Type: String
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
-  ISEC2: !Not [ !Equals [ !Ref EC2Option, <None> ] ]
-  IsRDS: !Not [ !Equals [ !Ref RDSOption, <None> ] ]
+  IsEC2: !Not [ !Equals [ !Ref EC2Options, <None> ] ]
+  IsRDS: !Not [ !Equals [ !Ref RDSOptions, <None> ] ]
 Resources:
   EC2:
     Type: AWS::CloudFormation::Stack
-    Condition: ISEC2
+    Condition: IsEC2
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
       Parameters:
@@ -245,7 +244,7 @@ Resources:
          # ===== General Section =====
         Schedule: !Ref Schedule
         # ===== EC2 Section =====
-        EC2Options: !Ref Ec2Options
+        EC2Options: !Ref EC2Options
         EC2OS: !Ref EC2OS
         EC2Ami: !Ref EC2Ami
         EC2Size: !Ref EC2Size
@@ -255,12 +254,12 @@ Resources:
         EBSVolume1Mount: !Ref EBSVolume1Mount
         EBSVolume2Size: !Ref EBSVolume2Size
         EBSVolume2Mount: !Ref EBSVolume2Mount
-         # ===== Tags =====
+        # ===== Tags =====
         ISEDProjectId: !Ref ISEDProjectId
         CostCentre: !Ref CostCentre
   RDS:
     Type: AWS::CloudFormation::Stack
-    Condition: ISRDS
+    Condition: IsRDS
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "rds.yaml" ]]
       Parameters:
