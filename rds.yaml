@@ -4,45 +4,111 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.2 - Add Ingress Security Group
 Description: Template to create the RDS. Version 1.2
 Metadata:
- AWS::CloudFormation::Interface:
-   ParameterGroups:
-     - Label:
-         default: "Engine Options"
-       Parameters:
-         - RDSSnapshot
-         - RDSEngine
-         - RDSEngineVersion
-     - Label:
-         default: "General Settings"
-       Parameters:
-         - Environment
-         - DBName
-         - RDSMasterUserPassword
-         - RDSSize
-         - RDSStorage
-         - RDSMaxStorage
-         - VPCId
-         - VPCName
-         - SubnetId
-         - Ec2IpAddress
-     - Label:
-         default: "Additional Section"
-       Parameters:
-         - RDSBackupRetentionPeriod
-         - PreferredBackupWindowTime
-         - PreferredMaintenanceWindow
-         - Schedule
-     - Label:
-         default: "Tags"
-       Parameters:
-         - ISEDProjectId
-         - CostCentre
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+          - VPCId
+          - VPCName
+          - SubnetId
+          - Environment
+          - Ec2IpAddress
+      - Label:
+          default: "Engine Options"
+        Parameters:
+          - RDSOptions
+          - RDSSnapshot
+          - RDSEngine
+          - RDSEngineVersion
+          - RDSSize
+          - RDSStorage
+          - RDSMaxStorage
+      - Label:
+          default: "General Settings"
+        Parameters:
+          - DBName
+          - RDSMasterUserPassword
+      - Label:
+          default: "Additional Section"
+        Parameters:
+          - RDSBackupRetentionPeriod
+          - PreferredBackupWindowTime
+          - PreferredMaintenanceWindow
+          - Schedule
+      - Label:
+          default: "Tags"
+        Parameters:
+          - ISEDProjectId
+          - CostCentre
+    ParameterLabels:
+      VPCId:
+        default: "(*) The vpc ID to launch the instance into."
+      VPCName:
+        default: "(*) The vpc Name to launch the instance into."
+      SubnetId:
+        default: "(*) The subnet ID to launch the instance into."
+      Ec2IpAddress:
+        default: IP Address of the EC2 to enable the connection
+      Environment:
+        default: "(*) Environment."
+      RDSOptions:
+        default: "(*) RDS Options. Create or Restore instance"
+      RDSEngine:
+        default: "(*) The name of the database engine that you want to use for this DB instance."
+      RDSEngineVersion:
+        default: "(*) The version number of the database engine to use."
+      RDSOptions:
+        default: "(*) RDS Options. Create or Restore instance"
+      DBName:
+        default: "(*) A name for the DB instance."
+      RDSMasterUserPassword:
+        default: "(*) The password for the master user. The password can include any printable ASCII character except /, \", or @"
+      RDSEngine:
+        default: "(*) The name of the database engine that you want to use for this DB instance."
+      RDSEngineVersion:
+        default: "(*) The version number of the database engine to use."
+      RDSSize:
+        default: "(*) The compute and memory capacity of the DB instance"
+      RDSStorage:
+        default: "(*) The amount of storage (in gigabytes) to be initially allocated for the database instance."
+      RDSMaxStorage:
+        default: "(*) The upper limit to which Amazon RDS can automatically scale the storage of the DB instance. The value must be greater than default storage or left blanc"
+      RDSSnapshot:
+        default: "Specify if restoring from Snapshot, otherwise leave blank"
+      ISEDProjectId:
+        default: "(*) Project Id Cost Tag"
+      CostCentre:
+        default: "(*) Cost Centre Cost Tag"
 Mappings:
   MasterUserNameMap:
     postgres:
       MasterUserName: "postgres"
 Parameters:
+# ===== Network Section =====
+  VPCId:
+    Type: "AWS::EC2::VPC::Id"
+  VPCName:
+    Type: String
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - uat
+      - qa
+      - prod
+  Ec2IpAddress:
+    Type: String
 # ===== Engine Options Section =====
+  RDSOptions:
+    Type: String
+    Default: Create
+    AllowedValues:
+    - Create
+    - Restore
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
@@ -57,15 +123,6 @@ Parameters:
     Description: Engine Version
     Default: 11.5
 # ===== General Section =====
-  Environment:
-    Type: String
-    Description: Environment
-    Default: dev
-    AllowedValues: 
-      - dev
-      - uat
-      - qa
-      - prod
   DBName:
     Description: My database
     Type: String
@@ -96,15 +153,6 @@ Parameters:
   RDSMaxStorage:
     Type: String
     Description: Maximum Allocated Storage
-  VPCId:
-    Type: "AWS::EC2::VPC::Id"
-  VPCName:
-    Type: String
-  SubnetId:
-    Type: AWS::EC2::Subnet::Id
-  Ec2IpAddress:
-    Type: String
-    Description: IP Address of the EC2 to enable the connection
 # ===== Additional Section =====
   RDSBackupRetentionPeriod:
     Type: String
@@ -149,7 +197,7 @@ Parameters:
     Type: String
     Default: cio-rdad
 Conditions:
-  IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ]]
+  IsRDSRestore: !Equals [ !Ref RDSOptions, Restore ]
   IsProd: !Equals [ !Ref Environment, prod ]
   IsSchedule: !Not [!Equals [ !Ref Schedule, <Always On> ]]
   IsPostgres9: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "9" ]
