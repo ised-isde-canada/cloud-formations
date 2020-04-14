@@ -13,6 +13,8 @@ Metadata:
       - Label:
           default: "EC2 Configuration"
         Parameters:
+          - EC2Options
+          - EC2Ami
           - EC2OS
           - EC2Size
       - Label:
@@ -32,13 +34,15 @@ Metadata:
       - Label:
           default: "RDS Configuration"
         Parameters:
-          - DBName
-          - RDSMasterUserPassword
+          - RDSOptions
+          - RDSSnapshot
           - RDSEngine
           - RDSEngineVersion
           - RDSSize
           - RDSStorage
           - RDSMaxStorage
+          - DBName
+          - RDSMasterUserPassword
       - Label:
           default: "Tags"
         Parameters:
@@ -53,6 +57,10 @@ Metadata:
         default: "(*) The subnet ID to launch the instance into."
       Environment:
         default: "(*) Environment."
+      EC2Options:
+        default: "(*) EC2 Options. Create or Restore instance"
+      EC2Ami:
+        default: "Specify if restoring from Ami, otherwise leave blank"
       EC2OS:
         default: "(*) The instace OS"
       EC2Size:
@@ -73,6 +81,8 @@ Metadata:
         default: "EBS Volume 1 mount point (Leave Blanc if attaching this volume)"
       EBSVolume2Mount:
         default: "EBS Volume 2 mount point (Leave Blanc if attaching this volume)"
+      RDSOptions:
+        default: "(*) RDS Options. Create or Restore instance"
       DBName:
         default: "(*) A name for the DB instance."
       RDSMasterUserPassword:
@@ -87,6 +97,8 @@ Metadata:
         default: "(*) The amount of storage (in gigabytes) to be initially allocated for the database instance."
       RDSMaxStorage:
         default: "(*) The upper limit to which Amazon RDS can automatically scale the storage of the DB instance. The value must be greater than default storage or left blanc"
+      RDSSnapshot:
+        default: "Specify if restoring from Snapshot, otherwise leave blank"
       ISEDProjectId:
         default: "(*) Project Id Cost Tag"
       CostCentre:
@@ -108,6 +120,15 @@ Parameters:
       - qa
       - prod
   # ===== EC2 Section =====
+  EC2Options:
+    Type: String
+    Default: <None>
+    AllowedValues:
+    - <None>
+    - Create
+    - Restore
+  EC2Ami:
+    Type: String
   EC2OS:
     Type: String
     Default: Linux
@@ -148,6 +169,13 @@ Parameters:
   EBSVolume2Mount:
     Type: String
   # ===== RDS Section =====
+  RDSOptions:
+    Type: String
+    Default: <None>
+    AllowedValues:
+    - <None>
+    - Create
+    - Restore
   DBName:
     Description: My database
     Type: String
@@ -196,19 +224,17 @@ Parameters:
   S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates
-  EC2Ami:
-    Type: String
-    Description: Specify if restoring from Ami, otherwise leave blank
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
-  IsEC2Restore: !Equals [ !Ref EC2Ami, "" ]
-  IsRDSRestore: !Equals [ !Ref RDSSnapshot, "" ]
+  ISEC2: !Not [ !Equals [ !Ref EC2Option, <None> ] ]
+  IsRDS: !Not [ !Equals [ !Ref RDSOption, <None> ] ]
 Resources:
   EC2:
     Type: AWS::CloudFormation::Stack
+    Condition: ISEC2
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
       Parameters:
@@ -219,9 +245,10 @@ Resources:
          # ===== General Section =====
         Schedule: !Ref Schedule
         # ===== EC2 Section =====
-        CreateEC2: !Ref EC2OS
-        EC2Size: !Ref EC2Size
+        EC2Options: !Ref Ec2Options
+        EC2OS: !Ref EC2OS
         EC2Ami: !Ref EC2Ami
+        EC2Size: !Ref EC2Size
         UserData: !Ref UserData
         EC2RootVolumeSize: !Ref EC2RootVolumeSize
         EBSVolume1Size: !Ref EBSVolume1Size
@@ -233,6 +260,7 @@ Resources:
         CostCentre: !Ref CostCentre
   RDS:
     Type: AWS::CloudFormation::Stack
+    Condition: ISRDS
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "rds.yaml" ]]
       Parameters:
@@ -242,6 +270,7 @@ Resources:
         SubnetId: !Ref SubnetId
         Environment: !Ref Environment
         # ===== RDS Section =====
+        RDSOptions: !Ref RDSOptions
         RDSEngine: !Ref RDSEngine
         RDSEngineVersion: !Ref RDSEngineVersion
         DBName: !Ref DBName
@@ -257,4 +286,3 @@ Resources:
         # ===== Tags =====
         ISEDProjectId: !Ref ISEDProjectId
         CostCentre: !Ref CostCentre
-

@@ -13,7 +13,8 @@ Metadata:
       - Label:
           default: "EC2 Configuration"
         Parameters:
-          - CreateEC2
+          - EC2Options
+          - EC2OS
           - EC2Size
       - Label:
           default: "Additional Configuration"
@@ -38,7 +39,9 @@ Metadata:
         default: "(*) The vpc ID to launch the instance into."
       SubnetId:
         default: "(*) The subnet ID to launch the instance into."
-      CreateEC2:
+      EC2Options:
+        default: "(*) RDS Options. Create or Restore instance"
+      EC2OS:
         default: "(*) The instace OS"
       EC2Size:
         default: "(*) The instance type."
@@ -85,7 +88,13 @@ Parameters:
       - qa
       - prod
 # ===== EC2 Section =====
-  CreateEC2:
+  EC2Options:
+    Type: String
+    Default: Create
+    AllowedValues:
+    - Create
+    - Restore
+  EC2OS:
     Type: String
     Default: Linux
     AllowedValues:
@@ -148,10 +157,10 @@ Parameters:
     Default: S3Templates
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
-  IsWindows: !Equals [ !Ref CreateEC2, Windows-2016 ]
-  IsLinux: !Or [ !Equals [ !Ref CreateEC2,  Linux], !Equals [ !Ref CreateEC2,  Ubuntu Server 18.04 LTS ] ]
-  IsAWSLinux: !Equals [ !Ref CreateEC2, Linux ]
-  IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ]]
+  IsWindows: !Equals [ !Ref EC2OS, Windows-2016 ]
+  IsLinux: !Or [ !Equals [ !Ref EC2OS,  Linux], !Equals [ !Ref EC2OS,  Ubuntu Server 18.04 LTS ] ]
+  IsAWSLinux: !Equals [ !Ref EC2OS, Linux ]
+  IsEC2Restore: !Equals [ !Ref EC2Options, "Restore" ]
   IsSchedule: !Not [!Equals [ !Ref Schedule, <Always On> ]]
   IsVolume1: !Not [ !Equals [ !Ref EBSVolume1Mount, "" ]]
   IsVolume2: !Not [ !Equals [ !Ref EBSVolume2Mount, "" ]]
@@ -208,7 +217,7 @@ Resources:
       EbsOptimized: true
       # If restoring an EC2, use the provided AMI. Otherwise use the latest AMI
       # for the OS type chosen
-      ImageId: !If [ IsEC2Restore, !Ref EC2Ami, !If [ IsWindows, !Ref LatestWindowsAmiId, !If [IsAWSLinux, !Ref LatestLinuxAmiId, !FindInMap [AmiMap, !Ref CreateEC2, ImageId] ] ] ]
+      ImageId: !If [ IsEC2Restore, !Ref EC2Ami, !If [ IsWindows, !Ref LatestWindowsAmiId, !If [IsAWSLinux, !Ref LatestLinuxAmiId, !FindInMap [AmiMap, !Ref EC2OS, ImageId] ] ] ]
       InstanceType: !Ref EC2Size
       KeyName: !Ref ISEDProjectId
       Monitoring: false
