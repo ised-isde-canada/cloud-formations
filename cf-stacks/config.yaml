@@ -302,7 +302,7 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArm: !ImportValue AutomationRole
+        AutomationRoleArn: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsCost
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
@@ -317,7 +317,7 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArm: !ImportValue AutomationRole
+        AutomationRoleArn: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsBackup
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
@@ -333,7 +333,7 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArm: !ImportValue AutomationRole
+        AutomationRoleArn: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsPatching
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject

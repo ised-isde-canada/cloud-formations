@@ -4,7 +4,7 @@ Description: Template to Configure the Remediation for the config rules.
 Parameters:
   ConfigRuleName:
     Type: String
-  AutomationRoleArm:
+  AutomationRoleArn:
     Type: String
   IsedJiraUrl:
     Type: String
@@ -41,7 +41,7 @@ Resources:
           AutomationAssumeRole:
             StaticValue:
               Values: 
-              - !Ref AutomationRoleArm
+              - !Ref AutomationRoleArn
           IssueDescription:
             ResourceValue:
               Value: RESOURCE_ID
