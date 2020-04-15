@@ -86,6 +86,9 @@ Parameters:
     Type: String
   IsedPatch:
     Type: String
+  AccountIDMaster:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDMaster
   IsedJiraProject:
     Type: AWS::SSM::Parameter::Value<String>
     Default: JiraProject
@@ -215,7 +218,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Sub "${S3BucketNamePrefix}-256255698049-lambdas"
+        S3Bucket: !Sub "${S3BucketNamePrefix}-${AccountIDMaster}-lambdas"
         S3Key: ised-create-jira-issue.zip
       FunctionName: Ised-CreateJiraIssue
       Handler: index.handler
