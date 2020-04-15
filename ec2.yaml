@@ -1,37 +1,84 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 Description: Template to create the client ec2s. Version 1.0
-
 Metadata:
- AWS::CloudFormation::Interface:
-   ParameterGroups:
-     - Label:
-         default: "General"
-       Parameters:
-         - JIRAProjectKey
-         - CostCentre
-         - ISEDProjectId
-         - Environment
-         - VPCName
-         - Subnet
-         - Schedule
-     - Label:
-         default: "EC2"
-       Parameters:
-         - CreateEC2
-         - EC2Size
-         - EC2Ami
-         - EC2RootVolumeSize
-         - UserData
-
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+          - VPCId
+          - SubnetId
+          - Environment
+      - Label:
+          default: "EC2 Configuration"
+        Parameters:
+          - EC2Options
+          - EC2OS
+          - EC2Size
+      - Label:
+          default: "Additional Configuration"
+        Parameters:
+          - UserData
+          - Schedule
+      - Label:
+          default: "EBS Volumes"
+        Parameters:
+          - EC2RootVolumeSize
+          - EBSVolume1Mount
+          - EBSVolume1Size
+          - EBSVolume2Mount
+          - EBSVolume2Size
+      - Label:
+          default: "Tags"
+        Parameters:
+          - ISEDProjectId
+          - CostCentre
+    ParameterLabels:
+      VPCId:
+        default: "(*) The vpc ID to launch the instance into."
+      SubnetId:
+        default: "(*) The subnet ID to launch the instance into."
+      EC2Options:
+        default: "(*) RDS Options. Create or Restore instance"
+      EC2OS:
+        default: "(*) The instace OS"
+      EC2Size:
+        default: "(*) The instance type."
+      Environment:
+        default: "(*) Environment."
+      UserData:
+        default: "The user data to make available to the instance."
+      Schedule:
+        default: "(*) EC2 Schedule"
+      EC2RootVolumeSize:
+        default: "(*) Root Volume Size in GB"
+      EBSVolume1Size:
+        default: "EBS Volume 1 Size in GB"
+      EBSVolume2Size:
+        default: "EBS Volume 2 Size in GB"
+      EBSVolume1Mount:
+        default: "EBS Volume 1 mount point (Leave Blanc if attaching this volume)"
+      EBSVolume2Mount:
+        default: "EBS Volume 2 mount point (Leave Blanc if attaching this volume)"
+      ISEDProjectId:
+        default: "(*) Project Id Cost Tag"
+      CostCentre:
+        default: "(*) Cost Centre Cost Tag"
+Mappings:
+  AmiMap:
+    Ubuntu-Server-18.04-LTS:
+      ImageId: ami-0d0eaed20348a3389
+    Linux:
+      ImageId: ""
+    Windows-2016:
+      ImageId: ""
 Parameters:
-# ===== General Section =====
-  JIRAProjectKey:
-    Type: String
-  ISEDProjectId:
-    Type: String
-  CostCentre:
-    Type: String
+# ===== Network Section =====
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
   Environment:
     Type: String
     Default: dev
@@ -40,38 +87,60 @@ Parameters:
       - uat
       - qa
       - prod
-  VPCName:
-    Type: String
-  Subnet:
-    Type: String
-    AllowedValues:
-      - subneta
-      - subnetb
-  Schedule:
-    Type: String
-    AllowedValues:
-      - no
-      - end-of-week-shutdown
-      - mon-6am-fri-6pm
-      - office-hours
-      - 24-7
-
 # ===== EC2 Section =====
-  CreateEC2:
+  EC2Options:
+    Type: String
+    Default: Create
+    AllowedValues:
+    - Create
+    - Restore
+  EC2OS:
     Type: String
     Default: Linux
     AllowedValues:
       - Linux
       - Windows-2016
+      - Ubuntu-Server-18.04-LTS 
   EC2Size:
     Type: String
-    Default: <None>
+    Default: t3.small
     AllowedValues:
-      - <None>
       - t3.small
       - t3.medium
       - t3.large
       - t3.xlarge
+  # ===== Additional Configuration Section =====
+  UserData:
+    Type: String
+  Schedule:
+    Type: String
+    Default: <Always On>
+    AllowedValues:
+      - <Always On>
+      - end-of-week-shutdown
+      - mon-6am-fri-6pm
+      - office-hours
+      - 24-7
+  # ===== EBS Volume Section =====
+  EC2RootVolumeSize:
+    Type: String
+    Default: 8
+  EBSVolume1Size:
+    Type: String
+  EBSVolume1Mount:
+    Type: String
+  EBSVolume2Size:
+    Type: String
+  EBSVolume2Mount:
+    Type: String
+  # ===== Tags Section =====
+  ISEDProjectId:
+    Type: String
+    Default: ccots-cops
+  CostCentre:
+    Type: String
+    Default: cio-rdad
+  # ===== Other =====
   EC2Ami:
     Type: String
     Description: Specify if restoring from Ami, otherwise leave blank
@@ -83,38 +152,35 @@ Parameters:
     Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
     Description: Reference to the latest Windows Server 2016 AMI
     Default: "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base"
-  EC2RootVolumeSize:
-    Type: String
-    Default: 8
-  UserData:
-    Type: String
-    Default: ""
-
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
-  IsWindows: !Equals [ !Ref CreateEC2, Windows-2016 ]
-  IsLinux: !Equals [ !Ref CreateEC2, Linux ]
-  IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ]]
-  IsSchedule: !Not [!Equals [ !Ref Schedule, no ]]
-
+  IsWindows: !Equals [ !Ref EC2OS, Windows-2016 ]
+  IsLinux: !Or [ !Equals [ !Ref EC2OS,  Linux], !Equals [ !Ref EC2OS,  Ubuntu Server 18.04 LTS ] ]
+  IsAWSLinux: !Equals [ !Ref EC2OS, Linux ]
+  IsEC2Restore: !Equals [ !Ref EC2Options, "Restore" ]
+  IsSchedule: !Not [!Equals [ !Ref Schedule, <Always On> ]]
+  IsVolume1: !Not [ !Equals [ !Ref EBSVolume1Mount, "" ]]
+  IsVolume2: !Not [ !Equals [ !Ref EBSVolume2Mount, "" ]]
+  HasUserData: !Not [ !Equals [ !Ref UserData, "" ] ]
 Resources:
   SecurityGroupEC2:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "EC2 Security Group"
-      VpcId: 
-        Fn::ImportValue: 
-          Fn::Sub: "vpc-${VPCName}-${Environment}"
+      GroupName: !Join ['-', ["secg-ec2", !Ref "AWS::AccountId", !Ref ISEDProjectId ] ]
+      VpcId: !Ref VPCId
       Tags:
       - Key: Name
-        Value: !Join ['-', ["sg-ec2", !Ref "AWS::AccountId", !Ref "JIRAProjectKey" ] ]
+        Value: !Join ['-', ["sg-ec2", !Ref "AWS::AccountId", !Ref ISEDProjectId ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
         Value: !Ref ISEDProjectId
       - Key: ised-environment
         Value: !Ref Environment
-
   # Open SSH Port
   Ingress1:
     Type: AWS::EC2::SecurityGroupIngress
@@ -124,8 +190,7 @@ Resources:
       IpProtocol: tcp
       FromPort: 22
       ToPort: 22
-      CidrIp: 100.96.192.0/24
-
+      CidrIp: 100.96.192.0/2
   # Open RDP Port
   IngressRDP:
     Type: AWS::EC2::SecurityGroupIngress
@@ -136,14 +201,12 @@ Resources:
       FromPort: 3389
       ToPort: 3389
       CidrIp: 100.96.192.0/24
-
   Egress1:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
       GroupId: !Ref SecurityGroupEC2
       IpProtocol: -1
       CidrIp: 0.0.0.0/0
-
   EC2:
     Type: AWS::EC2::Instance
     Properties:
@@ -154,12 +217,11 @@ Resources:
       EbsOptimized: true
       # If restoring an EC2, use the provided AMI. Otherwise use the latest AMI
       # for the OS type chosen
-      ImageId: !If [ IsEC2Restore, !Ref EC2Ami,
-        !If [ IsWindows, !Ref LatestWindowsAmiId, !Ref LatestLinuxAmiId ] ]
+      ImageId: !If [ IsEC2Restore, !Ref EC2Ami, !If [ IsWindows, !Ref LatestWindowsAmiId, !If [IsAWSLinux, !Ref LatestLinuxAmiId, !FindInMap [AmiMap, !Ref EC2OS, ImageId] ] ] ]
       InstanceType: !Ref EC2Size
-      KeyName: !Ref JIRAProjectKey
+      KeyName: !Ref ISEDProjectId
       Monitoring: false
-      UserData: !Ref UserData
+      UserData: !If [ HasUserData, !Ref UserData, !Ref "AWS::NoValue" ]
       BlockDeviceMappings:
         - DeviceName: !If [ IsLinux, "/dev/xvda", "/dev/sda1" ]
           Ebs:
@@ -169,12 +231,10 @@ Resources:
         - DeleteOnTermination: true
           DeviceIndex: 0
           GroupSet: [ !Ref SecurityGroupEC2 ]
-          SubnetId: 
-            Fn::ImportValue: 
-              Fn::Sub: "${Subnet}-${VPCName}-${Environment}"
+          SubnetId: !Ref SubnetId
       Tags:
       - Key: Name
-        Value: !Join ['-', ["ec2", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
+        Value: !Join ['-', ["ec2", !Ref "AWS::AccountId", !Ref ISEDProjectId, !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
@@ -190,13 +250,32 @@ Resources:
         - Key: ised-schedule
           Value: !Ref Schedule
         - !Ref AWS::NoValue
-
+  EBSVolume1:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: EC2
+    Condition: IsVolume1
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ebs.yaml" ]]
+      Parameters:
+        EC2Id: !Ref EC2
+        EBSVolumeSize: !Ref EBSVolume1Size
+        EBSVolumeMount: !Ref EBSVolume1Mount
+        AvailabilityZone: !GetAtt EC2.AvailabilityZone
+  EBSVolume2:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: EC2
+    Condition: IsVolume2
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ebs.yaml" ]]
+      Parameters:
+        EC2Id: !Ref EC2
+        EBSVolumeSize: !Ref EBSVolume2Size
+        EBSVolumeMount: !Ref EBSVolume2Mount
+        AvailabilityZone: !GetAtt EC2.AvailabilityZone
 Outputs:
   InstanceId:
     Value: !Ref EC2
-
-  AvailabilityZone:
-    Value: !GetAtt EC2.AvailabilityZone
-
   EC2SecurityGroup:
     Value: !Ref SecurityGroupEC2
+  EC2PrivateIp:
+    Value: !GetAtt EC2.PrivateIp

@@ -1,51 +1,114 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Template Updated 
-Description: Template to create the RDS. Version 1.1
+# Version 1.2 - Add Ingress Security Group
+Description: Template to create the RDS. Version 1.2
 Metadata:
- AWS::CloudFormation::Interface:
-   ParameterGroups:
-     - Label:
-         default: "Engine Options"
-       Parameters:
-         - RDSSnapshot
-         - RDSEngine
-         - RDSEngineVersion
-     - Label:
-         default: "General Settings"
-       Parameters:
-         - Environment
-         - DBIdentifier
-         - RDSMasterUserPassword
-         - RDSSize
-         - RDSStorage
-         - VPCId
-         - VPCName
-     - Label:
-         default: "Additional Section"
-       Parameters:
-         - RDSBackupRetentionPeriod
-         - PreferredBackupWindowTime
-         - PreferredMaintenanceWindow
-         - Schedule
-     - Label:
-         default: "Tags"
-       Parameters:
-         - ISEDProjectId
-         - CostCentre
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+          - VPCId
+          - VPCName
+          - SubnetId
+          - Environment
+          - Ec2IpAddress
+      - Label:
+          default: "Engine Options"
+        Parameters:
+          - RDSOptions
+          - RDSSnapshot
+          - RDSEngine
+          - RDSEngineVersion
+          - RDSSize
+          - RDSStorage
+          - RDSMaxStorage
+      - Label:
+          default: "General Settings"
+        Parameters:
+          - DBName
+          - RDSMasterUserPassword
+      - Label:
+          default: "Additional Section"
+        Parameters:
+          - RDSBackupRetentionPeriod
+          - PreferredBackupWindowTime
+          - PreferredMaintenanceWindow
+          - Schedule
+      - Label:
+          default: "Tags"
+        Parameters:
+          - ISEDProjectId
+          - CostCentre
+    ParameterLabels:
+      VPCId:
+        default: "(*) The vpc ID to launch the instance into."
+      VPCName:
+        default: "(*) The vpc Name to launch the instance into."
+      SubnetId:
+        default: "(*) The subnet ID to launch the instance into."
+      Ec2IpAddress:
+        default: IP Address of the EC2 to enable the connection
+      Environment:
+        default: "(*) Environment."
+      RDSOptions:
+        default: "(*) RDS Options. Create or Restore instance"
+      RDSEngine:
+        default: "(*) The name of the database engine that you want to use for this DB instance."
+      RDSEngineVersion:
+        default: "(*) The version number of the database engine to use."
+      RDSOptions:
+        default: "(*) RDS Options. Create or Restore instance"
+      DBName:
+        default: "(*) A name for the DB instance."
+      RDSMasterUserPassword:
+        default: "(*) The password for the master user. The password can include any printable ASCII character except /, \", or @"
+      RDSEngine:
+        default: "(*) The name of the database engine that you want to use for this DB instance."
+      RDSEngineVersion:
+        default: "(*) The version number of the database engine to use."
+      RDSSize:
+        default: "(*) The compute and memory capacity of the DB instance"
+      RDSStorage:
+        default: "(*) The amount of storage (in gigabytes) to be initially allocated for the database instance."
+      RDSMaxStorage:
+        default: "(*) The upper limit to which Amazon RDS can automatically scale the storage of the DB instance. The value must be greater than default storage or left blanc"
+      RDSSnapshot:
+        default: "Specify if restoring from Snapshot, otherwise leave blank"
+      ISEDProjectId:
+        default: "(*) Project Id Cost Tag"
+      CostCentre:
+        default: "(*) Cost Centre Cost Tag"
 Mappings:
   MasterUserNameMap:
     postgres:
       MasterUserName: "postgres"
-  DBParameterGroupPostgresMap:
-    "11.5":
-      DBParameterGroupPostgres: "db-parameter-group-postgres11"
-    "9.6":
-      DBParameterGroupPostgres: "db-parameter-group-postgres96"
-    "10.6":
-      DBParameterGroupPostgres: "db-parameter-group-postgres10"
 Parameters:
+# ===== Network Section =====
+  VPCId:
+    Type: "AWS::EC2::VPC::Id"
+  VPCName:
+    Type: String
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - uat
+      - qa
+      - prod
+  Ec2IpAddress:
+    Type: String
 # ===== Engine Options Section =====
+  RDSOptions:
+    Type: String
+    Default: Create
+    AllowedValues:
+    - Create
+    - Restore
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
@@ -60,25 +123,21 @@ Parameters:
     Description: Engine Version
     Default: 11.5
 # ===== General Section =====
-  Environment:
+  DBName:
+    Description: My database
     Type: String
-    Description: Environemnt
-    Default: dev
-    AllowedValues: 
-      - dev
-      - uat
-      - qa
-      - prod
-  DBIdentifier:
-    Description: DB Instance Identifier
-    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
   RDSMasterUserPassword:
-    NoEcho: true
+    NoEcho: 'true'
+    Description: Password database access
     Type: String
-    Description: Master Password
-    #MinLength: 8
-    #MaxLength: 16
-    #AllowedPattern: ^[a-zA-Z0-9]*$
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters.
   RDSSize:
     Type: String
     Description: DB Instance Class
@@ -91,12 +150,9 @@ Parameters:
   RDSStorage:
     Type: String
     Description: Allocated Storage
-  VPCId:
-    Type: "AWS::EC2::VPC::Id"
-    Description: Virtual Private Cloud
-  VPCName:
+  RDSMaxStorage:
     Type: String
-    Description: Virtual Private Cloud Name (Portion between account id and environemnt)
+    Description: Maximum Allocated Storage
 # ===== Additional Section =====
   RDSBackupRetentionPeriod:
     Type: String
@@ -126,47 +182,67 @@ Parameters:
       - "tue:08:30-tue:09:00"
   Schedule:
     Type: String
-    Default: <None>
+    Default: <Always On>
     AllowedValues:
-      - <None>
+      - <Always On>
       - end-of-week-shutdown
       - mon-6am-fri-6pm
       - office-hours
-      - 24-7 
-# ===== Tags Section =====
+      - 24-7
+  # ===== Tags Section =====
   ISEDProjectId:
     Type: String
+    Default: ccots-cops
   CostCentre:
     Type: String
+    Default: cio-rdad
 Conditions:
-  IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ]]
+  IsRDSRestore: !Equals [ !Ref RDSOptions, Restore ]
   IsProd: !Equals [ !Ref Environment, prod ]
-  IsSchedule: !Not [!Equals [ !Ref Schedule, <None> ]]
+  IsSchedule: !Not [!Equals [ !Ref Schedule, <Always On> ]]
+  IsPostgres9: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "9" ]
+  IsPostgres10: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "10" ]
+  IsPostgres11: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "11" ]
+  IsEc2IpAddress: !Not [ !Equals [ !Ref Ec2IpAddress, "" ]]
+  IsMaxStorage: !Not [ !Equals [ !Ref RDSMaxStorage, "" ]]
 Resources:
   SecurityGroupRDS:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "RDS Secuirty Group"
-      GroupName: !Join ['-', ["secg-rds", !Ref "AWS::AccountId", !Ref DBIdentifier ] ]
+      GroupName: !Join ['-', ["secg-rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
       VpcId: !Ref VPCId
       Tags:
       - Key: Name
-        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref DBIdentifier ] ]
+        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
         Value: !Ref ISEDProjectId
       - Key: ised-environment
         Value: !Ref Environment
+  IngressPostgres:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: IsEc2IpAddress
+    Properties:
+      Description: Allow incoming connections from EC2s from VPC to RDS on port 5432 (Postgresql)
+      GroupId: !Ref SecurityGroupRDS
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      CidrIp: !Join [ '/', [ !Ref Ec2IpAddress, "32" ] ]
   RDS:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain
     Properties:
-      DBInstanceIdentifier: !Ref DBIdentifier
+      DBInstanceIdentifier: !Join [ "-", [ !Ref DBName, !Ref Environment ] ]
+      DBName: !Ref DBName
       AllocatedStorage: !Ref RDSStorage
+      MaxAllocatedStorage: !If [ IsMaxStorage, !Ref RDSMaxStorage, !Ref "AWS::NoValue" ]
       AllowMajorVersionUpgrade: false
       AutoMinorVersionUpgrade: true
       DBInstanceClass: !Ref RDSSize
+      DeletionProtection: true
       Port: 5432
       StorageType: gp2
       MultiAZ: !If [ IsProd, True, False ]
@@ -183,21 +259,32 @@ Resources:
       # downtime impact
       # We want this to be 03:30-04:00 Canada/Eastern -- need to change the time twice a year
       PreferredMaintenanceWindow: !Ref PreferredMaintenanceWindow
-      DBName: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref DBIdentifier ]
+      DBName: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref DBName ]
       Engine: !Ref RDSEngine
       EngineVersion: !Ref RDSEngineVersion
       LicenseModel: postgresql-license
       StorageEncrypted: true
       DBParameterGroupName:
-        Fn::ImportValue: 
-          !FindInMap [DBParameterGroupPostgresMap, !Ref RDSEngineVersion, DBParameterGroupPostgres]
+        !If
+          - IsPostgres9
+          - Fn::ImportValue:
+              db-parameter-group-postgres96
+          - !If
+            - IsPostgres10
+            - Fn::ImportValue:
+                db-parameter-group-postgres10
+            - !If
+              - IsPostgres11
+              - Fn::ImportValue:
+                  db-parameter-group-postgres11
+              - !Ref AWS::NoValue
       DBSubnetGroupName:
         Fn::ImportValue: 
           Fn::Sub: "dbsubnet-${VPCName}-${Environment}"
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
       - Key: Name
-        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref DBIdentifier, !Ref "Environment" ] ]
+        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
@@ -216,9 +303,11 @@ Outputs:
     Description: RDS
     Value: !Ref RDS
     Export:
-      Name: !Join ['-', ["rds", !Ref "DBIdentifier", !Ref "Environment" ] ]
+      Name: !Join ['-', ["rds", !Ref "DBName", !Ref "Environment" ] ]
   RDSEndpoint:
     Description: RDS Endpoint
     Value: !GetAtt RDS.Endpoint.Address
     Export:
-      Name: !Join ['-', ["rds-endpoint", !Ref "DBIdentifier", !Ref "Environment" ] ]
+      Name: !Join ['-', ["rds-endpoint", !Ref "DBName", !Ref "Environment" ] ]
+  RDSSecurityGroup:
+    Value: !Ref SecurityGroupRDS

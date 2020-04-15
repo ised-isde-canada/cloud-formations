@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Template to create the EBS Volume. Version 1.0
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "General"
+        Parameters:
+          - EC2Id
+          - AvailabilityZone
+          - Environment
+          - EBSVolumeSize
+          - EBSVolumeMount
+      - Label:
+          default: "Tags"
+        Parameters:
+          - ISEDProjectId
+          - CostCentre
+    ParameterLabels:
+      EC2Id:
+        default: "(*) The EC2 ID to attach the volume to."
+      AvailabilityZone:
+        default: "(*) The Availability Zone in which to create the volume."
+      Environment:
+        default: "(*) Environment."
+      EBSVolume2Size:
+        default: "(*) EBS Volume Size in GB"
+      EBSVolume1Mount:
+        default: "(*) EBS Volume mount point"
+      ISEDProjectId:
+        default: "(*) Project Id Cost Tag"
+      CostCentre:
+        default: "(*) Cost Centre Cost Tag"
+Parameters:
+  EC2Id:
+    Type: String
+  AvailabilityZone:
+    Type: String
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - uat
+      - qa
+      - prod
+  EBSVolumeSize:
+    Type: String
+  EBSVolumeMount:
+    Type: String
+  # ===== Tags Section =====
+  ISEDProjectId:
+    Type: String
+    Default: ccots-cops
+  CostCentre:
+    Type: String
+    Default: cio-rdad
+Conditions:
+  IsProd: !Equals [ !Ref Environment, prod ]
+Resources:
+  EBSVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !Ref EBSVolumeSize
+      AvailabilityZone: !Ref AvailabilityZone
+      Encrypted: true
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref ISEDProjectId, !Ref EBSVolumeMount, !Ref "Environment" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: ccots-jira
+      - Key: ised-environment
+        Value: !Ref Environment
+      - Key: ised-backup
+        Value: !If [ IsProd, backup-prod, backup-dev ]
+    DeletionPolicy: Snapshot
+  EBSVolumeMountPoint:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      InstanceId: !Ref EC2Id
+      VolumeId: !Ref EBSVolume
+      Device: !Ref EBSVolumeMount

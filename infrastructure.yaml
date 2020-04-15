@@ -1,0 +1,287 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template to create the infrastructure for GPC Risk Management project
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Network Definition"
+        Parameters:
+          - VPCId
+          - VPCName
+          - SubnetId
+          - Environment
+      - Label:
+          default: "EC2 Configuration"
+        Parameters:
+          - EC2Options
+          - EC2Ami
+          - EC2OS
+          - EC2Size
+      - Label:
+          default: "EC2 Additional Configuration"
+        Parameters:
+          - UserData
+          - Schedule
+      - Label:
+          default: "EBS Volumes"
+        Parameters:
+          - EC2RootVolumeSize
+          - EBSVolume1Mount
+          - EBSVolume1Size
+          - EBSVolume2Mount
+          - EBSVolume2Size
+          - RootVolumeSize
+      - Label:
+          default: "RDS Configuration"
+        Parameters:
+          - RDSOptions
+          - RDSSnapshot
+          - RDSEngine
+          - RDSEngineVersion
+          - RDSSize
+          - RDSStorage
+          - RDSMaxStorage
+          - DBName
+          - RDSMasterUserPassword
+      - Label:
+          default: "Tags"
+        Parameters:
+          - ISEDProjectId
+          - CostCentre
+    ParameterLabels:
+      VPCId:
+        default: "(*) The vpc ID to launch the instance into."
+      VPCName:
+        default: "(*) The vpc name to launch the instance into."
+      SubnetId:
+        default: "(*) The subnet ID to launch the instance into."
+      Environment:
+        default: "(*) Environment."
+      EC2Options:
+        default: "(*) EC2 Options. Create or Restore instance"
+      EC2Ami:
+        default: "Specify if restoring from Ami, otherwise leave blank"
+      EC2OS:
+        default: "(*) The instace OS"
+      EC2Size:
+        default: "(*) The instance type."
+      Environment:
+        default: "(*) Environment."
+      UserData:
+        default: "The user data to make available to the instance."
+      Schedule:
+        default: "(*) EC2 Schedule"
+      EC2RootVolumeSize:
+        default: "(*) Root Volume Size in GB"
+      EBSVolume1Size:
+        default: "EBS Volume 1 Size in GB"
+      EBSVolume2Size:
+        default: "EBS Volume 2 Size in GB"
+      EBSVolume1Mount:
+        default: "EBS Volume 1 mount point (Leave Blanc if attaching this volume)"
+      EBSVolume2Mount:
+        default: "EBS Volume 2 mount point (Leave Blanc if attaching this volume)"
+      RDSOptions:
+        default: "(*) RDS Options. Create or Restore instance"
+      DBName:
+        default: "(*) A name for the DB instance."
+      RDSMasterUserPassword:
+        default: "(*) The password for the master user. The password can include any printable ASCII character except /, \", or @"
+      RDSEngine:
+        default: "(*) The name of the database engine that you want to use for this DB instance."
+      RDSEngineVersion:
+        default: "(*) The version number of the database engine to use."
+      RDSSize:
+        default: "(*) The compute and memory capacity of the DB instance"
+      RDSStorage:
+        default: "(*) The amount of storage (in gigabytes) to be initially allocated for the database instance."
+      RDSMaxStorage:
+        default: "(*) The upper limit to which Amazon RDS can automatically scale the storage of the DB instance. The value must be greater than default storage or left blanc"
+      RDSSnapshot:
+        default: "Specify if restoring from Snapshot, otherwise leave blank"
+      ISEDProjectId:
+        default: "(*) Project Id Cost Tag"
+      CostCentre:
+        default: "(*) Cost Centre Cost Tag"
+Parameters:
+# ===== Network Section =====
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+  VPCName:
+    Type: String
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - uat
+      - qa
+      - prod
+  # ===== EC2 Section =====
+  EC2Options:
+    Type: String
+    Default: <None>
+    AllowedValues:
+    - <None>
+    - Create
+    - Restore
+  EC2Ami:
+    Type: String
+  EC2OS:
+    Type: String
+    Default: Linux
+    AllowedValues:
+      - Linux
+      - Windows-2016
+      - Ubuntu-Server-18.04-LTS 
+  EC2Size:
+    Type: String
+    Default: t3.small
+    AllowedValues:
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+  # ===== Additional Configuration Section =====
+  UserData:
+    Type: String
+  Schedule:
+    Type: String
+    Default: <Always On>
+    AllowedValues:
+      - <Always On>
+      - end-of-week-shutdown
+      - mon-6am-fri-6pm
+      - office-hours
+      - 24-7
+  # ===== EBS Volume Section =====
+  EC2RootVolumeSize:
+    Type: String
+    Default: 8
+  EBSVolume1Size:
+    Type: String
+  EBSVolume1Mount:
+    Type: String
+  EBSVolume2Size:
+    Type: String
+  EBSVolume2Mount:
+    Type: String
+  # ===== RDS Section =====
+  RDSOptions:
+    Type: String
+    Default: <None>
+    AllowedValues:
+    - <None>
+    - Create
+    - Restore
+  DBName:
+    Description: My database
+    Type: String
+    #MinLength: '1'
+    #MaxLength: '64'
+    #AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    #ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
+  RDSMasterUserPassword:
+    NoEcho: 'true'
+    Description: Password database access
+    Type: String
+    #MinLength: '8'
+    #MaxLength: '41'
+    #AllowedPattern: '[a-zA-Z0-9]*'
+    #ConstraintDescription: must contain only alphanumeric characters.
+  RDSEngine:
+    Type: String
+    Default: postgres
+    AllowedValues: 
+      - postgres
+  RDSEngineVersion:
+    Type: String
+    Default: 11.5
+  RDSSize:
+    Type: String
+    Default: db.t3.small
+    AllowedValues:
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+      - db.t3.xlarge
+  RDSStorage:
+    Type: String
+    Default: 20
+  RDSMaxStorage:
+    Type: String
+  # ===== Tags Section =====
+  ISEDProjectId:
+    Type: String
+    Default: ccots-cops
+  CostCentre:
+    Type: String
+    Default: cio-rdad
+  # ===== Other Section =====
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+  RDSSnapshot:
+    Description: Specify if restoring from snapshot
+    Type: String
+Conditions:
+  IsProd: !Equals [ !Ref Environment, prod ]
+  IsEC2: !Not [ !Equals [ !Ref EC2Options, <None> ] ]
+  IsRDS: !Not [ !Equals [ !Ref RDSOptions, <None> ] ]
+Resources:
+  EC2:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsEC2
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        VPCId: !Ref VPCId
+        SubnetId: !Ref SubnetId
+        Environment: !Ref Environment
+         # ===== General Section =====
+        Schedule: !Ref Schedule
+        # ===== EC2 Section =====
+        EC2Options: !Ref EC2Options
+        EC2OS: !Ref EC2OS
+        EC2Ami: !Ref EC2Ami
+        EC2Size: !Ref EC2Size
+        UserData: !Ref UserData
+        EC2RootVolumeSize: !Ref EC2RootVolumeSize
+        EBSVolume1Size: !Ref EBSVolume1Size
+        EBSVolume1Mount: !Ref EBSVolume1Mount
+        EBSVolume2Size: !Ref EBSVolume2Size
+        EBSVolume2Mount: !Ref EBSVolume2Mount
+        # ===== Tags =====
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre
+  RDS:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsRDS
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "rds.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        VPCId: !Ref VPCId
+        VPCName: !Ref VPCName
+        SubnetId: !Ref SubnetId
+        Environment: !Ref Environment
+        # ===== RDS Section =====
+        RDSOptions: !Ref RDSOptions
+        RDSEngine: !Ref RDSEngine
+        RDSEngineVersion: !Ref RDSEngineVersion
+        DBName: !Ref DBName
+        RDSMasterUserPassword: !Ref RDSMasterUserPassword
+        RDSStorage: !Ref RDSStorage
+        RDSMaxStorage: !Ref RDSMaxStorage
+        RDSSize: !Ref RDSSize
+        Ec2IpAddress: !GetAtt EC2.Outputs.EC2PrivateIp
+        # ===== Parameters =====
+        RDSSnapshot: !Ref RDSSnapshot
+        Schedule: !Ref Schedule
+        RDSBackupRetentionPeriod: !If [ IsProd, 30, 7 ]
+        # ===== Tags =====
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre
