@@ -109,6 +109,7 @@ Parameters:
       - t3.medium
       - t3.large
       - t3.xlarge
+      - m5.large
   # ===== Additional Configuration Section =====
   UserData:
     Type: String
