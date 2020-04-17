@@ -137,7 +137,7 @@ Parameters:
   # ===== Tags Section =====
   ISEDProjectId:
     Type: String
-    Default: ccots-cops
+    Default: cops-aws
   CostCentre:
     Type: String
     Default: cio-rdad
@@ -262,7 +262,9 @@ Resources:
         EBSVolumeSize: !Ref EBSVolume1Size
         EBSVolumeMount: !Ref EBSVolume1Mount
         AvailabilityZone: !GetAtt EC2.AvailabilityZone
-  EBSVolume2:
+        # ===== Tags =====
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre  EBSVolume2:
     Type: AWS::CloudFormation::Stack
     DependsOn: EC2
     Condition: IsVolume2
@@ -273,7 +275,9 @@ Resources:
         EBSVolumeSize: !Ref EBSVolume2Size
         EBSVolumeMount: !Ref EBSVolume2Mount
         AvailabilityZone: !GetAtt EC2.AvailabilityZone
-Outputs:
+        # ===== Tags =====
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentreOutputs:
   InstanceId:
     Value: !Ref EC2
   EC2SecurityGroup:
