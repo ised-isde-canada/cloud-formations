@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: TODO
+Description: Initial version. Version 1.0
 
 Parameters:
   AccountIDMaster:
@@ -26,6 +26,7 @@ Resources:
   # Config rule that checks whether your resources have Termination Protection enabled
   TerminationConfigRule:
     Type: AWS::Config::ConfigRule
+    DependsOn: PermitConfig
     Properties:
       ConfigRuleName: ised-config-termination-rule
       Description: Checks whether your resources have Termination Protection enabled.
