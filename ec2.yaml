@@ -279,7 +279,8 @@ Resources:
         Environment: !Ref Environment
         # ===== Tags =====
         ISEDProjectId: !Ref ISEDProjectId
-        CostCentre: !Ref CostCentreOutputs:
+        CostCentre: !Ref CostCentre
+Outputs:
   InstanceId:
     Value: !Ref EC2
   EC2SecurityGroup:
