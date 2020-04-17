@@ -52,7 +52,7 @@ Parameters:
   # ===== Tags Section =====
   ISEDProjectId:
     Type: String
-    Default: ccots-cops
+    Default: cops-aws
   CostCentre:
     Type: String
     Default: cio-rdad
@@ -71,7 +71,7 @@ Resources:
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
-        Value: ccots-jira
+        Value: !Ref ISEDProjectId
       - Key: ised-environment
         Value: !Ref Environment
       - Key: ised-backup

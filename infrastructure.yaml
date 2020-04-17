@@ -215,7 +215,7 @@ Parameters:
   # ===== Tags Section =====
   ISEDProjectId:
     Type: String
-    Default: ccots-cops
+    Default: cops-aws
   CostCentre:
     Type: String
     Default: cio-rdad
