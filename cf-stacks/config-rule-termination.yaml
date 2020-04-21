@@ -21,10 +21,20 @@ Parameters:
   S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates
+  OpenShiftLabAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShiftLab
+
+Conditions:
+  # OpenShift 4 "Termination protection might be an issue for worker
+  #             (formerly known as compute) nodes. Masters could have
+  #             termination protection enabled though"
+  IsRuleOn: !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ]]
 
 Resources:
   # Config rule that checks whether your resources have Termination Protection enabled
   TerminationConfigRule:
+    Condition: IsRuleOn
     Type: AWS::Config::ConfigRule
     Properties:
       ConfigRuleName: ised-config-termination-rule
@@ -46,6 +56,7 @@ Resources:
 
   # Remediation that is triggered when a resource is found to be non-compliant
   TerminationDetectionRemediation:
+    Condition: IsRuleOn
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
@@ -63,6 +74,7 @@ Resources:
   # Temporary SSM document used by the remediation above
   # See the "note" in the substack
   CreateSSMDocumentCreateJiraIssue:
+    Condition: IsRuleOn
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "aws-createJiraIssue-fix.yaml" ]]
@@ -71,6 +83,7 @@ Resources:
   # In this case, it checks whether the EC2/RDS instance has termination/deletion protection
   # enabled or not. If so, the resource is compliant. If not, the resource is non-compliant
   TerminationDetectionFunction:
+    Condition: IsRuleOn
     Type: AWS::Lambda::Function
     Properties:
       Handler: index.handler
@@ -82,6 +95,7 @@ Resources:
 
   # Allow the Config Rule above to trigger our Lambda
   PermitConfig:
+    Condition: IsRuleOn
     Type: AWS::Lambda::Permission
     Properties:
       Action: "lambda:InvokeFunction"
@@ -91,6 +105,7 @@ Resources:
 
   # The role used by our compliance-detection lambda
   TerminationConfigRole:
+    Condition: IsRuleOn
     Type: AWS::IAM::Role
     Properties:
       RoleName: ised-config-termination-role
@@ -107,6 +122,7 @@ Resources:
 
   # Allow our compliance-detection lambda to log to CloudWatch
   CloudWatchLogsPolicy:
+    Condition: IsRuleOn
     Type: AWS::IAM::Policy
     Properties:
       Roles:
@@ -129,6 +145,7 @@ Resources:
   # Config attributes, so we have to resort to describing the instance in our
   # compliance-detection lambda
   EC2RDSDescribeInstanceAttributePolicy:
+    Condition: IsRuleOn
     Type: AWS::IAM::Policy
     Properties:
       Roles:
