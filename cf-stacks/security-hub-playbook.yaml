@@ -1,0 +1,1718 @@
+# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ # SPDX-License-Identifier: MIT-0
+ #
+ # Permission is hereby granted, free of charge, to any person obtaining a copy of this
+ # software and associated documentation files (the "Software"), to deal in the Software
+ # without restriction, including without limitation the rights to use, copy, modify,
+ # merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+ # permit persons to whom the Software is furnished to do so.
+ #
+ # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ # INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+ # PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ # HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+AWSTemplateFormatVersion: 2010-09-09
+Description: This Template will create the supporting infrastructure for the Security Hub Response & Remediation AWS Security Blog Post for each Control supported by Remediation
+Resources:
+  CreateActionTargetLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CreateActionTarget
+      Description: Custom resource to create an action target in Security Hub
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt CreateActionTargetLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import os
+          def lambda_handler(event, context):
+              try:
+                  properties = event['ResourceProperties']
+                  region = os.environ['AWS_REGION']
+                  client = boto3.client('securityhub', region_name=region)
+                  responseData = {}
+                  if event['RequestType'] == 'Create':
+                      response = client.create_action_target(
+                          Name=properties['Name'],
+                          Description=properties['Description'],
+                          Id=properties['Id']
+                      )
+                      responseData['Arn'] = response['ActionTargetArn']
+                  elif event['RequestType'] == 'Delete':
+                      account_id = context.invoked_function_arn.split(":")[4]
+                      client.delete_action_target(
+                          ActionTargetArn=f"arn:aws:securityhub:{region}:{account_id}:action/custom/{properties['Id']}"
+                      )
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
+              except Exception as e:
+                  print(e)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {})
+  CreateActionTargetLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: CreateActionTarget-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - securityhub:CreateActionTarget
+            - securityhub:DeleteActionTarget
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  CIS13RRLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CIS_1-3_1-4_RR
+      Description: Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt CIS13RRLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import datetime
+          import os
+          def lambda_handler(event, context):
+              nonRotatedKeyUser = str(event['detail']['findings'][0]['Resources'][0]['Details']['Other']['userName'])
+              findingId = str(event['detail']['findings'][0]['Id'])
+              lambdaFunctionName = os.environ['AWS_LAMBDA_FUNCTION_NAME']
+              # Create bot3 clients and resource
+              iam = boto3.client('iam')
+              securityhub = boto3.client('securityhub')
+              iam_resource = boto3.resource('iam')
+              try:
+                  todaysDatetime = datetime.datetime.now(datetime.timezone.utc)
+                  paginator = iam.get_paginator('list_access_keys')
+                  for response in paginator.paginate(UserName=nonRotatedKeyUser):
+                      for keyMetadata in response['AccessKeyMetadata']:
+                          accessKeyId = str(keyMetadata['AccessKeyId'])
+                          keyAgeFinder = todaysDatetime - keyMetadata['CreateDate']
+                          if keyAgeFinder <= datetime.timedelta(days=90):
+                              print("Access key: " + accessKeyId + " is compliant")
+                          else:
+                              print("Access key over 90 days old found!")
+                              access_key = iam_resource.AccessKey(nonRotatedKeyUser, accessKeyId)
+                              access_key.deactivate()
+                              get_KeyStatus = iam.list_access_keys(UserName=nonRotatedKeyUser,MaxItems=20)
+                              for keys in get_KeyStatus['AccessKeyMetadata']:
+                                  access_KeyId = str(keys['AccessKeyId'])
+                                  access_KeyStatus = str(keys['Status'])
+                                  # find the key Id that matches the exposed key
+                                  if access_KeyId == accessKeyId:
+                                      if access_KeyStatus == 'Inactive':
+                                          print('Access key over 90 days old deactivated!')
+                                          try:
+                                              response = securityhub.update_findings(
+                                                  Filters={
+                                                      'Id': [
+                                                          {
+                                                              'Value': findingId,
+                                                              'Comparison': 'EQUALS'
+                                                          }
+                                                      ]
+                                                  },
+                                                  Note={
+                                                      'Text': 'Non compliant access key was deactivated sucessfully!',
+                                                      'UpdatedBy': lambdaFunctionName
+                                                  },
+                                                  RecordState='ACTIVE'
+                                              )
+                                              print(response)
+                                          except Exception as e:
+                                              print(e)
+                                              raise
+              except Exception as e:
+                  print(e)
+                  raise
+  CIS13RRLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: CIS-1-3-4-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - iam:UpdateAccessKey
+            - iam:ListAccessKeys
+            - securityhub:UpdateFindings
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  CIS13RRActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: CIS 1.3 & 1.4 RR
+      Description: Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old
+      Id: cis134RR
+  CIS13RREventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: CIS_1-3_1-4_RR_CWE
+      Description: "Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt CIS13RRActionTarget.Arn
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "CIS13RRLambdaFunction"
+              - "Arn"
+          Id: "CIS_1-3-4_RR_CWE"
+  CIS13RRCWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "CIS13RRLambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "CIS13RREventRule"
+          - "Arn"
+  CIS15to111RRLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CIS_1-5_1-11_RR
+      Description: Remediates CIS Checks 1.5 through 1.11 by establishing a CIS Compliant Strong Password Policy
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt CIS15to111RRLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          def lambda_handler(event, context):
+              try:
+                  iam = boto3.client('iam')
+                  response = iam.update_account_password_policy(
+                      MinimumPasswordLength=14,
+                      RequireSymbols=True,
+                      RequireNumbers=True,
+                      RequireUppercaseCharacters=True,
+                      RequireLowercaseCharacters=True,
+                      AllowUsersToChangePassword=True,
+                      MaxPasswordAge=90,
+                      PasswordReusePrevention=24,
+                      HardExpiry=True
+                      )
+                  print(response)
+                  print("IAM Password Policy Updated")      
+              except Exception as e:
+                  print(e)
+                  raise
+  CIS15to111RRLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: CIS-1-5-11-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - iam:UpdateAccountPasswordPolicy
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  CIS15to111ActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: CIS 1.5 - 1.11 RR
+      Description: Remediates CIS Checks 1.5 through 1.11 by establishing a CIS Compliant Strong Password Policy
+      Id: cis1511RR
+  CIS15to111RREventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: CIS_1-5_1-11_RR_CWE
+      Description: "Remediates CIS Checks 1.5 through 1.11 by establishing a CIS Compliant Strong Password Policy"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt CIS15to111ActionTarget.Arn
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "CIS15to111RRLambdaFunction"
+              - "Arn"
+          Id: "CIS_1-5-11_RR_CWE"
+  CIS15to111RRCWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "CIS15to111RRLambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "CIS15to111RREventRule"
+          - "Arn"
+  CIS22RRLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CIS_2-2_RR
+      Description: Remediates CIS 2.2 by enabling CloudTrail log file validation
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt CIS22RRLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import os
+          def lambda_handler(event, context):
+              # parse non-compliant trail from Security Hub finding
+              noncompliantTrail = str(event['detail']['findings'][0]['Resources'][0]['Details']['Other']['name'])
+              findingId = str(event['detail']['findings'][0]['Id'])
+              # import lambda function name from env vars
+              lambdaFunctionName = os.environ['AWS_LAMBDA_FUNCTION_NAME']
+              # import boto3 clients for CT & SH
+              cloudtrail = boto3.client('cloudtrail')
+              securityhub = boto3.client('securityhub')             
+              # turn on cloudtrail log file validation
+              try:
+                  response = cloudtrail.update_trail(Name=noncompliantTrail,EnableLogFileValidation=True)
+                  print(response)
+                  try:
+                      response = securityhub.update_findings(
+                          Filters={
+                              'Id': [
+                                  {
+                                      'Value': findingId,
+                                      'Comparison': 'EQUALS'
+                                  }
+                              ]
+                          },
+                          Note={
+                              'Text': 'Re-enabled Log File Validation sucessfully!',
+                              'UpdatedBy': lambdaFunctionName
+                          },
+                          RecordState='ACTIVE'
+                      )
+                      print(response)
+                  except Exception as e:
+                      print(e)
+                      raise
+              except Exception as e:
+                  print(e)
+                  print("Enabling log file validation has failed! Please remediate manually!")
+                  raise
+  CIS22RRLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: CIS-2-2-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - cloudtrail:UpdateTrail
+            - securityhub:UpdateFindings
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  CIS22ActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: CIS 2.2 RR
+      Description: Remediates CIS 2.2 by enabling CloudTrail log file validation
+      Id: cis22RR
+  CIS22RREventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: CIS_2-2_RR_CWE
+      Description: "Remediates CIS 2.2 by enabling CloudTrail log file validation"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt CIS22ActionTarget.Arn
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "CIS22RRLambdaFunction"
+              - "Arn"
+          Id: "CIS_2-2_RR_CWE"
+  CIS22RRCWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "CIS22RRLambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "CIS22RREventRule"
+          - "Arn"
+  CIS23RRLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CIS_2-3_RR
+      Description: Remediates CIS 2.3 by making CloudTrail log bucket private
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt CIS23RRLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import os
+          def lambda_handler(event, context):
+              # Parse ARN of non-compliant resource from Security Hub CWE
+              rawBucketInfo = str(event['detail']['findings'][0]['Resources'][0]['Id'])
+              findingId = str(event['detail']['findings'][0]['Id'])
+              # import lambda function name from env vars
+              lambdaFunctionName = os.environ['AWS_LAMBDA_FUNCTION_NAME']
+              # Remove ARN string, create new variable
+              noncompliantCTBucket = rawBucketInfo.replace("arn:aws:s3:::", "")
+              # import SSM and SecHub clients
+              securityhub = boto3.client('securityhub')
+              ssm = boto3.client('ssm')
+              try:
+                  removeS3PublicReadWrite = ssm.start_automation_execution(
+                      DocumentName='AWS-DisableS3BucketPublicReadWrite',
+                      DocumentVersion='1', # default
+                      Parameters={
+                          'S3BucketName': [ noncompliantCTBucket ]
+                      }
+                  )
+                  print(removeS3PublicReadWrite)
+                  try:
+                      response = securityhub.update_findings(
+                          Filters={
+                              'Id': [
+                                  {
+                                      'Value': findingId,
+                                      'Comparison': 'EQUALS'
+                                  }
+                              ]
+                          },
+                          Note={
+                              'Text': 'Systems Manager Automation document to remove public access was successfully invoked. Refer to Automation results to determine efficacy',
+                              'UpdatedBy': lambdaFunctionName
+                          },
+                          RecordState='ACTIVE'
+                      )
+                      print(response)
+                  except Exception as e:
+                      print(e)
+                      raise
+              except Exception as e:
+                  print(e)
+                  print("SSM automation execution failed")
+                  raise
+  CIS23RRLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: CIS-2-3-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - ssm:StartAutomationExecution
+            - s3:GetBucketAcl
+            - s3:GetBucketPolicy
+            - s3:PutBucketAcl
+            - s3:PutBucketPolicy
+            - s3:PutBucketPublicAccessBlock
+            - iam:PassRole
+            - securityhub:UpdateFindings
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  CIS23ActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: CIS 2.3 RR
+      Description: Remediates CIS 2.3 by making CloudTrail log bucket private
+      Id: cis23RR
+  CIS23RREventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: CIS_2-3_RR_CWE
+      Description: "Remediates CIS 2.3 by making CloudTrail log bucket private"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt CIS23ActionTarget.Arn
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "CIS23RRLambdaFunction"
+              - "Arn"
+          Id: "CIS_2-3_RR_CWE"
+  CIS23RRCWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "CIS23RRLambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "CIS23RREventRule"
+          - "Arn"
+  CIS24RRLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CIS_2-4_RR
+      Description: Remediates CIS 2.4 by enabling CloudWatch logging for CloudTrail
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt CIS24RRLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Environment:
+        Variables:
+          CLOUDTRAIL_CW_LOGGING_ROLE_ARN : placeholder
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import time
+          import os
+          def lambda_handler(event, context):
+              # Parse name of non-compliant resource from Security Hub CWE
+              noncomplaintCloudTrail = str(event['detail']['findings'][0]['Resources'][0]['Details']['Other']['name'])
+              findingId = str(event['detail']['findings'][0]['Id'])
+              # import lambda runtime vars - imported session token to add to log group name to enforce uniqueness
+              lambdaFunctionName = os.environ['AWS_LAMBDA_FUNCTION_NAME']
+              lambdaFunctionSeshToken = os.environ['AWS_SESSION_TOKEN']              
+              # Set name for Cloudwatch logs group
+              cloudwatchLogGroup = 'CloudTrail/CIS2-4-' + noncomplaintCloudTrail + lambdaFunctionSeshToken
+              # Import CloudTrail to CloudWatch logging IAM Role
+              cloudtrailLoggingArn = os.environ['CLOUDTRAIL_CW_LOGGING_ROLE_ARN']              
+              # set boto3 clients
+              securityhub = boto3.client('securityhub')
+              cwl = boto3.client('logs')
+              cloudtrail = boto3.client('cloudtrail')              
+              # create cloudwatch log group
+              try:
+                  createGroup = cwl.create_log_group(
+                  logGroupName=cloudwatchLogGroup,
+                  )
+                  print(createGroup)
+              except Exception as e:
+                  print(e)
+                  raise
+              # wait for CWL group to propagate    
+              time.sleep(2)              
+              # get CWL ARN
+              try:
+                  describeGroup = cwl.describe_log_groups(logGroupNamePrefix=cloudwatchLogGroup)
+                  cloudwatchArn = str(describeGroup['logGroups'][0]['arn'])
+              except Exception as e:
+                  print(e)
+                  raise          
+              # update non-compliant Trail
+              try:
+                  updateCloudtrail = cloudtrail.update_trail(
+                  Name=noncomplaintCloudTrail,
+                  CloudWatchLogsLogGroupArn=cloudwatchArn,
+                  CloudWatchLogsRoleArn=cloudtrailLoggingArn
+                  )
+                  print(updateCloudtrail)
+                  try:
+                      response = securityhub.update_findings(
+                          Filters={
+                              'Id': [
+                                  {
+                                      'Value': findingId,
+                                      'Comparison': 'EQUALS'
+                                  }
+                              ]
+                          },
+                          Note={
+                              'Text': 'CloudWatch logging is now enabled for CloudTrail trail ' + noncomplaintCloudTrail,
+                              'UpdatedBy': lambdaFunctionName
+                          },
+                          RecordState='ACTIVE'
+                      )
+                      print(response)
+                  except Exception as e:
+                      print(e)
+                      raise
+              except Exception as e:
+                  print(e)
+                  raise
+  CIS24RRLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: CIS-2-4-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - logs:DescribeLogGroups
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - cloudtrail:UpdateTrail
+            - securityhub:UpdateFindings
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  CIS24ActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: CIS 2.4 RR
+      Description: Remediates CIS 2.4 by enabling CloudWatch logging for CloudTrail
+      Id: cis24RR
+  CIS24RREventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: CIS_2-4_RR_CWE
+      Description: "Remediates CIS 2.4 by enabling CloudWatch logging for CloudTrail"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt CIS24ActionTarget.Arn
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "CIS24RRLambdaFunction"
+              - "Arn"
+          Id: "CIS_2-4_RR_CWE"
+  CIS24RRCWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "CIS24RRLambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "CIS24RREventRule"
+          - "Arn"
+  CIS26RRLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CIS_2-6_RR
+      Description: Remediates CIS 2.6 enabling Access Logging on CloudTrail logs bucket
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt CIS26RRLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Environment:
+        Variables:
+          ACCESS_LOGGING_BUCKET : placeholder
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import os
+          def lambda_handler(event, context):
+              # Parse ARN of non-compliant resource from Security Hub CWE
+              ctBucket = str(event['detail']['findings'][0]['Resources'][0]['Id'])
+              findingId = str(event['detail']['findings'][0]['Id'])
+              # import lambda function name from runtime env
+              lambdaFunctionName = os.environ['AWS_LAMBDA_FUNCTION_NAME']
+              # Remove ARN string, create new variable
+              formattedCTBucket = ctBucket.replace("arn:aws:s3:::", "")
+              # import Lambda env var for Access Logging Bucket
+              accessLoggingBucket = os.environ['ACCESS_LOGGING_BUCKET']              
+              # import SSM boto3 client
+              securityhub = boto3.client('securityhub')
+              ssm = boto3.client('ssm')              
+              #excute automation with ConfigureS3BucketLogging Document
+              try:
+                  response = ssm.start_automation_execution(
+                      DocumentName='AWS-ConfigureS3BucketLogging',
+                      DocumentVersion='1',
+                      Parameters={
+                          'BucketName': [ formattedCTBucket ],
+                          'GrantedPermission': [ 'READ' ],
+                          'GranteeType': [ 'Group' ],
+                          'GranteeUri': [ 'http://acs.amazonaws.com/groups/s3/LogDelivery' ], ## Must Use URI, fails with Canonical Group Id
+                          'TargetPrefix' : [ 'cloudtrail/' ],
+                          'TargetBucket': [ accessLoggingBucket ]
+                      }
+                  )
+                  print(response)
+                  try:
+                      response = securityhub.update_findings(
+                          Filters={
+                              'Id': [
+                                  {
+                                      'Value': findingId,
+                                      'Comparison': 'EQUALS'
+                                  }
+                              ]
+                          },
+                          Note={
+                              'Text': 'Systems Manager Automation document to remove public access was successfully invoked. Refer to Automation results to determine efficacy',
+                              'UpdatedBy': lambdaFunctionName
+                          },
+                          RecordState='ACTIVE'
+                      )
+                      print(response)
+                  except Exception as e:
+                      print(e)
+                      raise
+              except Exception as e:
+                  print(e)
+                  raise
+  CIS26RRLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: CIS-2-6-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - ssm:StartAutomationExecution
+            - securityhub:UpdateFindings
+            - s3:PutBucketLogging
+            - iam:PassRole
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  CIS26ActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: CIS 2.6 RR
+      Description: Remediates CIS 2.6 enabling Access Logging on CloudTrail logs bucket
+      Id: cis26RR
+  CIS26RREventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: CIS_2-6_RR_CWE
+      Description: "Remediates CIS 2.6 enabling Access Logging on CloudTrail logs bucket"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt CIS26ActionTarget.Arn 
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "CIS26RRLambdaFunction"
+              - "Arn"
+          Id: "CIS_2-6_RR_CWE"
+  CIS26RRCWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "CIS26RRLambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "CIS26RREventRule"
+          - "Arn"
+  CIS28RRLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CIS_2-8_RR
+      Description: Remediates CIS 2.8 by enabling key rotation for KMS CMKs
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt CIS28RRLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import time
+          import os
+          def lambda_handler(event, context):
+              # Parse ARN of non-compliant resource from Security Hub CWE
+              noncompliantCMK = str(event['detail']['findings'][0]['Resources'][0]['Id'])              
+              # Remove ARN string, create new variable
+              findingId = str(event['detail']['findings'][0]['Id'])
+              # import lambda function name from env vars
+              lambdaFunctionName = os.environ['AWS_LAMBDA_FUNCTION_NAME']
+              formattedCMK = noncompliantCMK.replace("AWS::KMS::Key:", "")              
+              # Import KMS & SecHub Clients
+              kms = boto3.client('kms')
+              securityhub = boto3.client('securityhub')        
+              # Rotate KMS Key
+              try:
+                  rotate = kms.enable_key_rotation(KeyId=formattedCMK)
+                  time.sleep(3)
+              except Exception as e:
+                  print(e)
+                  raise
+              try:    
+                  confirmRotate = kms.get_key_rotation_status(KeyId=formattedCMK)
+                  rotationStatus = str(confirmRotate['KeyRotationEnabled'])
+                  if rotationStatus == 'True':
+                      print("KMS CMK Rotation Successfully Enabled!")
+                      try:
+                          response = securityhub.update_findings(
+                              Filters={
+                                  'Id': [
+                                      {
+                                          'Value': findingId,
+                                          'Comparison': 'EQUALS'
+                                      }
+                                  ]
+                              },
+                              Note={
+                                  'Text': 'Key Rotation successfully enabled for KMS key ' + formattedCMK,
+                                  'UpdatedBy': lambdaFunctionName
+                              },
+                              RecordState='ACTIVE'
+                          )
+                          print(response)
+                      except Exception as e:
+                          print(e)
+                          raise
+                  else:
+                      print("KMS CMK Rotation Failed! Please troubleshoot manually!")
+              except Exception as e:
+                  print(e)
+                  raise
+  CIS28RRLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: CIS-2-8-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - kms:EnableKeyRotation
+            - kms:GetKeyRotationStatus
+            - securityhub:UpdateFindings
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  CIS28ActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: CIS 2.8 RR
+      Description: Remediates CIS 2.8 by enabling key rotation for KMS CMKs without it
+      Id: cis28RR
+  CIS28RREventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: CIS_2-8_RR_CWE
+      Description: "Remediates CIS 2.8 by enabling key rotation for KMS CMKs"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt CIS28ActionTarget.Arn
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "CIS28RRLambdaFunction"
+              - "Arn"
+          Id: "CIS_2-8_RR_CWE"
+  CIS28RRCWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "CIS28RRLambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "CIS28RREventRule"
+          - "Arn"
+  CIS29RRLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CIS_2-9_RR
+      Description: Remediates CIS 2.9 by enabling reject filtered VPC flow logging for VPCs without it
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt CIS29RRLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Environment:
+        Variables:
+          flowLogRoleARN : placeholder
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import time
+          import os
+          def lambda_handler(event, context):
+              # Grab non-logged VPC ID from Security Hub finding
+              noncompliantVPC = str(event['detail']['findings'][0]['Resources'][0]['Details']['Other']['vpcId'])
+              findingId = str(event['detail']['findings'][0]['Id'])
+              # import lambda runtime vars
+              lambdaFunctionName = os.environ['AWS_LAMBDA_FUNCTION_NAME']
+              lambdaFunctionSeshToken = os.environ['AWS_SESSION_TOKEN']                
+              # Get Flow Logs Role ARN from env vars
+              DeliverLogsPermissionArn = os.environ['flowLogRoleARN']              
+              # Import boto3 clients
+              cwl = boto3.client('logs')
+              ec2 = boto3.client('ec2')
+              securityhub = boto3.client('securityhub')              
+              # set dynamic variable for CW Log Group for VPC Flow Logs
+              vpcFlowLogGroup = "VPCFlowLogs/" + noncompliantVPC + lambdaFunctionSeshToken         
+              # create cloudwatch log group
+              try:
+                  create_log_grp = cwl.create_log_group(logGroupName=vpcFlowLogGroup)
+              except Exception as e:
+                  print(e)
+                  raise              
+              # wait for CWL creation to propagate
+              time.sleep(3)              
+              # create VPC Flow Logging
+              try:
+                  enableFlowlogs = ec2.create_flow_logs(
+                  DryRun=False,
+                  DeliverLogsPermissionArn=DeliverLogsPermissionArn,
+                  LogGroupName=vpcFlowLogGroup,
+                  ResourceIds=[ noncompliantVPC ],
+                  ResourceType='VPC',
+                  TrafficType='REJECT',
+                  LogDestinationType='cloud-watch-logs'
+                  )
+                  print(enableFlowlogs)
+              except Exception as e:
+                  print(e)
+                  raise
+              # wait for Flow Log creation to propogate
+              time.sleep(2)
+              # searches for flow log status, filtered on unique CW Log Group created earlier
+              try:
+                  confirmFlowlogs = ec2.describe_flow_logs(
+                  DryRun=False,
+                  Filters=[
+                      {
+                          'Name': 'log-group-name',
+                          'Values': [ vpcFlowLogGroup ]
+                      },
+                  ]
+                  )
+                  flowStatus = str(confirmFlowlogs['FlowLogs'][0]['FlowLogStatus'])
+                  if flowStatus == 'ACTIVE':
+                      try:
+                          response = securityhub.update_findings(
+                              Filters={
+                                  'Id': [
+                                      {
+                                          'Value': findingId,
+                                          'Comparison': 'EQUALS'
+                                      }
+                                  ]
+                              },
+                              Note={
+                                  'Text': 'Flow logging is now enabled for VPC ' + noncompliantVPC,
+                                  'UpdatedBy': lambdaFunctionName
+                              },
+                              RecordState='ACTIVE'
+                          )
+                          print(response)
+                      except Exception as e:
+                          print(e)
+                          raise
+                  else:
+                      print('Enabling VPC flow logging failed! Remediate manually')
+                      return 1
+              except Exception as e:
+                  print(e)
+                  raise
+  CIS29RRLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: CIS-2-9-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - securityhub:UpdateFindings
+            - ec2:CreateFlowLogs
+            - ec2:DescribeFlowLogs
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  CIS29ActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: CIS 2.9 RR
+      Description: Remediates CIS 2.9 by enabling reject filtered VPC flow logging for VPCs without it
+      Id: cis29RR
+  CIS29RREventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: CIS_2-9_RR_CWE
+      Description: "Remediates CIS 2.9 by enabling reject filtered VPC flow logging for VPCs without it"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt CIS29ActionTarget.Arn
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "CIS29RRLambdaFunction"
+              - "Arn"
+          Id: "CIS_2-9_RR_CWE"
+  CIS29RRCWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "CIS29RRLambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "CIS29RREventRule"
+          - "Arn"
+  CIS412RRLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CIS_4-1_4-2_RR
+      Description: Remediates CIS 4.1 and CIS 4.2 by disabling Public SSH / RDP Rules on Security Groups
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt CIS412RRLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import os
+          def lambda_handler(event, context):
+              # parse Security Group ID from Security Hub CWE
+              non_compliant_sg = str(event['detail']['findings'][0]['Resources'][0]['Details']['Other']['groupId'])
+              findingId = str(event['detail']['findings'][0]['Id'])
+              # import lambda function name from runtime vars
+              lambdaFunctionName = os.environ['AWS_LAMBDA_FUNCTION_NAME']
+              #import boto3 clients
+              ssm = boto3.client('ssm')
+              securityhub = boto3.client('securityhub')
+              try:
+                  response = ssm.start_automation_execution(
+                      # Launch SSM Doc via Automation
+                      DocumentName='AWS-DisablePublicAccessForSecurityGroup',
+                      DocumentVersion='1',
+                      Parameters={
+                          'GroupId': [ non_compliant_sg ]
+                      }
+                  )
+                  print(response)
+                  try:
+                      response = securityhub.update_findings(
+                          Filters={
+                              'Id': [
+                                  {
+                                      'Value': findingId,
+                                      'Comparison': 'EQUALS'
+                                  }
+                              ]
+                          },
+                          Note={
+                              'Text': 'Systems Manager Automation document to remove public access was successfully invoked. Refer to Automation results to determine efficacy',
+                              'UpdatedBy': lambdaFunctionName
+                          },
+                          RecordState='ACTIVE'
+                      )
+                      print(response)
+                  except Exception as e:
+                      print(e)
+                      raise
+              except Exception as e:
+                  print(e)
+                  raise
+  CIS412RRLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: CIS-4-1-2-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - ssm:StartAutomationExecution
+            - ec2:DescribeSecurityGroupReferences
+            - ec2:DescribeSecurityGroups
+            - ec2:UpdateSecurityGroupRuleDescriptionsEgress
+            - ec2:UpdateSecurityGroupRuleDescriptionsIngress
+            - ec2:RevokeSecurityGroupIngress
+            - ec2:RevokeSecurityGroupEgress
+            - iam:PassRole
+            - securityhub:UpdateFindings
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  CIS412ActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: CIS 4.1 & 4.2 RR
+      Description: Remediates CIS 4.1 and 4.2 by removed public access to SSH/RDP on the Security Group
+      Id: cis412RR
+  CIS412RREventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: CIS_4-1_4-2_RR_CWE
+      Description: "Remediates CIS 4.1 and CIS 4.2 by disabling Public SSH / RDP Rules on Security Groups"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt CIS412ActionTarget.Arn
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "CIS412RRLambdaFunction"
+              - "Arn"
+          Id: "CIS_4-1-2_RR_CWE"
+  CIS412RRCWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "CIS412RRLambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "CIS412RREventRule"
+          - "Arn"
+  SendToJIRALambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SendToJIRA
+      Description: Sends selected findings to JIRA via System Manager documents
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt SendToJIRALambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Environment:
+        Variables:
+          JIRA_API_PARAMETER : "JiraPassRemediation"
+          JIRA_SECURITY_ISSUE_USER : "ic.isedawscloud-isdeawsinfonuagique.ic@canada.ca"
+          JIRA_URL : "https://jira.ised-isde.canada.ca"
+          JIRA_PROJECT : "COPS"
+      Code:
+        ZipFile: |
+          import boto3
+          import boto3
+          import json
+          import os
+          def lambda_handler(event, context):
+              # Pull Title from ASFF, map to JIRA Issue Summary
+              issueTitle = str(event['detail']['findings'][0]['Title'])
+              # Pull Description from ASFF, map to JIRA Issue Description
+              issueDescription = str(event['detail']['findings'][0]['Description'])
+              # Pull Resources information from ASFF, add to JIRA Issue Description
+              issueFindingDetails = str(event['detail']['findings'][0]['Resources'][0]['Id'])          
+              # Import Lambda ENV VARs...FYI PyVAR = ['Lambda ENV Key']
+              jiraAPI = os.environ['JIRA_API_PARAMETER']
+              jiraSecurityUser = os.environ['JIRA_SECURITY_ISSUE_USER']
+              jiraURL = os.environ['JIRA_URL']
+              jiraProjectKey = os.environ['JIRA_PROJECT']             
+              # Import Systems Manager boto3 client
+              ssm = boto3.client('ssm')
+              # Run Automation using CreateJiraIssue Documentf
+              try:
+                  response = ssm.start_automation_execution(
+                      DocumentName='AWS-CreateJiraIssue',
+                      DocumentVersion='1', # default
+                      Parameters={
+                          # The name of the user the issue will be created with
+                          'JiraUsername': [ jiraSecurityUser ],
+                          # The name of an encrypted SSM Parameter containing the API key 
+                          # or password for the Jira user.
+                          'SSMParameterName': [ jiraAPI ],
+                          # The url of the Jira instance.
+                          'JiraURL': [ jiraURL ],
+                          # The key of the project the issue should be created in
+                          'ProjectKey': [ jiraProjectKey ],
+                          # A brief summary of the issue.
+                          'IssueSummary': [ issueTitle ],
+                          # A detailed description of the issue.	
+                          'IssueDescription' : [ issueDescription + issueFindingDetails ],
+                          # 'IssueDescription' : [ issueFindingDetails ],
+                          # The name of the type of issue you want to create 
+                          # (ex. Task, Sub-task, Bug, etc).
+                          'IssueTypeName' : [ 'Bug' ]
+                      }
+                  )
+                  print(response)
+                  print("JIRA Issue Automation Successfully Executed! Refer to Systems Manager Automation for status updates")
+              except Exception as e:
+                  print(e)
+                  print("Invoking SSM Automation Failed!")
+                  raise
+  SendToJIRALambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: Send2JIRA-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - cloudformation:CreateStack
+            - cloudformation:DeleteStack
+            - cloudformation:DescribeStacks
+            - cloudformation:CreateChangeSet
+            - cloudformation:DeleteChangeSet
+            - iam:CreateRole
+            - iam:DeleteRole
+            - iam:GetRole
+            - iam:PassRole
+            - iam:DeleteRole
+            - iam:DeleteRolePolicy
+            - iam:GetRolePolicy
+            - iam:PutRolePolicy
+            - lambda:InvokeFunction
+            - lambda:GetFunction
+            - lambda:CreateFunction
+            - lambda:DeleteFunction
+            - lambda:GetFunctionConfiguration
+            - kms:Encrypt
+            - kms:Decrypt
+            - kms:ReEncrypt*
+            - kms:GenerateDataKey*
+            - kms:DescribeKey
+            - ssm:GetParameter*
+            - ssm:StartAutomationExecution
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  SendToJIRAActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: Create JIRA Issue
+      Description: Sends selected findings to JIRA via System Manager documents
+      Id: send2jira
+  SendToJIRAEventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: SendToJIRA_CWE
+      Description: "Sends selected findings to JIRA via System Manager documents"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt SendToJIRAActionTarget.Arn
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "SendToJIRALambdaFunction"
+              - "Arn"
+          Id: "SendToJIRACWE"
+  SendToJIRACWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "SendToJIRALambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "SendToJIRAEventRule"
+          - "Arn"
+  RunPatchBaselineRRLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: PatchingRR
+      Description: Uses SSM Doc RunPatchBaseline to install security patches on Windows, AMZL, Ubuntu, SLES and CentOS, sent from Inspector vuln findings in SecHub
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt RunPatchBaselineRRLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 170
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import time
+          import os
+          def lambda_handler(event, context):
+              # Parse data from Security Hub Inspector Vuln Finding
+              myEc2Instance = str(event['detail']['findings'][0]['ProductFields']['attributes:5/value'])
+              # create boto3 clients for EC2 & SSM
+              ssm = boto3.client('ssm')
+              # install / update SSM agent
+              try:
+                  response = ssm.send_command(
+                      InstanceIds=[ myEc2Instance ],
+                      DocumentName='AWS-UpdateSSMAgent',
+                      DocumentVersion='1',
+                      TimeoutSeconds=360,
+                      Comment='UpdateSSMAgent Invoked in response to Security Hub finding',
+                      CloudWatchOutputConfig={ 'CloudWatchOutputEnabled': True }
+                  )
+                  print(response)
+                  print("UpdateSSMAgent Command Sucessfully Sent!")
+              except Exception as e:
+                  print(e)
+                  raise    
+              # wait for SSM Agent to install / update
+              time.sleep(30)
+              print("Waited 30 seconds, proceeding")    
+              # invoke run command to apply off-cycle patch baseline
+              try:
+                  response = ssm.send_command(
+                      InstanceIds=[ myEc2Instance ],
+                      DocumentName='AWS-RunPatchBaseline',
+                      DocumentVersion='1',
+                      TimeoutSeconds=360,
+                      Comment='RunPatchBaseline Invoked in response to Security Hub finding',
+                      Parameters={ 'Operation': [ 'Install' ] },
+                      CloudWatchOutputConfig={ 'CloudWatchOutputEnabled': True }
+                  )
+                  print(response)
+                  print("RunPatchBaseline Command Sucessfully Sent!")
+              except Exception as e:
+                  print(e)
+                  raise
+  RunPatchBaselineRRLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: PatchingRR-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - ssm:SendCommand
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  RunPatchBaselineActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: Apply Patch Baseline
+      Description: Applies Security Patches via System Manager documents
+      Id: applypatch
+  RunPatchBaselineRREventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: PatchingRR_CWE
+      Description: "Uses SSM Doc RunPatchBaseline to install security patches on Windows, AMZL, Ubuntu, SLES and CentO"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt RunPatchBaselineActionTarget.Arn
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "RunPatchBaselineRRLambdaFunction"
+              - "Arn"
+          Id: "PatchingRR_CWE"
+  RunPatchBaselineRRCWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "RunPatchBaselineRRLambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "RunPatchBaselineRREventRule"
+          - "Arn"
+  CIS43RRLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CIS_4-3_RR
+      Description: Remediates CIS 4.3 by disabling removing all rules from a default security group
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt CIS43RRLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import os
+          def lambda_handler(event, context):
+              # boto3 clients/rescs
+              ec2 = boto3.resource('ec2')
+              securityhub = boto3.client('securityhub')
+              # import lambda env var
+              lambdaFunctionName = os.environ['AWS_LAMBDA_FUNCTION_NAME']
+              # parse details from sechub finding
+              myDefaultSecGroupId = str(event['detail']['findings'][0]['Resources'][0]['Details']['Other']['groupId'])
+              findingId = str(event['detail']['findings'][0]['Id'])
+              try:
+                  # sg ec2 resource object
+                  defaultSG = ec2.SecurityGroup(myDefaultSecGroupId)
+                  # find ingress + egress rules
+                  defaultIngress = defaultSG.ip_permissions
+                  defaultEgress = defaultSG.ip_permissions_egress
+                  revokeIngress = defaultSG.revoke_ingress(IpPermissions=defaultIngress)
+                  revokeEgress = defaultSG.revoke_egress(IpPermissions=defaultEgress)
+                  print(revokeIngress)
+                  print(revokeEgress)
+                  try:
+                      response = securityhub.update_findings(
+                          Filters={
+                              'Id': [
+                                  {
+                                      'Value': findingId,
+                                      'Comparison': 'EQUALS'
+                                  }
+                              ]
+                          },
+                          Note={
+                              'Text': 'All rules removed from Default Security Group',
+                              'UpdatedBy': lambdaFunctionName
+                          },
+                          RecordState='ACTIVE'
+                      )
+                      print(response)
+                  except Exception as e:
+                      print(e)
+                      raise
+              except Exception as e:
+                  print(e)
+  CIS43RRLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+      - PolicyName: CIS-4-3-LambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - ec2:DescribeSecurityGroupReferences
+            - ec2:DescribeSecurityGroups
+            - ec2:UpdateSecurityGroupRuleDescriptionsEgress
+            - ec2:UpdateSecurityGroupRuleDescriptionsIngress
+            - ec2:RevokeSecurityGroupIngress
+            - ec2:RevokeSecurityGroupEgress
+            - securityhub:UpdateFindings
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: lambda.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  CIS43ActionTarget:
+    Type: Custom::ActionTarget
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt CreateActionTargetLambdaFunction.Arn
+      Name: CIS 4.3 RR
+      Description: Remediates CIS 4.3 by disabling removing all rules from a default security group
+      Id: cis43RR
+  CIS43RREventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: CIS_4-3_RR_CWE
+      Description: "Remediates CIS 4.3 by disabling removing all rules from a default security group"
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Custom Action
+        resources: 
+          - !GetAtt CIS43ActionTarget.Arn
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "CIS43RRLambdaFunction"
+              - "Arn"
+          Id: "CIS_4-3_RR_CWE"
+  CIS43RRCWEPermissions: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "CIS43RRLambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "CIS43RREventRule"
+          - "Arn"
