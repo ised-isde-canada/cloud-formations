@@ -1329,8 +1329,10 @@ Resources:
           def lambda_handler(event, context):
               # Pull Title from ASFF, map to JIRA Issue Summary
               issueTitle = str(event['detail']['findings'][0]['Title'])
+              issueTitle = issueTitle.replace('/"', ''))
               # Pull Description from ASFF, map to JIRA Issue Description
               issueDescription = str(event['detail']['findings'][0]['Description'])
+              issueDescription = issueDescription.replace('/"', ''))
               # Pull Resources information from ASFF, add to JIRA Issue Description
               issueFindingDetails = str(event['detail']['findings'][0]['Resources'][0]['Id'])          
               # Import Lambda ENV VARs...FYI PyVAR = ['Lambda ENV Key']
