@@ -70,12 +70,15 @@ Parameters:
   Environment:
     Type: String
     Default: ops
+  S3BucketNamePrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3BucketNamePrefix 
 Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
-      BucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name" ]]
+      BucketName: !Join ['-', [s3, !Ref AWS::AccountId, !Ref Name ]]
       AccessControl: !Ref S3BucketAccess
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -84,11 +87,11 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "log" ]]
-        LogFilePrefix: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", !Ref "Name", "" ]]
+        DestinationBucketName: !Join ['-', [!Ref S3BucketNamePrefix, !Ref AWS::AccountId, logs ]]
+        LogFilePrefix: !Join ['-', [!Ref S3BucketNamePrefix, !Ref AWS::AccountId, !Ref Name, "" ]]
       Tags:
       - Key: Name
-        Value: !Join ['-', ["{{resolve:ssm:S3BucketNamePrefix:1}}", !Ref "AWS::AccountId", "Name"] ]
+        Value: !Join ['-', [!Ref S3BucketNamePrefix, !Ref AWS::AccountId, Name] ]
       - Key: ised-cost-centre
         Value: !Ref "CostCentre"
       - Key: ised-project-id
