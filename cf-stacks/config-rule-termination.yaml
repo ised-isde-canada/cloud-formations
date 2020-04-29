@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: Initial version. Version 1.0
+# Version 2.0 - Enable termination/deletion protection instead of creating a JIRA ticket
+Description: Enable termination/deletion protection on EC2/RDS. Version 2.0
 
 Parameters:
   AccountIDMaster:
@@ -9,15 +10,6 @@ Parameters:
   S3BucketNamePrefix:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3BucketNamePrefix
-  IsedJiraUser:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: JiraUser
-  IsedJiraURL:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: JiraURL
-  SSMParamName:
-    Type: String
-    Default: JiraPassRemediation
   S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates
@@ -55,30 +47,14 @@ Resources:
             EventSource: aws.config
             MessageType: OversizedConfigurationItemChangeNotification
 
-  # Remediation that is triggered when a resource is found to be non-compliant
-  TerminationDetectionRemediation:
+  # SSM Document and its remediation configuration
+  EnableTerminationSSMDocument:
     Condition: IsRuleOn
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ssm-doc-termination.yaml" ]]
       Parameters:
-        AutomationRoleArn: !GetAtt CreateSSMDocumentCreateJiraIssue.Outputs.AutomationRoleArn
         ConfigRuleName: !Ref TerminationConfigRule
-        IsRemediationAutoOn: "true"
-        IsedJiraProject: COPS
-        IsedJiraUrl: !Ref IsedJiraURL
-        IsedJiraUserName: !Ref IsedJiraUser
-        IsedLambdaRole: !ImportValue ConfigLambdaRole
-        SSMDocumentCreateJiraIssue: !GetAtt CreateSSMDocumentCreateJiraIssue.Outputs.SSMDocumentArn
-        JiraSSMParameterName: !Ref SSMParamName
-
-  # Temporary SSM document used by the remediation above
-  # See the "note" in the substack
-  CreateSSMDocumentCreateJiraIssue:
-    Condition: IsRuleOn
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Join [ '', [!Ref S3Templates, "aws-createJiraIssue-fix.yaml" ]]
 
   # The lambda function that decides whether a resource is compliant or not
   # In this case, it checks whether the EC2/RDS instance has termination/deletion protection
