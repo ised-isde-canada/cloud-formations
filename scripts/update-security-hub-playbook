@@ -1,0 +1,2 @@
+#!/bin/bash
+aws cloudformation update-stack-set --stack-set-name ised-security-hub-playbook --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/security-hub-playbook.yaml --capabilities CAPABILITY_IAM --operation-preference FailureToleranceCount=22

@@ -1,0 +1,2 @@
+#!/bin/bash
+aws cloudformation update-stack-set --stack-set-name ised-s3-logs --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/s3.yaml --parameters file://./../cf-parameters/s3-logs.json --operation-preference FailureToleranceCount=22
