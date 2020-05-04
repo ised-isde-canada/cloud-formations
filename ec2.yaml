@@ -100,6 +100,7 @@ Parameters:
     AllowedValues:
       - Linux
       - Windows-2016
+      - Windows-2019
       - Ubuntu-Server-18.04-LTS 
   EC2Size:
     Type: String
@@ -109,6 +110,10 @@ Parameters:
       - t3.medium
       - t3.large
       - t3.xlarge
+      - r5.small
+      - r5.medium
+      - r5.large
+      - r5.xlarge
   # ===== Additional Configuration Section =====
   UserData:
     Type: String
@@ -148,16 +153,22 @@ Parameters:
     Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
     Description: Reference to the latest Amazon Linux 2 AMI
     Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
-  LatestWindowsAmiId:
+  LatestWindows2016AmiId:
     Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
     Description: Reference to the latest Windows Server 2016 AMI
     Default: "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base"
+  LatestWindows2019AmiId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Description: Reference to the latest Windows Server 2016 AMI
+    Default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
   S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
-  IsWindows: !Equals [ !Ref EC2OS, Windows-2016 ]
+  IsWindows: !Or [!Equals [ !Ref EC2OS, Windows-2016 ], !Equals [ !Ref EC2OS, Windows-2019 ]]
+  IsWindows2016: !Equals [ !Ref EC2OS, Windows-2016 ]
+  IsWindows2019: !Equals [ !Ref EC2OS, Windows-2019 ]
   IsLinux: !Or [ !Equals [ !Ref EC2OS,  Linux], !Equals [ !Ref EC2OS,  Ubuntu Server 18.04 LTS ] ]
   IsAWSLinux: !Equals [ !Ref EC2OS, Linux ]
   IsEC2Restore: !Equals [ !Ref EC2Options, "Restore" ]
@@ -217,7 +228,7 @@ Resources:
       EbsOptimized: true
       # If restoring an EC2, use the provided AMI. Otherwise use the latest AMI
       # for the OS type chosen
-      ImageId: !If [ IsEC2Restore, !Ref EC2Ami, !If [ IsWindows, !Ref LatestWindowsAmiId, !If [IsAWSLinux, !Ref LatestLinuxAmiId, !FindInMap [AmiMap, !Ref EC2OS, ImageId] ] ] ]
+      ImageId: !If [ IsEC2Restore, !Ref EC2Ami, !If [ IsWindows2016, !Ref LatestWindows2016AmiId, !If [ IsWindows2019, !Ref LatestWindows2019AmiId, !If [IsAWSLinux, !Ref LatestLinuxAmiId, !FindInMap [AmiMap, !Ref EC2OS, ImageId] ] ] ] ]
       InstanceType: !Ref EC2Size
       KeyName: !Ref ISEDProjectId
       Monitoring: false
