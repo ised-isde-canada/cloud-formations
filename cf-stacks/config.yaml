@@ -86,6 +86,9 @@ Parameters:
     Type: String
   IsedPatch:
     Type: String
+  AccountIDMaster:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDMaster
   IsedJiraProject:
     Type: AWS::SSM::Parameter::Value<String>
     Default: JiraProject
@@ -215,7 +218,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Sub "${S3BucketNamePrefix}-256255698049-lambdas"
+        S3Bucket: !Sub "${S3BucketNamePrefix}-${AccountIDMaster}-lambdas"
         S3Key: ised-create-jira-issue.zip
       FunctionName: Ised-CreateJiraIssue
       Handler: index.handler
@@ -299,7 +302,7 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArm: !ImportValue AutomationRole
+        AutomationRoleArn: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsCost
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
@@ -314,7 +317,7 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArm: !ImportValue AutomationRole
+        AutomationRoleArn: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsBackup
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
@@ -330,7 +333,7 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArm: !ImportValue AutomationRole
+        AutomationRoleArn: !ImportValue AutomationRole
         ConfigRuleName: !Ref AWSConfigRuleTagsPatching
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject

@@ -1,0 +1,241 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Template to activate AWS Detective. Version 1.0
+
+Parameters:
+  AccountIDSecurity:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSecurity
+  AccountIDAPIStore:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDAPIStore
+  AccountIDCOTS:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDCOTS
+  AccountIDCOTSDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDCOTSDev
+  AccountIDDB:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDDB
+  AccountIDDBDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDDBDev
+  AccountIDLog:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDLog
+  AccountIDMaster:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDMaster
+  AccountIDOpenShift:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShift
+  AccountIDOpenShiftLab:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShiftLab
+  AccountIDProjects01:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDProjects01
+  AccountIDSandbox:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSandbox
+  AccountIDSandboxDB:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSandboxDB
+  AccountIDSecurityDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSecurityDev
+  AccountIDSharedServices:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSharedServices
+  AccountIDStudents:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDStudents
+  AccountIDTbsCpiaDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDTbsCpiaDev
+  AccountEmailAPIStore:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailAPIStore
+  AccountEmailCOTS:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailCOTS
+  AccountEmailCOTSDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailCOTSDev
+  AccountEmailDB:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailDB
+  AccountEmailDBDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailDBDev
+  AccountEmailLog:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailLog
+  AccountEmailMaster:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailMaster
+  AccountEmailOpenShift:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailOpenShift
+  AccountEmailOpenShiftLab:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailOpenShiftLab
+  AccountEmailProjects01:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailProjects01
+  AccountEmailSandbox:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailSandbox
+  AccountEmailSandboxDB:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailSandboxDB
+  AccountEmailSecurityDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailSecurityDev
+  AccountEmailSharedServices:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailSharedServices
+  AccountEmailStudents:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailStudents
+  AccountEmailTbsCpiaDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailTbsCpiaDev
+
+Conditions:
+  IsSecurityAccount: !Equals [ !Ref "AWS::AccountId", !Ref AccountIDSecurity ]
+
+Resources:
+  DetectiveGraph:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::Graph
+    Properties: {}
+
+  MemberInvite01:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDAPIStore
+      MemberEmailAddress: !Ref AccountEmailAPIStore
+
+  MemberInvite02:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDCOTS
+      MemberEmailAddress: !Ref AccountEmailCOTS
+
+  MemberInvite03:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDCOTSDev
+      MemberEmailAddress: !Ref AccountEmailCOTSDev
+
+  MemberInvite04:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDDB
+      MemberEmailAddress: !Ref AccountEmailDB
+
+  MemberInvite05:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDDBDev
+      MemberEmailAddress: !Ref AccountEmailDBDev
+
+  MemberInvite06:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDLog
+      MemberEmailAddress: !Ref AccountEmailLog
+
+  MemberInvite07:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDMaster
+      MemberEmailAddress: !Ref AccountEmailMaster
+
+  MemberInvite08:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDOpenShift
+      MemberEmailAddress: !Ref AccountEmailOpenShift
+
+  MemberInvite09:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDOpenShiftLab
+      MemberEmailAddress: !Ref AccountEmailOpenShiftLab
+
+  MemberInvite10:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDProjects01
+      MemberEmailAddress: !Ref AccountEmailProjects01
+
+  MemberInvite11:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDSandbox
+      MemberEmailAddress: !Ref AccountEmailSandbox
+
+  MemberInvite12:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDSandboxDB
+      MemberEmailAddress: !Ref AccountEmailSandboxDB
+
+  MemberInvite13:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDSecurityDev
+      MemberEmailAddress: !Ref AccountEmailSecurityDev
+
+  MemberInvite14:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDSharedServices
+      MemberEmailAddress: !Ref AccountEmailSharedServices
+
+  MemberInvite15:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDStudents
+      MemberEmailAddress: !Ref AccountEmailStudents
+
+  MemberInvite16:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDTbsCpiaDev
+      MemberEmailAddress: !Ref AccountEmailTbsCpiaDev

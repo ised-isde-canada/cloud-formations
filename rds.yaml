@@ -11,7 +11,6 @@ Metadata:
         Parameters:
           - VPCId
           - VPCName
-          - SubnetId
           - Environment
           - Ec2IpAddress
       - Label:
@@ -46,8 +45,6 @@ Metadata:
         default: "(*) The vpc ID to launch the instance into."
       VPCName:
         default: "(*) The vpc Name to launch the instance into."
-      SubnetId:
-        default: "(*) The subnet ID to launch the instance into."
       Ec2IpAddress:
         default: IP Address of the EC2 to enable the connection
       Environment:
@@ -58,16 +55,10 @@ Metadata:
         default: "(*) The name of the database engine that you want to use for this DB instance."
       RDSEngineVersion:
         default: "(*) The version number of the database engine to use."
-      RDSOptions:
-        default: "(*) RDS Options. Create or Restore instance"
       DBName:
         default: "(*) A name for the DB instance."
       RDSMasterUserPassword:
         default: "(*) The password for the master user. The password can include any printable ASCII character except /, \", or @"
-      RDSEngine:
-        default: "(*) The name of the database engine that you want to use for this DB instance."
-      RDSEngineVersion:
-        default: "(*) The version number of the database engine to use."
       RDSSize:
         default: "(*) The compute and memory capacity of the DB instance"
       RDSStorage:
@@ -90,8 +81,6 @@ Parameters:
     Type: "AWS::EC2::VPC::Id"
   VPCName:
     Type: String
-  SubnetId:
-    Type: AWS::EC2::Subnet::Id
   Environment:
     Type: String
     Default: dev
@@ -236,7 +225,6 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       DBInstanceIdentifier: !Join [ "-", [ !Ref DBName, !Ref Environment ] ]
-      DBName: !Ref DBName
       AllocatedStorage: !Ref RDSStorage
       MaxAllocatedStorage: !If [ IsMaxStorage, !Ref RDSMaxStorage, !Ref "AWS::NoValue" ]
       AllowMajorVersionUpgrade: false

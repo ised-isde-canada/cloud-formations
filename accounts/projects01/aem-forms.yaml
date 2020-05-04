@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+
+Description: AEM Forms EC2. Version 1.0
+
+Parameters:
+  # ===== General Section =====
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+  ISEDProjectId:
+    Type: String
+    Default: aem
+  CostCentre:
+    Type: String
+    Default: cio-dpad
+
+  # ===== Network Section =====
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - uat
+      - qa
+      - prod
+
+  # ===== EC2 Section =====
+  EC2Ami:
+    Type: String
+    Default: ami-01e3447422b4063d4
+
+  EC2Size:
+    Type: String
+    Default: m5.large
+    AllowedValues:
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - m5.large
+
+  EC2RootVolumeSize:
+    Type: String
+    Default: 100
+
+Resources:
+  EC2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre
+        Environment: !Ref Environment
+        VPCId: !Ref VPCId
+        SubnetId: !Ref SubnetId
+        Schedule: mon-6am-fri-6pm
+
+        # ===== EC2 Section =====
+        CreateEC2: Windows-2016
+        EC2Size: !Ref EC2Size
+        EC2Ami: !Ref EC2Ami
+        UserData: ""
+        EBSVolume2Size: ""
+        EBSVolume2Mount: ""
+        EBSVolume1Mount: ""
+        EBSVolume1Size: ""
+        EC2RootVolumeSize: !Ref EC2RootVolumeSize
+
+  # Allow incoming connection on AEM's listening port from ALB VPC
+  IngressAEMForms:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt EC2.Outputs.EC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: 4502
+      ToPort: 4502
+      CidrIp: 100.96.193.64/26

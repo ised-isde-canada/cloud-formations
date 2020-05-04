@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Enables termination/deletion protection on EC2/RDS. Version 1.0
+
+Parameters:
+  AccountIDMaster:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDMaster
+  S3BucketNamePrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3BucketNamePrefix
+  ConfigRuleName:
+    Type: String
+
+Resources:
+  EnableTerminationSSMDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Automation
+      Content:
+        description: "Automation Document Example JSON Template"
+        schemaVersion: "0.3"
+        assumeRole: "{{ AutomationAssumeRole }}"
+        parameters:
+          AutomationAssumeRole:
+            type: "String"
+            description: "(Optional) The ARN of the role that allows Automation to perform\
+              \ the actions on your behalf. "
+            default: ""
+          ResourceId:
+            type: "String"
+            description: "Id of the resource to configure"
+        mainSteps:
+        - name: "enableTermination"
+          action: "aws:invokeLambdaFunction"
+          inputs:
+            FunctionName: !Ref EnableTerminationFunction
+            Payload: "{\"ResourceId\": \"{{ResourceId}}\"}"
+        outputs:
+        - "enableTermination.Payload"
+
+  EnableTerminationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt EnableTerminationConfigRole.Arn
+      Code:
+        S3Bucket: !Sub "${S3BucketNamePrefix}-${AccountIDMaster}-lambdas"
+        S3Key: ised-config-enable-termination.zip
+      Runtime: python3.7
+
+  # The role used by the lambda that enables termination/deletion protection
+  EnableTerminationConfigRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ised-config-enable-termination-role
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSConfigRulesExecutionRole"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+
+  # Allow our compliance-detection lambda to log to CloudWatch
+  CloudWatchLogsPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref EnableTerminationConfigRole
+      PolicyName: ised-config-enable-termination-cw-logs-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "logs:CreateLogGroup"
+            Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - Effect: "Allow"
+            Action:
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: !Join [ "", [ "arn:aws:logs:", !Sub "${AWS::Region}", ":", !Sub "${AWS::AccountId}", ":log-group:/aws/lambda/", !Ref EnableTerminationFunction, ":*" ] ]
+
+  # Allow configuration of EC2/RDS
+  EC2RDSEnbleTermination:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref EnableTerminationConfigRole
+      PolicyName: ised-config-enable-termination-ec2-rds
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "ec2:ModifyInstanceAttribute"
+              - "rds:ModifyDBInstance"
+              - "rds:DescribeDBInstances"
+            Resource: "*"
+
+  EnableTerminationRemediation:
+      Type: "AWS::Config::RemediationConfiguration"
+      Properties:
+        ConfigRuleName: !Ref ConfigRuleName
+        Parameters:
+          ResourceId:
+            ResourceValue:
+              Value: RESOURCE_ID
+          AutomationAssumeRole:
+            StaticValue:
+              Values:
+              - !ImportValue AutomationRole
+        TargetId: !Ref EnableTerminationSSMDocument
+        TargetType: "SSM_DOCUMENT"
+        Automatic: True
+        MaximumAutomaticAttempts: 10
+        RetryAttemptSeconds: 60
