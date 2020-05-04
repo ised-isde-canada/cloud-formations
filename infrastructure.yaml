@@ -135,6 +135,7 @@ Parameters:
     AllowedValues:
       - Linux
       - Windows-2016
+      - Windows-2019
       - Ubuntu-Server-18.04-LTS 
   EC2Size:
     Type: String
@@ -144,6 +145,10 @@ Parameters:
       - t3.medium
       - t3.large
       - t3.xlarge
+      - r5.small
+      - r5.medium
+      - r5.large
+      - r5.xlarge
   # ===== Additional Configuration Section =====
   UserData:
     Type: String
