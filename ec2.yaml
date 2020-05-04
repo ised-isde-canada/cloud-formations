@@ -73,6 +73,8 @@ Mappings:
       ImageId: ""
     Windows-2016:
       ImageId: ""
+    Windows-2019:
+      ImageId: ""
 Parameters:
 # ===== Network Section =====
   VPCId:
