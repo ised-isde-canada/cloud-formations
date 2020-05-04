@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+# Version 2.0 - Enable termination/deletion protection instead of creating a JIRA ticket
+Description: Enable termination/deletion protection on EC2/RDS. Version 2.0
+
+Parameters:
+  AccountIDMaster:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDMaster
+  S3BucketNamePrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3BucketNamePrefix
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+  OpenShiftLabAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShiftLab
+
+Conditions:
+  # OpenShift 4 "Termination protection might be an issue for worker
+  #             (formerly known as compute) nodes. Masters could have
+  #             termination protection enabled though"
+  IsRuleOn: !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ]]
+
+Resources:
+  # Config rule that checks whether your resources have Termination Protection enabled
+  TerminationConfigRule:
+    Condition: IsRuleOn
+    Type: AWS::Config::ConfigRule
+    DependsOn: PermitConfig
+    Properties:
+      ConfigRuleName: ised-config-termination-rule
+      Description: Checks whether your resources have Termination Protection enabled.
+      Scope:
+        ComplianceResourceTypes:
+        - AWS::EC2::Instance
+        - AWS::RDS::DBInstance
+      Source:
+        Owner: CUSTOM_LAMBDA
+        SourceIdentifier: !GetAtt TerminationDetectionFunction.Arn
+        SourceDetails:
+          -
+            EventSource: aws.config
+            MessageType: ConfigurationItemChangeNotification
+          -
+            EventSource: aws.config
+            MessageType: OversizedConfigurationItemChangeNotification
+
+  # SSM Document and its remediation configuration
+  EnableTerminationSSMDocument:
+    Condition: IsRuleOn
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ssm-doc-termination.yaml" ]]
+      Parameters:
+        ConfigRuleName: !Ref TerminationConfigRule
+
+  # The lambda function that decides whether a resource is compliant or not
+  # In this case, it checks whether the EC2/RDS instance has termination/deletion protection
+  # enabled or not. If so, the resource is compliant. If not, the resource is non-compliant
+  TerminationDetectionFunction:
+    Condition: IsRuleOn
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt TerminationConfigRole.Arn
+      Code:
+        S3Bucket: !Sub "${S3BucketNamePrefix}-${AccountIDMaster}-lambdas"
+        S3Key: ised-config-termination.zip
+      Runtime: nodejs12.x
+
+  # Allow the Config Rule above to trigger our Lambda
+  PermitConfig:
+    Condition: IsRuleOn
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Ref TerminationDetectionFunction
+      Principal: config.amazonaws.com
+      SourceAccount: !Sub "${AWS::AccountId}"
+
+  # The role used by our compliance-detection lambda
+  TerminationConfigRole:
+    Condition: IsRuleOn
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ised-config-termination-role
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSConfigRulesExecutionRole"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+
+  # Allow our compliance-detection lambda to log to CloudWatch
+  CloudWatchLogsPolicy:
+    Condition: IsRuleOn
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref TerminationConfigRole
+      PolicyName: ised-config-termination-cw-logs-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "logs:CreateLogGroup"
+            Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - Effect: "Allow"
+            Action:
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: !Join [ "", [ "arn:aws:logs:", !Sub "${AWS::Region}", ":", !Sub "${AWS::AccountId}", ":log-group:/aws/lambda/", !Ref TerminationDetectionFunction, ":*" ] ]
+
+  # The information we're looking for (DisableApiTermination) is not in the AWS
+  # Config attributes, so we have to resort to describing the instance in our
+  # compliance-detection lambda
+  EC2RDSDescribeInstanceAttributePolicy:
+    Condition: IsRuleOn
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref TerminationConfigRole
+      PolicyName: ised-config-termination-ec2-rds-describe-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "ec2:DescribeInstanceAttribute"
+              - "rds:DescribeDBInstances"
+            Resource: "*"
