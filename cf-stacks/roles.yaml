@@ -501,11 +501,6 @@ Outputs:
     Value: !GetAtt DataLifecycleManagerRole.Arn
     Export: 
       Name: DataLifecycleManagerRole
-  ManagedInstanceRole:
-    Description: ManagedInstanceRole
-    Value: !GetAtt ManagedInstanceRole.Arn
-    Export:
-      Name: ManagedInstanceRole
   ManagedInstanceProfile:
     Description: ManagedInstanceProfile
     Value: !Ref ManagedInstanceProfile
