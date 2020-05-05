@@ -9,7 +9,6 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: Template to create all required roles. Version 1.5
 Conditions:
   IsNotMaster: !Not [!Equals [ !Ref "AWS::AccountId", !Ref AccountIDMaster ]]
-  IsCotsAccount: !Or [ !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCots ] , !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCotsDev ]]
   IsOpenShiftAccount: !Or [ !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShift ] , !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShiftDev ], !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShiftLab ]]
 Parameters:
   AccountIDMaster:
@@ -81,50 +80,6 @@ Resources:
       InstanceProfileName: ised-managed-instance-profile
       Roles:
         - !Ref ManagedInstanceRole
-  NexusRole:
-    Type: AWS::IAM::Role
-    Condition: IsCotsAccount
-    Properties:
-      RoleName: ised-nexus-role
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            Principal:
-              Service: "ec2.amazonaws.com"
-            Action: "sts:AssumeRole"
-      ManagedPolicyArns:
-        # Role for patching
-        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-        # Role for Cloudwatch
-        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy  
-  NexusVolumeTaggingPolicy:
-    Type: AWS::IAM::Policy
-    Condition: IsCotsAccount
-    Properties:
-      Roles: 
-        - !Ref NexusRole
-      PolicyName: ised-nexus-volume-tagging-policy
-      # Permissions for the EC2 to tag the volumes (ex: root) from User Data
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            "Action":
-              - "ec2:CreateTags"
-            Resource:
-              - "arn:aws:ec2:*:*:instance/*"
-              - "arn:aws:ec2:*:*:volume/*"
-          - Effect: "Allow"
-            Action: "ec2:DescribeInstances"
-            Resource: "*"
-  EC2InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Condition: IsCotsAccount
-    Properties:
-      InstanceProfileName: ised-nexus-ec2-instance-profile
-      Roles: 
-        - !Ref NexusRole
   IsedAdminRole:
     Type: AWS::IAM::Role
     Condition: IsNotMaster
@@ -604,24 +559,6 @@ Outputs:
     Value: !GetAtt AutomationRole.Arn
     Export: 
       Name: AutomationRole
-  NexusRole:
-    Condition: IsCotsAccount
-    Description: NexusRole
-    Value: !GetAtt NexusRole.Arn
-    Export: 
-      Name: NexusRole
-  NexusVolumeTaggingPolicy:
-    Condition: IsCotsAccount
-    Description: NexusVolumeTaggingPolicy
-    Value: !Ref NexusVolumeTaggingPolicy
-    Export: 
-      Name: NexusVolumeTaggingPolicy
-  EC2InstanceProfile:
-    Condition: IsCotsAccount
-    Description: EC2InstanceProfile
-    Value: !Ref EC2InstanceProfile
-    Export: 
-      Name: EC2InstanceProfile
   BackupRole:
     Description: BackupRole
     Value: !GetAtt BackupRole.Arn
