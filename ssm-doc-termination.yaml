@@ -113,9 +113,36 @@ Resources:
           AutomationAssumeRole:
             StaticValue:
               Values:
-              - !ImportValue AutomationRole
+              - !GetAtt AutomationRole.Arn
         TargetId: !Ref EnableTerminationSSMDocument
         TargetType: "SSM_DOCUMENT"
         Automatic: True
         MaximumAutomaticAttempts: 10
         RetryAttemptSeconds: 60
+
+  AutomationRole:
+    Type: AWS::IAM::Role
+    Description: Role used by the SSM document to invoke the lambda function
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - ssm.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
+      Path: /
+      Policies:
+       - PolicyName: "root"
+         PolicyDocument:
+           Version: "2012-10-17"
+           Statement:
+             - Effect: "Allow"
+               Action:
+               - "lambda:*"
+               - "iam:PassRole"
+               Resource: !GetAtt EnableTerminationFunction.Arn

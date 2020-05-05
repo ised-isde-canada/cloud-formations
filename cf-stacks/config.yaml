@@ -223,7 +223,7 @@ Resources:
       FunctionName: Ised-CreateJiraIssue
       Handler: index.handler
       MemorySize: 128
-      Role: !ImportValue ConfigLambdaRole
+      Role: !GetAtt ConfigLambdaRole.Arn
       Runtime: python3.7
       Timeout: 300
   
@@ -302,13 +302,13 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArn: !ImportValue AutomationRole
+        AutomationRoleArn: !GetAtt AutomationRole.Arn
         ConfigRuleName: !Ref AWSConfigRuleTagsCost
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
         IsedJiraUrl: !Ref IsedJiraURL
         IsedJiraUserName: !Ref IsedJiraUser
-        IsedLambdaRole: !ImportValue ConfigLambdaRole
+        IsedLambdaRole: !GetAtt ConfigLambdaRole.Arn
         SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
         JiraSSMParameterName: !Ref SSMParamName
 
@@ -317,13 +317,13 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArn: !ImportValue AutomationRole
+        AutomationRoleArn: !GetAtt AutomationRole.Arn
         ConfigRuleName: !Ref AWSConfigRuleTagsBackup
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
         IsedJiraUrl: !Ref IsedJiraURL
         IsedJiraUserName: !Ref IsedJiraUser
-        IsedLambdaRole: !ImportValue ConfigLambdaRole
+        IsedLambdaRole: !GetAtt ConfigLambdaRole.Arn
         SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
         JiraSSMParameterName: !Ref SSMParamName
   
@@ -333,12 +333,71 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArn: !ImportValue AutomationRole
+        AutomationRoleArn: !GetAtt AutomationRole.Arn
         ConfigRuleName: !Ref AWSConfigRuleTagsPatching
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
         IsedJiraUrl: !Ref IsedJiraURL
         IsedJiraUserName: !Ref IsedJiraUser
-        IsedLambdaRole: !ImportValue ConfigLambdaRole
+        IsedLambdaRole: !GetAtt ConfigLambdaRole.Arn
         SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
         JiraSSMParameterName: !Ref SSMParamName 
+
+  ConfigLambdaRole:
+    Description: This role is used by the lambda function "Ised-CreateJiraIssue"
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ised-config-lambda-execution-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMFullAccess
+        - arn:aws:iam::aws:policy/AWSLambdaExecute
+        - arn:aws:iam::aws:policy/ResourceGroupsandTagEditorReadOnlyAccess
+      Path: /
+  ConfigLambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref ConfigLambdaRole
+      PolicyName: ised-config-lambda-desc-rules-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action: "config:DescribeConfigRules"
+            Resource: "*"
+  AutomationRole:
+    Type: AWS::IAM::Role
+    Description: This role is used by the SSM document to invoke the lambda function "Ised-CreateJiraIssue"
+    Properties:
+      RoleName: ised-config-automation-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - ssm.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
+      Path: /
+      Policies:
+       - PolicyName: "root"
+         PolicyDocument:
+           Version: "2012-10-17"
+           Statement:
+             - Effect: "Allow"
+               Action:
+               - "lambda:*"
+               - "iam:PassRole"
+               Resource: "*"
