@@ -1,5 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Template to create the infrastructure for GPC Risk Management project
+# Version 1.0 - Initial version
+# Version 1.1 - Add IAM Role to allow start and stop EC2 Instance
+Description: Template to create the client infrastructure. Version 1.1
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -271,7 +273,6 @@ Resources:
         # ===== General Section =====
         VPCId: !Ref VPCId
         VPCName: !Ref VPCName
-        SubnetId: !Ref SubnetId
         Environment: !Ref Environment
         # ===== RDS Section =====
         RDSOptions: !Ref RDSOptions
@@ -290,3 +291,29 @@ Resources:
         # ===== Tags =====
         ISEDProjectId: !Ref ISEDProjectId
         CostCentre: !Ref CostCentre
+  IAMPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    DependsOn: EC2
+    Properties:
+      ManagedPolicyName: !Join [ "-" , [ ised-ec2-client-policy, !Ref ISEDProjectId ] ] 
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:      
+              - ec2:StartInstances
+              - ec2:StopInstances
+            Resource: !Join [ ":" , ["arn:aws:ec2:ca-central-1", !Ref "AWS::AccountId", !Join [ "/", ["instance", !GetAtt EC2.Outputs.InstanceId ] ] ] ]
+          - Effect: Allow
+            Action:      
+              - ec2:DescribeInstances
+            Resource: "*"
+      Users: 
+        - !Ref IAMUser
+  IAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Join [ "-" , [ ised-client-user, !Ref ISEDProjectId ] ]
+      LoginProfile:
+        Password: "CanadaIsed123!"
+        PasswordResetRequired: true
