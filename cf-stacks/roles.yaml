@@ -9,7 +9,6 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: Template to create all required roles. Version 1.5
 Conditions:
   IsNotMaster: !Not [!Equals [ !Ref "AWS::AccountId", !Ref AccountIDMaster ]]
-  IsCotsAccount: !Or [ !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCots ] , !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCotsDev ]]
   IsOpenShiftAccount: !Or [ !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShift ] , !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShiftDev ], !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShiftLab ]]
 Parameters:
   AccountIDMaster:
@@ -81,50 +80,6 @@ Resources:
       InstanceProfileName: ised-managed-instance-profile
       Roles:
         - !Ref ManagedInstanceRole
-  NexusRole:
-    Type: AWS::IAM::Role
-    Condition: IsCotsAccount
-    Properties:
-      RoleName: ised-nexus-role
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            Principal:
-              Service: "ec2.amazonaws.com"
-            Action: "sts:AssumeRole"
-      ManagedPolicyArns:
-        # Role for patching
-        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-        # Role for Cloudwatch
-        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy  
-  NexusVolumeTaggingPolicy:
-    Type: AWS::IAM::Policy
-    Condition: IsCotsAccount
-    Properties:
-      Roles: 
-        - !Ref NexusRole
-      PolicyName: ised-nexus-volume-tagging-policy
-      # Permissions for the EC2 to tag the volumes (ex: root) from User Data
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            "Action":
-              - "ec2:CreateTags"
-            Resource:
-              - "arn:aws:ec2:*:*:instance/*"
-              - "arn:aws:ec2:*:*:volume/*"
-          - Effect: "Allow"
-            Action: "ec2:DescribeInstances"
-            Resource: "*"
-  EC2InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Condition: IsCotsAccount
-    Properties:
-      InstanceProfileName: ised-nexus-ec2-instance-profile
-      Roles: 
-        - !Ref NexusRole
   IsedAdminRole:
     Type: AWS::IAM::Role
     Condition: IsNotMaster
@@ -205,99 +160,6 @@ Resources:
           Value: cops-aws
         - Key: ised-environment
           Value: ops
-  ConfigLambdaRole:
-    Description: This role is used by the lambda function "Ised-CreateJiraIssue"
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: ised-config-lambda-execution-role
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action:
-            - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service:
-              - lambda.amazonaws.com
-        Version: 2012-10-17
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSSMFullAccess
-        - arn:aws:iam::aws:policy/AWSLambdaExecute
-        - arn:aws:iam::aws:policy/ResourceGroupsandTagEditorReadOnlyAccess
-      Path: /
-  ConfigLambdaPolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      Roles:
-        - !Ref ConfigLambdaRole
-      PolicyName: ised-config-lambda-desc-rules-policy
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            Action: "config:DescribeConfigRules"
-            Resource: "*"
-  AutomationRole:
-    Type: AWS::IAM::Role
-    Description: This role is used by the SSM document to invoke the lambda function "Ised-CreateJiraIssue"
-    Properties:
-      RoleName: ised-config-automation-role
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action:
-            - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service:
-              - ssm.amazonaws.com
-        Version: 2012-10-17
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
-      Path: /
-      Policies:
-       - PolicyName: "root"
-         PolicyDocument:
-           Version: "2012-10-17"
-           Statement:
-             - Effect: "Allow"
-               Action: 
-               - "lambda:*"
-               - "iam:PassRole"
-               Resource: "*"
-  BackupRole:
-    Type: AWS::IAM::Role
-    Description: Provides AWS Backup permission to create backups and perform restores on your behalf across AWS services.
-    Properties:
-      RoleName: ised-backup-role
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action:
-            - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service:
-              - backup.amazonaws.com
-        Version: 2012-10-17
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
-        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores
-      Path: /
-  DataLifecycleManagerRole:
-    Type: AWS::IAM::Role
-    Description: Provides AWS Data Lifecycle Manager to manage the lifecycle of your AWS resources. 
-    Properties:
-      RoleName: ised-backup-lifecycle-manager-role
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action:
-            - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service:
-              - dlm.amazonaws.com
-        Version: 2012-10-17
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSDataLifecycleManagerServiceRole
-      Path: /
   OpenShiftEC2Policy:
     Type: 'AWS::IAM::ManagedPolicy'
     Condition: IsOpenShiftAccount
@@ -594,49 +456,6 @@ Outputs:
     Value: !GetAtt IsedAdminRole.Arn
     Export: 
       Name: IsedAdminRole
-  ConfigLambdaRole:
-    Description: ConfigLambdaRole
-    Value: !GetAtt ConfigLambdaRole.Arn
-    Export: 
-      Name: ConfigLambdaRole
-  AutomationRole:
-    Description: AutomationRole
-    Value: !GetAtt AutomationRole.Arn
-    Export: 
-      Name: AutomationRole
-  NexusRole:
-    Condition: IsCotsAccount
-    Description: NexusRole
-    Value: !GetAtt NexusRole.Arn
-    Export: 
-      Name: NexusRole
-  NexusVolumeTaggingPolicy:
-    Condition: IsCotsAccount
-    Description: NexusVolumeTaggingPolicy
-    Value: !Ref NexusVolumeTaggingPolicy
-    Export: 
-      Name: NexusVolumeTaggingPolicy
-  EC2InstanceProfile:
-    Condition: IsCotsAccount
-    Description: EC2InstanceProfile
-    Value: !Ref EC2InstanceProfile
-    Export: 
-      Name: EC2InstanceProfile
-  BackupRole:
-    Description: BackupRole
-    Value: !GetAtt BackupRole.Arn
-    Export: 
-      Name: BackupRole
-  DataLifecycleManagerRole:
-    Description: DataLifecycleManagerRole
-    Value: !GetAtt DataLifecycleManagerRole.Arn
-    Export: 
-      Name: DataLifecycleManagerRole
-  ManagedInstanceRole:
-    Description: ManagedInstanceRole
-    Value: !GetAtt ManagedInstanceRole.Arn
-    Export:
-      Name: ManagedInstanceRole
   ManagedInstanceProfile:
     Description: ManagedInstanceProfile
     Value: !Ref ManagedInstanceProfile

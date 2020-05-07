@@ -52,7 +52,7 @@ Resources:
     Properties:
       BackupSelection:
         SelectionName: "PROD-Backup-Resource"
-        IamRoleArn: !ImportValue BackupRole
+        IamRoleArn: !GetAtt BackupRole.Arn
         ListOfTags:
          - ConditionType: "STRINGEQUALS"
            ConditionKey: "ised-backup"
@@ -64,7 +64,7 @@ Resources:
     Properties:
       Description: "EBS Volumes Snapshot - backup-dev on daily basis"
       State: "ENABLED"
-      ExecutionRoleArn: !ImportValue DataLifecycleManagerRole
+      ExecutionRoleArn: !GetAtt DataLifecycleManagerRole.Arn
       PolicyDetails:
         ResourceTypes:
           - "VOLUME"
@@ -86,7 +86,7 @@ Resources:
     Properties:
       Description: "EBS Volumes Snapshot - backup-dev-30 on daily basis"
       State: "ENABLED"
-      ExecutionRoleArn: !ImportValue DataLifecycleManagerRole
+      ExecutionRoleArn: !GetAtt DataLifecycleManagerRole.Arn
       PolicyDetails:
         ResourceTypes:
           - "VOLUME"
@@ -108,7 +108,7 @@ Resources:
     Properties:
       Description: "EBS Volumes Snapshot - backup-prod on daily basis"
       State: "ENABLED"
-      ExecutionRoleArn: !ImportValue DataLifecycleManagerRole
+      ExecutionRoleArn: !GetAtt DataLifecycleManagerRole.Arn
       PolicyDetails:
         ResourceTypes:
           - "VOLUME"
@@ -125,6 +125,41 @@ Resources:
             RetainRule:
               Count: 30
             CopyTags: true
+  BackupRole:
+    Type: AWS::IAM::Role
+    Description: Provides AWS Backup permission to create backups and perform restores on your behalf across AWS services.
+    Properties:
+      RoleName: ised-backup-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - backup.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores
+      Path: /
+  DataLifecycleManagerRole:
+    Type: AWS::IAM::Role
+    Description: Provides AWS Data Lifecycle Manager to manage the lifecycle of your AWS resources. 
+    Properties:
+      RoleName: ised-backup-lifecycle-manager-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - dlm.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSDataLifecycleManagerServiceRole
+      Path: /
 Outputs:
   BackupVault:
     Description: BackupVault where AWS Backups are stored 
