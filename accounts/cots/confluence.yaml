@@ -10,9 +10,10 @@ Parameters:
   VPCName:
     Type: String
     Default: ised
-  JIRAProjectKey:
-    Type: String
-    Default: confluence
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
   ISEDProjectId:
     Type: String
     Default: ccots-confluence
@@ -25,12 +26,6 @@ Parameters:
     AllowedValues:
       - dev
       - prod
-  Subnet:
-    Type: String
-    Default: subneta
-    AllowedValues:
-      - subneta
-      - subnetb
   EC2Ami:
     Type: String
     Description: Specify if restoring from Ami, otherwise leave blank
@@ -71,11 +66,12 @@ Parameters:
   RDSMasterUserPassword:
     NoEcho: true
     Type: String
+  DBName:
+    Type: String
+    Default: confluence
 
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
-  IsEC2Restore: !Equals [ !Ref EC2Ami, "" ]
-  IsRDSRestore: !Equals [ !Ref RDSSnapshot, "" ]
 
 Resources:
 
@@ -85,71 +81,23 @@ Resources:
       TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
       Parameters:
         # ===== General Section =====
-        JIRAProjectKey: !Ref JIRAProjectKey
         ISEDProjectId: !Ref ISEDProjectId
         CostCentre: !Ref CostCentre
         Environment: !Ref Environment
-        VPCName: !Ref VPCName
-        Subnet: !Ref Subnet
+        VPCId: !Ref VPCId
+        SubnetId: !Ref SubnetId
         Schedule: !If [ IsProd, 24-7, office-hours ]
 
         # ===== EC2 Section =====
-        CreateEC2: Linux
+        EC2OS: Linux
         EC2Size: t3.large
         EC2Ami: !Ref EC2Ami
         EC2RootVolumeSize: !Ref EC2RootVolumeSize
-
-  EBSAppVolume:
-    Type: AWS::EC2::Volume
-    Properties:
-      Size: !Ref EC2AppVolumeSize
-      AvailabilityZone: !GetAtt EC2.Outputs.AvailabilityZone
-      Encrypted: true
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
-      - Key: ised-cost-centre
-        Value: !Ref CostCentre
-      - Key: ised-project-id
-        Value: ccots-confluence
-      - Key: ised-environment
-        Value: !Ref Environment
-      - Key: ised-backup
-        Value: !If [ IsProd, backup-prod, backup-dev ]
-    DeletionPolicy: Snapshot
-
-  EBSAppMountPoint:
-    Type: AWS::EC2::VolumeAttachment
-    Properties:
-      InstanceId: !GetAtt EC2.Outputs.InstanceId
-      VolumeId: !Ref EBSAppVolume
-      Device: !Ref EC2AppVolumeMount
-
-  EBSDataVolume:
-    Type: AWS::EC2::Volume
-    Properties:
-      Size: !Ref EC2DataVolumeSize
-      AvailabilityZone: !GetAtt EC2.Outputs.AvailabilityZone
-      Encrypted: true
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
-      - Key: ised-cost-centre
-        Value: !Ref CostCentre
-      - Key: ised-project-id
-        Value: ccots-confluence
-      - Key: ised-environment
-        Value: !Ref Environment
-      - Key: ised-backup
-        Value: !If [ IsProd, backup-prod, backup-dev ]
-    DeletionPolicy: Snapshot
-
-  EBSDataMountPoint:
-    Type: AWS::EC2::VolumeAttachment
-    Properties:
-      InstanceId: !GetAtt EC2.Outputs.InstanceId
-      VolumeId: !Ref EBSDataVolume
-      Device: !Ref EC2DataVolumeMount
+        UserData: ""
+        EBSVolume1Size: !Ref EC2AppVolumeSize
+        EBSVolume1Mount: !Ref EC2AppVolumeMount
+        EBSVolume2Size: !Ref EC2DataVolumeSize
+        EBSVolume2Mount: !Ref EC2DataVolumeMount
 
   # Allow incoming connection on Confluence's listening port from ALB VPC
   IngressConfluence:
@@ -179,21 +127,23 @@ Resources:
       TemplateURL: !Join [ '', [!Ref S3Templates, "rds.yaml" ]]
       Parameters:
         # ===== General Section =====
-        JIRAProjectKey: !Ref JIRAProjectKey
         ISEDProjectId: !Ref ISEDProjectId
         CostCentre: !Ref CostCentre
         Environment: !Ref Environment
-        VPCName: !Ref VPCName
+        VPCId: !Ref VPCId
         Schedule: !If [ IsProd, 24-7, office-hours ]
+        VPCName: !Ref VPCName
         # ===== RDS Section =====
+        DBName: !Ref DBName
         RDSEngine: !Ref RDSEngine
         RDSEngineVersion: !Ref RDSEngineVersion
         RDSStorage: !Ref RDSStorage
         RDSSize: !Ref RDSSize
+        RDSMaxStorage: ""
         RDSSnapshot: !Ref RDSSnapshot
         RDSBackupRetentionPeriod: !If [ IsProd, 30, 7 ]
         RDSMasterUserPassword: !Ref RDSMasterUserPassword
-        DBParameterGroupName: db-parameter-group-postgres96
+        Ec2IpAddress: !GetAtt EC2.Outputs.EC2PrivateIp
 
   IngressPostgres:
     Type: AWS::EC2::SecurityGroupIngress
