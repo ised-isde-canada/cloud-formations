@@ -72,6 +72,8 @@ Parameters:
 
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
+  IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ] ]
+  IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ] ]
 
 Resources:
 
@@ -94,10 +96,11 @@ Resources:
         EC2Ami: !Ref EC2Ami
         EC2RootVolumeSize: !Ref EC2RootVolumeSize
         UserData: ""
-        EBSVolume1Size: !Ref EC2AppVolumeSize
-        EBSVolume1Mount: !Ref EC2AppVolumeMount
-        EBSVolume2Size: !Ref EC2DataVolumeSize
-        EBSVolume2Mount: !Ref EC2DataVolumeMount
+        EBSVolume1Size: !If [ IsEC2Restore, "", !Ref EC2AppVolumeSize ]
+        EBSVolume1Mount: !If [ IsEC2Restore, "",!Ref EC2AppVolumeMount ]
+        EBSVolume2Size: !If [ IsEC2Restore, "", !Ref EC2DataVolumeSize ]
+        EBSVolume2Mount: !If [ IsEC2Restore, "", !Ref EC2DataVolumeMount ]
+        EC2Options: !If [ IsEC2Restore, "Restore", "Create" ]
 
   # Allow incoming connection on JIRA's listening port from ALB VPC
   IngressJIRA:
@@ -144,6 +147,7 @@ Resources:
         RDSBackupRetentionPeriod: !If [ IsProd, 30, 7 ]
         RDSMasterUserPassword: !Ref RDSMasterUserPassword
         Ec2IpAddress: !GetAtt EC2.Outputs.EC2PrivateIp
+        RDSOptions: !If [ IsRDSRestore, "Restore", "Create" ]
 
   IngressPostgres:
     Type: AWS::EC2::SecurityGroupIngress
