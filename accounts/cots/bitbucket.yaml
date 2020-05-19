@@ -94,7 +94,7 @@ Resources:
         EC2OS: Linux
         EC2Size: t3.large
         EC2Ami: !Ref EC2Ami
-        EC2RootVolumeSize: !Ref EC2RootVolumeSize
+        EC2RootVolumeSize: !If [ IsEC2Restore, "", !Ref EC2RootVolumeSize ]
         UserData: ""
         EBSVolume1Size: !If [ IsEC2Restore, "", !Ref EC2AppVolumeSize ]
         EBSVolume1Mount: !If [ IsEC2Restore, "",!Ref EC2AppVolumeMount ]
