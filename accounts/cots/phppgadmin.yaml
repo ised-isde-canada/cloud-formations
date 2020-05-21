@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: phppgadmin
+
+Parameters:
+  # ===== General Section =====
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  ISEDProjectId:
+    Type: String
+    Default: cops-aws
+  CostCentre:
+    Type: String
+    Default: cio-rdad
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+  EC2Ami:
+    Type: String
+    Description: Specify if restoring from Ami, otherwise leave blank
+
+  # ===== EBS Volumes =====
+  EC2RootVolumeSize:
+    Type: String
+    Default: 8
+
+Conditions:
+  IsEC2Restore: !Equals [ !Ref EC2Ami, "" ]
+
+Resources:
+
+  EC2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre
+        Environment: !Ref Environment
+        VPCId: !Ref VPCId
+        SubnetId: !Ref SubnetId
+        # This COTS is used by clients who may need it off-hours on both Dev
+        # and Prod
+        Schedule: "24-7"
+
+        # ===== EC2 Section =====
+        EC2OS: Ubuntu-Server-18.04-LTS
+        EC2Size: t3.small
+        EC2Ami: !Ref EC2Ami
+        EC2RootVolumeSize: !If [ IsEC2Restore, "", !Ref EC2RootVolumeSize ]
+        EBSVolume2Size: ""
+        EBSVolume2Mount: ""
+        EBSVolume1Mount: ""
+        EBSVolume1Size: ""
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+
+            # Install tools
+            apt update
+            apt install -y phppgadmin postgresql-client-10 postgresql-client-common
+
+            # Accept connections to phppgadmin from everywhere
+            sed -i 's/^Require local/# Require local/' /etc/apache2/conf-enabled/phppgadmin.conf
+
+  # Allow incoming connection on Apache's listening port from ALB VPC
+  IngressApache:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt EC2.Outputs.EC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 100.96.193.64/26
