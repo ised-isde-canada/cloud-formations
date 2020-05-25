@@ -59,7 +59,7 @@ Parameters:
     Default: postgres
   RDSEngineVersion:
     Type: String
-    Default: 9.6.15
+    Default: 9.6.16
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
