@@ -10,8 +10,6 @@ until aws cloudformation describe-stack-instance --stack-set-name ised-roles --s
 
 echo Adding ised-cloud-watch
 aws cloudformation create-stack-instances --stack-set-name ised-cloud-watch --accounts $1 --regions ca-central-1
-echo Adding ised-guard-duty
-aws cloudformation create-stack-instances --stack-set-name ised-guard-duty --accounts $1 --regions ca-central-1
 echo Adding ised-s3-log
 aws cloudformation create-stack-instances --stack-set-name ised-s3-log --accounts $1 --regions ca-central-1
 echo Adding ised-backup
