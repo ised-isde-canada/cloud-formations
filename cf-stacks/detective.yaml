@@ -33,6 +33,9 @@ Parameters:
   AccountIDOpenShiftLab:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDOpenShiftLab
+  AccountIDOpenShiftDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShiftDev
   AccountIDProjects01:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDProjects01
@@ -81,6 +84,9 @@ Parameters:
   AccountEmailOpenShiftLab:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountEmailOpenShiftLab
+  AccountEmailOpenShiftDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailOpenShiftDev
   AccountEmailProjects01:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountEmailProjects01
@@ -239,3 +245,11 @@ Resources:
       GraphArn: !Ref DetectiveGraph
       MemberId: !Ref AccountIDTbsCpiaDev
       MemberEmailAddress: !Ref AccountEmailTbsCpiaDev
+
+  MemberInvite17:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDOpenShiftDev
+      MemberEmailAddress: !Ref AccountEmailOpenShiftDev

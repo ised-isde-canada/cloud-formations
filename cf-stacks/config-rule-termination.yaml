@@ -16,12 +16,18 @@ Parameters:
   OpenShiftLabAccountID:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDOpenShiftLab
+  OpenShiftDevAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShiftDev
 
 Conditions:
   # OpenShift 4 "Termination protection might be an issue for worker
   #             (formerly known as compute) nodes. Masters could have
   #             termination protection enabled though"
-  IsRuleOn: !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ]]
+  IsRuleOn: !Not [
+    !Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ],
+    !Equals [ !Ref "AWS::AccountId", !Ref OpenShiftDevAccountID ]
+  ]
 
 Resources:
   # Config rule that checks whether your resources have Termination Protection enabled

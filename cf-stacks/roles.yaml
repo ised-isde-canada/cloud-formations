@@ -9,7 +9,11 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: Template to create all required roles. Version 1.5
 Conditions:
   IsNotMaster: !Not [!Equals [ !Ref "AWS::AccountId", !Ref AccountIDMaster ]]
-  IsOpenShiftAccount: !Or [ !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShift ] , !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShiftDev ], !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShiftLab ]]
+  IsOpenShiftAccount: !Or [
+    !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShift ],
+    !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShiftDev ],
+    !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShiftLab ]
+  ]
 Parameters:
   AccountIDMaster:
     Type: AWS::SSM::Parameter::Value<String>
