@@ -56,17 +56,25 @@ Metadata:
           - StudentsAccountID
           - OpenShiftAccountID
           - OpenShiftLabAccountID
+          - OpenShiftDevAccountID
 
 Conditions:
-  IsRemediationOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxAccountID ]], !Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxDBAccountID ]]]
+  IsRemediationOn: !And [
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxAccountID ]],
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxDBAccountID ]]
+  ]
   IsCostRuleOn: !And [
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref APIStoreAccountID ]],
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftAccountID ]],
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ]],
-    !Not [!Equals [ !Ref "AWS::AccountId", !Ref StudentsAccountID ]]]
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftDevAccountID ]],
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref StudentsAccountID ]]
+  ]
   IsPatchingRuleOn: !And [
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftAccountID ]],
-    !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ]]]
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ]],
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftDevAccountID ]]
+  ]
 Parameters:
   IsedCostCentre:
     Type: String
@@ -120,6 +128,9 @@ Parameters:
   OpenShiftLabAccountID:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDOpenShiftLab
+  OpenShiftDevAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShiftDev
   S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates
