@@ -173,7 +173,6 @@ Resources:
         - AWS::ElasticLoadBalancing::LoadBalancer
         - AWS::ElasticLoadBalancingV2::LoadBalancer
         - AWS::RDS::DBInstance
-        - AWS::RDS::DBSecurityGroup
         - AWS::RDS::DBSnapshot
         - AWS::RDS::DBSubnetGroup
         - AWS::RDS::EventSubscription
