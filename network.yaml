@@ -61,6 +61,7 @@ Resources:
         VpnEcmpSupport: "enable"
   TransitGatewayManagementAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
+    DependsOn: TransitGateway
     Properties:
       TransitGatewayId:
         Fn::ImportValue: !Join ['-', ["tgw", "network", !Ref "Environment" ] ]
@@ -80,6 +81,7 @@ Resources:
           Value: !Ref Environment
   TGWRouteTableAssociation:
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
+    DependsOn: TransitGatewayManagementAttachment
     Properties:
       TransitGatewayAttachmentId: !Ref TransitGatewayManagementAttachment
       TransitGatewayRouteTableId:
@@ -87,6 +89,7 @@ Resources:
           Fn::Sub: "tgw-rt-network-${Environment}"
   TGWRouteTablePropagation:
     Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    DependsOn: TransitGatewayManagementAttachment
     Properties:
       TransitGatewayAttachmentId: !Ref TransitGatewayManagementAttachment
       TransitGatewayRouteTableId:
