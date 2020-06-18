@@ -261,7 +261,17 @@ Resources:
       - Key: ised-backup
         Value: !If [ IsProd, backup-prod, backup-dev ]
       - Key: Patch Group
-        Value: !If [ IsProd, prod-linux2, dev-linux2 ]
+        Value:
+          !If
+            - IsProd
+            - !If
+              - IsWindows
+              - prod-windows
+              - prod-linux2
+            - !If
+              - IsWindows
+              - dev-windows
+              - dev-linux2
       - !If
         - IsSchedule
         - Key: ised-schedule
