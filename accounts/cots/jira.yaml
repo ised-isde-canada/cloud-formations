@@ -70,8 +70,18 @@ Parameters:
     Type: String
     Default: jira
 
+  # ===== JIRA =====
+  CreateRDS:
+    Description: Whether to create an RDS db or not
+    Type: String
+    Default: Yes
+    AllowedValues:
+      - Yes
+      - No
+
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
+  ShouldCreateRDS: !Equals [ !Ref CreateRDS, Yes ]
   IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ] ]
   IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ] ]
 
@@ -126,6 +136,7 @@ Resources:
 
   RDS:
     Type: AWS::CloudFormation::Stack
+    Condition: ShouldCreateRDS
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "rds.yaml" ]]
       Parameters:
@@ -151,6 +162,7 @@ Resources:
 
   IngressPostgres:
     Type: AWS::EC2::SecurityGroupIngress
+    Condition: ShouldCreateRDS
     Properties:
       Description: Allow incoming connections from EC2s from VPC to RDS on port 5432 (Postgresql)
       GroupId: !GetAtt RDS.Outputs.RDSSecurityGroup
