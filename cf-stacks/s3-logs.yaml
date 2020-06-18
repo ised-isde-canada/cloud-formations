@@ -1,110 +1,24 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-# Version 1.1 - Add the policy to allow all organization accounts to write; Remove hardcoded tags
-# Version 1.2 - Add the policy to allow all logs from VPC and load balancer
-# Version 1.3 - Move sensitive inbfo to system manager
-# Version 1.4 - Add Project Id to the bucket name
-Description: Template to create the S3 Bucket. Version 1.4
-Metadata: 
-  AWS::CloudFormation::Interface: 
-    ParameterGroups: 
-      - Label: 
-          default: "S3 Bucket Configuration"
-        Parameters: 
-          - Name
-          - S3BucketAccess
-          - S3BucketPolicy
-          - KmsArn
-      - Label: 
-          default: "Tags"
-        Parameters: 
-          - ProjectId
-          - CostCentre
-          - Environment
-    ParameterLabels: 
-      Name: 
-        default: "S3 Bucket Name"
-      S3BucketAccess:
-        default: "S3 Bucket Access"
-      S3BucketPolicy:
-        default: "S3 Bucket Policy"
-      ProjectId: 
-        default: "Project Id"
-      CostCentre: 
-        default: "Cost Centre"
-      Environment: 
-        default: "Environment"
-Conditions:
-  OrgRead: !Equals [ !Ref S3BucketPolicy, OrganizationRead ]
-  OrgWrite: !Equals [ !Ref S3BucketPolicy, OrganizationWrite ]
-  GuardDuty: !Equals [ !Ref S3BucketPolicy, GuardDuty ]
-  LogDelivery: !Equals [ !Ref S3BucketPolicy, LogDelivery ]
-  LogLoadBalancer: !Equals [ !Ref S3BucketPolicy, LogLoadBalancer ]
+# Version 1.1 - Link to s3 template, use System Manager
+Description: Template to create the log S3 Bucket. Version 1.1
 Parameters:
-  Name:
+  OrganizationId:
     Type: String
-  KmsArn:
-    Type: String
-  S3BucketAccess:
-    Type: String
-    Default: Private
-    AllowedValues:
-      - Private
-      - PublicRead
-      - PublicReadWrite
-      - AuthenticatedRead
-      - LogDeliveryWrite
-      - BucketOwnerRead
-      - BucketOwnerFullControl
-      - AwsExecRead
-  S3BucketPolicy:
-    Type: String
-    Default: Local
-    AllowedValues:
-      - Local
-      - OrganizationRead
-      - OrganizationWrite
-      - LogDelivery
-      - LogLoadBalancer
-      - GuardDuty
-  ProjectId:
-    Type: String
-    Default: cops-aws
-  CostCentre:
-    Type: String
-    Default: cio-rdad
-  Environment:
-    Type: String
-    Default: ops
-  S3BucketNamePrefix:
+  S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
-    Default: S3BucketNamePrefix 
+    Default: S3Templates 
 Resources:
-  S3Bucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Delete
+  S3-Bucket-Logs:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      BucketName: !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref Name ]]
-      AccessControl: !Ref S3BucketAccess
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      VersioningConfiguration:
-        Status: Enabled
-      LoggingConfiguration:
-        DestinationBucketName: !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", logs ]]
-        LogFilePrefix: !Join ['-', [!Ref "AWS::AccountId",  !Ref ProjectId, !Ref Name, "" ]]
-      Tags:
-      - Key: Name
-        Value: !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", Name] ]
-      - Key: ised-cost-centre
-        Value: !Ref "CostCentre"
-      - Key: ised-project-id
-        Value: !Ref "ProjectId"
-      - Key: ised-environment
-        Value: !Ref "Environment"
-  S3OrgReadBucketPolicy: 
+      TemplateURL: !Join [ '', [!Ref S3Templates, "s3.yaml" ]]
+      Parameters:
+        Name: log
+        S3BucketPolicy: Local
+        S3BucketAccess: LogDeliveryWrite
+        KmsArn: NA
+  S3-BucketPolicy-OrgRead: 
     Type: AWS::S3::BucketPolicy
     Condition: OrgRead
     Properties: 
@@ -123,8 +37,8 @@ Resources:
             Condition: 
               StringEquals: 
                 aws:PrincipalOrgID: 
-                  - "o-2vzy0xgibx"
-  S3OrgWriteBucketPolicy: 
+                  - !Ref OrganizationId
+  S3-BucketPolicy-OrgWrite: 
     Type: AWS::S3::BucketPolicy
     Condition: OrgWrite
     Properties: 
@@ -144,8 +58,8 @@ Resources:
             Condition: 
               StringEquals: 
                 aws:PrincipalOrgID: 
-                  - "o-2vzy0xgibx"
-  S3LogDeliveryBucketPolicy: 
+                  - !Ref OrganizationId
+  S3-BucketPolicy-LogDelivery: 
     Type: AWS::S3::BucketPolicy
     Condition: LogDelivery
     Properties: 
@@ -171,7 +85,7 @@ Resources:
               - !Join ['', ["arn:aws:s3:::", !Ref S3Bucket ]]
             Principal: 
               Service: delivery.logs.amazonaws.com
-  S3LogLoadBalancerBucketPolicy: 
+  S3-BucketPolicy-LogLoadBalancer: 
     Type: AWS::S3::BucketPolicy
     Condition: LogLoadBalancer
     Properties: 
@@ -187,7 +101,7 @@ Resources:
             Principal: 
               AWS: arn:aws:iam::985666609251:root
   # See: https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_exportfindings.html#guardduty_exportfindings-s3-policies
-  GuardDutyS3Policy:
+  S3-BucketPolicy-LogGuardDuty:
     Type: AWS::S3::BucketPolicy
     Condition: GuardDuty
     Properties:
