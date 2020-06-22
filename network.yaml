@@ -4,20 +4,39 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.2 - Add NAT VPC
 # Version 1.3 - Add Transit gateway Route Table
 # Version 1.4 - Add Application Load Balancers
-Description: Creates ingress and egress VPCs. Version 1.4
+# Version 1.5 - Cidr Block as parameters
+Description: Creates ingress and egress Network. Version 1.5
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-     - Label:
-         default: "Network Configuration"
-       Parameters:
-         - Environment
-         - AmazonAsn
+    - Label:
+        default: "Network Configuration"
+      Parameters:
+        - Environment
+        - AmazonAsn
+    - Label:
+        default: "Ingress VPC (with Load Balancers)"
+      Parameters:
+        - IngressVPCCidrBlockAddress
+        - IngressVPCCidrBlockSize
+    - Label:
+        default: "Egress VPC (with NAT Gateways)"
+      Parameters:
+        - EgressVPCCidrBlockAddress
+        - EgressVPCCidrBlockSize
     ParameterLabels:
       Environment:
-        default: "Environment"
+        default: Environment
       AmazonAsn:
         default: Amazon Side ASN
+      IngressVPCCidrBlockAddress:
+        default: Cidr Block for the Ingress VPC
+      IngressVPCCidrBlockSize:
+        default: Cidr Block Size for the Ingress VPC
+      EgressVPCCidrBlockAddress:
+        default: Cidr Block for the Egress VPC
+      EgressVPCCidrBlockSize:
+        default: Cidr Block Size for the Egress VPC
 Parameters:
   Environment:
     Type: String
@@ -27,6 +46,28 @@ Parameters:
       - uat
       - qa
       - prod
+  IngressVPCCidrBlockAddress:
+    Type: String
+  IngressVPCCidrBlockSize:
+    Type: String
+    AllowedValues:
+    - 24
+    - 25
+    - 26
+    - 27
+    - 28
+    Default: 26
+  EgressVPCCidrBlockAddress:
+    Type: String
+  EgressVPCCidrBlockSize:
+    Type: String
+    AllowedValues:
+    - 24
+    - 25
+    - 26
+    - 27
+    - 28
+    Default: 26
   AmazonAsn: # Amazon side BGP ASN
     Type: String
     Description: A private Autonomous System Number (ASN) for the Amazon side of a BGP session.
@@ -63,8 +104,9 @@ Resources:
     Type: AWS::EC2::TransitGatewayAttachment
     DependsOn: TransitGateway
     Properties:
-      TransitGatewayId:
-        Fn::ImportValue: !Join ['-', ["tgw", "network", !Ref "Environment" ] ]
+      TransitGatewayId: !GetAtt 
+          - TransitGateway
+          - Outputs.TransitGatewayId
       VpcId:
         Fn::ImportValue: DefaultVPCId
       SubnetIds:
@@ -84,17 +126,17 @@ Resources:
     DependsOn: TransitGatewayManagementAttachment
     Properties:
       TransitGatewayAttachmentId: !Ref TransitGatewayManagementAttachment
-      TransitGatewayRouteTableId:
-        Fn::ImportValue:
-          Fn::Sub: "tgw-rt-network-${Environment}"
+      TransitGatewayRouteTableId: !GetAtt 
+        - TransitGateway
+        - Outputs.TransitGatewayRouteTable
   TGWRouteTablePropagation:
     Type: AWS::EC2::TransitGatewayRouteTablePropagation
     DependsOn: TransitGatewayManagementAttachment
     Properties:
       TransitGatewayAttachmentId: !Ref TransitGatewayManagementAttachment
-      TransitGatewayRouteTableId:
-        Fn::ImportValue:
-          Fn::Sub: "tgw-rt-network-${Environment}"
+      TransitGatewayRouteTableId: !GetAtt 
+        - TransitGateway
+        - Outputs.TransitGatewayRouteTable
   ElbVpc:
     Type: AWS::CloudFormation::Stack
     DependsOn: TransitGateway
@@ -114,8 +156,8 @@ Resources:
         Structure: Public
         NumberAZ: "2"
         Environment: !Ref Environment
-        VPCCidrBlockAddress: 100.96.193.64
-        VPCCidrBlockSize: 26
+        VPCCidrBlockAddress: !Ref IngressVPCCidrBlockAddress
+        VPCCidrBlockSize: !Ref IngressVPCCidrBlockSize
   NatVpc:
     Type: AWS::CloudFormation::Stack
     DependsOn: TransitGateway
@@ -135,8 +177,8 @@ Resources:
         Structure: Public-Private
         NumberAZ: "2"
         Environment: !Ref Environment
-        VPCCidrBlockAddress: 100.96.193.128
-        VPCCidrBlockSize: 26
+        VPCCidrBlockAddress: !Ref EgressVPCCidrBlockAddress
+        VPCCidrBlockSize: !Ref EgressVPCCidrBlockSize
   PublicALB:
     Type: AWS::CloudFormation::Stack
     DependsOn: ElbVpc
@@ -156,15 +198,15 @@ Resources:
         Environment: !Ref Environment
         ISEDProjectId: cops-aws
         CostCentre: cio-rdad
-        VPCName: 
-          Fn::ImportValue: 
-            Fn::Sub: "vpc-network-elb-${Environment}"
-        SubnetAName:
-          Fn::ImportValue: 
-            Fn::Sub: "subneta-pub-network-elb-${Environment}"
-        SubnetBName:
-          Fn::ImportValue: 
-            Fn::Sub: "subnetb-pub-network-elb-${Environment}"
+        VPCName: !GetAtt 
+          - ElbVpc
+          - Outputs.VPC
+        SubnetAName: !GetAtt 
+          - ElbVpc
+          - Outputs.SubnetPubA
+        SubnetBName: !GetAtt 
+          - ElbVpc
+          - Outputs.SubnetPubB
         CertsArnParam: arn:aws:acm:ca-central-1:787897748034:certificate/9ce130e8-db35-4b61-99f2-518fdb5ddca5
         NumberOfAz: "2"
   ISEDALB:
@@ -186,14 +228,14 @@ Resources:
         Environment: !Ref Environment
         ISEDProjectId: cops-aws
         CostCentre: cio-rdad
-        VPCName: 
-          Fn::ImportValue: 
-            Fn::Sub: "vpc-network-elb-${Environment}"
-        SubnetAName:
-          Fn::ImportValue: 
-            Fn::Sub: "subneta-pub-network-elb-${Environment}"
-        SubnetBName:
-          Fn::ImportValue: 
-            Fn::Sub: "subnetb-pub-network-elb-${Environment}"
+        VPCName: !GetAtt 
+          - ElbVpc
+          - Outputs.VPC
+        SubnetAName: !GetAtt 
+          - ElbVpc
+          - Outputs.SubnetPubA
+        SubnetBName: !GetAtt 
+          - ElbVpc
+          - Outputs.SubnetPubB
         CertsArnParam: arn:aws:acm:ca-central-1:787897748034:certificate/9ce130e8-db35-4b61-99f2-518fdb5ddca5
         NumberOfAz: "2"
