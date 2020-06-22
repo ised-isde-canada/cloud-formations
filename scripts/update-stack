@@ -1,7 +1,36 @@
 #!/bin/bash
-# ./update-stack secret
+# ./update-stack secrets
 
-#aws cloudformation update-stack-set --stack-set-name ised-$1 --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/$1.yaml --parameters file://./../cf-parameters/$1.json --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --accounts file://./../scripts/accounts.json --regions ca-central-1
-aws cloudformation update-stack-set --stack-set-name ised-$1 --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/$1.yaml --parameters file://./../cf-parameters/$1.json --accounts file://./../scripts/accounts.json --regions ca-central-1
-#aws cloudformation update-stack-set --stack-set-name ised-$1 --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/$1.yaml --parameters file://./../cf-parameters/$1.json --accounts ou-d4vw-fxuqomrt --regions ca-central-1
+if [[ $# -eq 0 ]] ; then
+    echo "Usage: update-stack <stackname>"
+    echo ""
+    echo "Example: update-stack secrets"
+    exit 1
+fi
 
+# Default variable values
+stack=$1
+extra_params=""
+accounts_param="--accounts file://./../scripts/accounts.json"
+
+stacksets_with_iam_resources=(
+    "backup"
+    "config"
+    "config-rule-termination"
+    "roles"
+    "security-hub-playbook"
+)
+
+for iam_stackset in "${stacksets_with_iam_resources[@]}"; do
+    if [ "${stack}" == "${iam_stackset}" ]; then
+        extra_params="--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+        break
+    fi
+done
+
+aws cloudformation update-stack-set --stack-set-name ised-"${stack}" \
+    --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/"${stack}".yaml \
+    --parameters="file://./../cf-parameters/${stack}.json" \
+    ${accounts_param} \
+    --regions ca-central-1 \
+    ${extra_params}

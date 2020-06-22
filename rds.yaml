@@ -2,7 +2,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Template Updated 
 # Version 1.2 - Add Ingress Security Group
-Description: Template to create the RDS. Version 1.2
+# Version 1.3 - Add postgres 12 parameter group
+Description: Template to create the RDS. Version 1.3
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -64,7 +65,7 @@ Metadata:
       RDSStorage:
         default: "(*) The amount of storage (in gigabytes) to be initially allocated for the database instance."
       RDSMaxStorage:
-        default: "(*) The upper limit to which Amazon RDS can automatically scale the storage of the DB instance. The value must be greater than default storage or left blanc"
+        default: "(*) The upper limit to which Amazon RDS can automatically scale the storage of the DB instance. The value must be greater than default storage or left blank"
       RDSSnapshot:
         default: "Specify if restoring from Snapshot, otherwise leave blank"
       ISEDProjectId:
@@ -192,6 +193,7 @@ Conditions:
   IsPostgres9: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "9" ]
   IsPostgres10: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "10" ]
   IsPostgres11: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "11" ]
+  IsPostgres12: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "12" ]
   IsEc2IpAddress: !Not [ !Equals [ !Ref Ec2IpAddress, "" ]]
   IsMaxStorage: !Not [ !Equals [ !Ref RDSMaxStorage, "" ]]
 Resources:
@@ -265,7 +267,12 @@ Resources:
               - IsPostgres11
               - Fn::ImportValue:
                   db-parameter-group-postgres11
-              - !Ref AWS::NoValue
+              - !If
+                - IsPostgres12
+                - Fn::ImportValue:
+                    db-parameter-group-postgres12
+                - !Ref AWS::NoValue
+
       DBSubnetGroupName:
         Fn::ImportValue: 
           Fn::Sub: "dbsubnet-${VPCName}-${Environment}"
