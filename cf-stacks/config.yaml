@@ -380,7 +380,7 @@ Resources:
         Version: "2012-10-17"
         Statement:
           - Effect: "Allow"
-            Action: "config:DescribeConfigRules"
+            Action: "config:DescribeComplianceByResource"
             Resource: "*"
   AutomationRole:
     Type: AWS::IAM::Role

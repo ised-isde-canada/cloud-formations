@@ -70,6 +70,14 @@ Parameters:
     Type: String
     Default: crowd
 
+  # ===== Crowd =====
+  CrowdArchiveUrl:
+    Description: The Url to the archive (.tar.gz)
+    Type: String
+  CrowdInstanceDomain:
+    Description: Domain name to reach this new Bitbucket install
+    Type: String
+
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
   IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ] ]
@@ -95,12 +103,20 @@ Resources:
         EC2Size: t3.large
         EC2Ami: !Ref EC2Ami
         EC2RootVolumeSize: !If [ IsEC2Restore, "", !Ref EC2RootVolumeSize ]
-        UserData: ""
         EBSVolume1Size: !If [ IsEC2Restore, "", !Ref EC2AppVolumeSize ]
         EBSVolume1Mount: !If [ IsEC2Restore, "",!Ref EC2AppVolumeMount ]
         EBSVolume2Size: !If [ IsEC2Restore, "", !Ref EC2DataVolumeSize ]
         EBSVolume2Mount: !If [ IsEC2Restore, "", !Ref EC2DataVolumeMount ]
         EC2Options: !If [ IsEC2Restore, "Restore", "Create" ]
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+
+            wget "https://github.com/stephane-berube/cots-mods/archive/crowd.zip" -O /tmp/pkg.zip
+            unzip /tmp/pkg.zip -d /tmp
+
+            chmod 700 /tmp/cots-mods-crowd/install.sh
+            /tmp/cots-mods-crowd/install.sh "${CrowdArchiveUrl}" "${EC2DataVolumeMount}" "${EC2AppVolumeMount}" "${Environment}" "${CrowdInstanceDomain}"
 
   # Allow incoming connection on Crowd's listening port from ALB VPC
   IngressCrowd:
