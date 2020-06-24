@@ -16,6 +16,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.5.1 - Moved all roles within this CF to the Roles CF script. Added a list of tags that was already applied to the jira ticket. 
 # Version 1.6 - Switch the parameter that contain sensitive info to use value from SSM Parameter store and enable Auto remediation for patching. 
 # Version 1.6.1 - Add "Lambda Layer" to pin the AWS SDK to a version that includes the "requests" library, for now.
+# Version 1.7 - Remove Cost Rule from SandboxDPAD account
 Description: Template to create all required config rules. Version 1.6.1
 Metadata:
  AWS::CloudFormation::Interface:
@@ -57,6 +58,7 @@ Metadata:
           - OpenShiftAccountID
           - OpenShiftLabAccountID
           - OpenShiftDevAccountID
+          - SandboxDPADAccountID
 
 Conditions:
   IsRemediationOn: !And [
@@ -68,7 +70,8 @@ Conditions:
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftAccountID ]],
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ]],
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftDevAccountID ]],
-    !Not [!Equals [ !Ref "AWS::AccountId", !Ref StudentsAccountID ]]
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref StudentsAccountID ]],
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxDPADAccountID ]]
   ]
   IsPatchingRuleOn: !And [
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftAccountID ]],
@@ -131,6 +134,9 @@ Parameters:
   OpenShiftDevAccountID:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDOpenShiftDev
+  SandboxDPADAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSandboxDPAD
   S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates
