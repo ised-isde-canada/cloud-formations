@@ -45,6 +45,9 @@ Parameters:
   AccountIDSandboxDB:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDSandboxDB
+  AccountIDSandboxDPAD:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSandboxDPAD
   AccountIDSecurityDev:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDSecurityDev
@@ -96,6 +99,9 @@ Parameters:
   AccountEmailSandboxDB:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountEmailSandboxDB
+  AccountEmailSandboxDPAD:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailSandboxDPAD
   AccountEmailSecurityDev:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountEmailSecurityDev
@@ -253,3 +259,11 @@ Resources:
       GraphArn: !Ref DetectiveGraph
       MemberId: !Ref AccountIDOpenShiftDev
       MemberEmailAddress: !Ref AccountEmailOpenShiftDev
+
+  MemberInvite18:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDSandboxDPAD
+      MemberEmailAddress: !Ref AccountEmailSandboxDPAD
