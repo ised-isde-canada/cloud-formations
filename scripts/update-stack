@@ -16,7 +16,7 @@ accounts_param="--accounts file://./../scripts/accounts.json"
 stacksets_with_iam_resources=(
     "backup"
     "config"
-    "config-rule-termination"
+    "config-termination"
     "roles"
     "security-hub-playbook"
 )
