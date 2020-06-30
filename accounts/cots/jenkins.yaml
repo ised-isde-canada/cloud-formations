@@ -25,7 +25,7 @@ Parameters:
     Type: AWS::EC2::Subnet::Id
   ISEDProjectId:
     Type: String
-    Default: ccots
+    Default: ccots-jenkins
   CostCentre:
     Type: String
     Default: cio-rdad
@@ -51,6 +51,7 @@ Parameters:
     Default: /dev/sdb
 
 Conditions:
+  IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ] ]
   IsProd: !Equals [ !Ref Environment, prod ]
 
 Resources:
@@ -73,8 +74,11 @@ Resources:
         EC2Size: t3.large
         EC2Ami: !Ref EC2Ami
         EC2RootVolumeSize: !Ref EC2RootVolumeSize
-        EBSVolume1Size: !Ref EC2DataVolumeSize
-        EBSVolume1Mount: !Ref EC2DataVolumeMount
+        EBSVolume1Size: !If [ IsEC2Restore, "", !Ref EC2DataVolumeSize ]
+        EBSVolume1Mount: !If [ IsEC2Restore, "", !Ref EC2DataVolumeMount ]
+        EBSVolume2Size: ""
+        EBSVolume2Mount: ""
+        EC2Options: !If [ IsEC2Restore, "Restore", "Create" ]
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash -xe
@@ -115,7 +119,7 @@ Resources:
       IpProtocol: tcp
       FromPort: 8080
       ToPort: 8080
-      CidrIp: 100.96.194.128/27
+      CidrIp: !If [ IsProd, 100.96.199.0/26, 100.96.193.64/26 ]
 
   # Jenkins Web Console
   IngressWebConsole:

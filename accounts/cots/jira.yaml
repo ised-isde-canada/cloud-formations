@@ -53,7 +53,7 @@ Parameters:
     Default: 20
   RDSSize:
     Type: String
-    Default: db.t3.large
+    Default: db.t3.medium
   RDSEngine:
     Type: String
     Default: postgres
@@ -134,7 +134,7 @@ Resources:
       IpProtocol: tcp
       FromPort: 8080
       ToPort: 8080
-      CidrIp: 100.96.192.0/24
+      CidrIp: !If [ IsProd, 100.96.199.0/26, 100.96.193.64/26 ]
 
   # Allow incoming connection on Crowd's listening port from JIRA's sg
   IngressCrowd:
