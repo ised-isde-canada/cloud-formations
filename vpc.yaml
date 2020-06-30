@@ -29,7 +29,7 @@ Mappings:
     dev:
       TransitGatewayId: "tgw-0ce6830db4d15fcbc"
     prod:
-      TransitGatewayId: "tgw-"
+      TransitGatewayId: "tgw-0b3893dafc111932e"
 Parameters:
   Name:
     Type: String
