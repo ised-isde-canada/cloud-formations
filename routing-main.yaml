@@ -160,3 +160,16 @@ Resources:
         TargetIpOrInstanceDev: 100.96.200.132
         TargetPortNumber: 80
 
+  # password
+  passwordRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: password
+        Production: public
+        ApplicationPort: 8686
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceProd: 100.96.192.13
+        TargetPortNumber: 8686
