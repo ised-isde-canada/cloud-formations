@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: "Main Template to setup routes to/from shared-services account to other accounts - Version 1.0"
+
+Parameters:
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+
+Resources:
+  # cots
+  cots:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "shared-service-vpc.yaml" ]]
+      Parameters:
+        Environment: prod
+        CIDRBlock: 100.96.201.0/25
+        TransitGatewayAttachmentId: tgw-attach-00dac1a0665606e7e
+
+  # cots-dev
+  cotsDev:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "shared-service-vpc.yaml" ]]
+      Parameters:
+        Environment: dev
+        CIDRBlock: 100.96.198.0/26
+        TransitGatewayAttachmentId: tgw-attach-0c98dcea13d4d6198
+
+  # db-dev
+  dbDev:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "shared-service-vpc.yaml" ]]
+      Parameters:
+        Environment: dev
+        CIDRBlock: 100.96.198.192/26
+        TransitGatewayAttachmentId: tgw-attach-010a5c5f8ad7177d8
+
+  # ocp-dev
+  ocpDev:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "shared-service-vpc.yaml" ]]
+      Parameters:
+        Environment: dev
+        CIDRBlock: 100.96.200.192/26
+        TransitGatewayAttachmentId: tgw-attach-0cdd92b6c378a740e
+
+  # ocp-lab
+  ocpLab:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "shared-service-vpc.yaml" ]]
+      Parameters:
+        Environment: dev
+        CIDRBlock: 100.96.198.64/26
+        TransitGatewayAttachmentId: tgw-attach-0e38d04d065978d66
+
+  # projects01
+  projects01:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "shared-service-vpc.yaml" ]]
+      Parameters:
+        Environment: dev
+        CIDRBlock: 100.96.200.128/26
+        TransitGatewayAttachmentId: tgw-attach-0f68daf5a4d7eec59
+
+  # sandbox02
+  sandbox02:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "shared-service-vpc.yaml" ]]
+      Parameters:
+        Environment: dev
+        CIDRBlock: 100.96.193.0/26
+        TransitGatewayAttachmentId: tgw-attach-0b7d61da8b7f2b4da
+
+  # students
+  students:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "shared-service-vpc.yaml" ]]
+      Parameters:
+        Environment: dev
+        CIDRBlock: 100.96.198.160/27
+        TransitGatewayAttachmentId: tgw-attach-0e0bd15a854ad41e8
+
+  # tbs-cpia
+  tbsCpia:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "shared-service-vpc.yaml" ]]
+      Parameters:
+        Environment: dev
+        CIDRBlock: 100.96.198.128/27
+        TransitGatewayAttachmentId: tgw-attach-0884d4590bf97c630
