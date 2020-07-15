@@ -1,0 +1,3 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Config Aggregator, Version 1.0
