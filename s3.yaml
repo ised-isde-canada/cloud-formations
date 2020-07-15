@@ -280,6 +280,6 @@ Resources:
 Outputs:
   BucketArn:
     Value: !GetAtt S3Bucket.Arn
-  BucketNamr:
+  BucketName:
     Value: !Ref S3Bucket
 
