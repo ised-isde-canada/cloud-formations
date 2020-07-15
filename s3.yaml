@@ -4,7 +4,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.2 - Add the policy to allow all logs from VPC and load balancer
 # Version 1.3 - Move sensitive inbfo to system manager
 # Version 1.4 - Add Project Id to the bucket name
-Description: Template to create the S3 Bucket. Version 1.4
+# Version 1.5 - Add ARN and Name Outputs
+Description: Template to create the S3 Bucket. Version 1.5
 Metadata: 
   AWS::CloudFormation::Interface: 
     ParameterGroups: 
