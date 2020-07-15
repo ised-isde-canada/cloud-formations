@@ -5,7 +5,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.3 - Add Transit gateway Route Table
 # Version 1.4 - Add Application Load Balancers
 # Version 1.5 - Cidr Block as parameters
-Description: Creates ingress and egress Network. Version 1.5
+# Version 1.6 - Fix TransitGateway parameter
+Description: Creates ingress and egress Network. Version 1.6
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -158,6 +159,9 @@ Resources:
         Environment: !Ref Environment
         VPCCidrBlockAddress: !Ref IngressVPCCidrBlockAddress
         VPCCidrBlockSize: !Ref IngressVPCCidrBlockSize
+        TransitGatewayId: !GetAtt 
+          - TransitGateway
+          - Outputs.TransitGatewayId
   NatVpc:
     Type: AWS::CloudFormation::Stack
     DependsOn: TransitGateway
@@ -179,6 +183,9 @@ Resources:
         Environment: !Ref Environment
         VPCCidrBlockAddress: !Ref EgressVPCCidrBlockAddress
         VPCCidrBlockSize: !Ref EgressVPCCidrBlockSize
+        TransitGatewayId: !GetAtt 
+          - TransitGateway
+          - Outputs.TransitGatewayId
   PublicALB:
     Type: AWS::CloudFormation::Stack
     DependsOn: ElbVpc

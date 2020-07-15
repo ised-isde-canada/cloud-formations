@@ -28,6 +28,8 @@ Mappings:
   EnvironmentMap:
     dev:
       TransitGatewayId: "tgw-0ce6830db4d15fcbc"
+    lab:
+      TransitGatewayId: "tgw-0ce6830db4d15fcbc"
     prod:
       TransitGatewayId: "tgw-"
 Parameters:
@@ -50,6 +52,7 @@ Parameters:
     Type: String
     Default: dev
     AllowedValues: 
+      - lab
       - dev
       - uat
       - qa
