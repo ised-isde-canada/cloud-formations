@@ -18,10 +18,10 @@ Resources:
         S3BucketPolicy: ConfigConformance
         S3BucketAccess: Private
         KmsArn: NA
-  ConformancePack:
+  ConformancePackS3:
     Type: AWS::Config::ConformancePack
     DependsOn: DeliveryS3BucketStack
     Properties:
-      ConformancePackName: Ised-Conformance-Pack
-      DeliveryS3Bucket: !GetAtt [ DeliveryS3BucketStack, Outputs.BucketArn ]
-      TemplateS3Uri: "s3:/"
+      ConformancePackName: Ised-Conformance-Pack-S3
+      DeliveryS3Bucket: ised-s3-256255698049-cops-aws-conformance-pack
+      TemplateS3Uri: "s3://ised-s3-256255698049-cf/config-conformance-template.yaml"
