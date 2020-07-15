@@ -81,8 +81,10 @@ Parameters:
       - instance
   TargetIpOrInstanceProd:
     Type: String
+    Default: ""
   TargetIpOrInstanceDev:
     Type: String
+    Default: ""
   TargetPortNumber:
     Type: String
 Resources:

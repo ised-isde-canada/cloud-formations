@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: Template to create RDS Parameter groups. Version 1.0
+# Version 1.1 - Add postgres 12 parameter group
+Description: Template to create RDS Parameter groups. Version 1.1
 
 Resources:
   postgres96:
@@ -24,6 +25,13 @@ Resources:
       Family: postgres11
       Parameters:
         rds.force_ssl: "1"
+  postgres12:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: "ISED RDS Parameter Group for PostgreSQL 12"
+      Family: postgres12
+      Parameters:
+        rds.force_ssl: "1"
 Outputs:
   postgres96:
     Description: "ISED RDS Parameter Group for PostgreSQL 9.6"
@@ -40,3 +48,8 @@ Outputs:
     Value: !Ref postgres11
     Export:
       Name: "db-parameter-group-postgres11"
+  postgres12:
+    Description: "ISED RDS Parameter Group for PostgreSQL 12"
+    Value: !Ref postgres12
+    Export:
+      Name: "db-parameter-group-postgres12"

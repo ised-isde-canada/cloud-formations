@@ -16,6 +16,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.5.1 - Moved all roles within this CF to the Roles CF script. Added a list of tags that was already applied to the jira ticket. 
 # Version 1.6 - Switch the parameter that contain sensitive info to use value from SSM Parameter store and enable Auto remediation for patching. 
 # Version 1.6.1 - Add "Lambda Layer" to pin the AWS SDK to a version that includes the "requests" library, for now.
+# Version 1.7 - Remove Cost Rule from SandboxDPAD account
 Description: Template to create all required config rules. Version 1.6.1
 Metadata:
  AWS::CloudFormation::Interface:
@@ -23,10 +24,9 @@ Metadata:
      - Label:
          default: "Jira"
        Parameters:
-         - IsedJiraUrl
-         - IsedJiraUserName
+         - IsedJiraURL
+         - IsedJiraUser
          - IsedJiraProject
-         - IsedJiraPassword
      - Label:
          default: "The SSM Parameter Name"
        Parameters:
@@ -49,10 +49,6 @@ Metadata:
          - PatchingTagConfigRuleName
          - IsedPatch
      - Label:
-         default: "Remediation Configuration Template URL"
-       Parameters:
-         - RemediationConfigTemplate         
-     - Label:
          default: "Account info"
        Parameters:
           - SandboxAccountID
@@ -61,20 +57,27 @@ Metadata:
           - StudentsAccountID
           - OpenShiftAccountID
           - OpenShiftLabAccountID
-
-
-
+          - OpenShiftDevAccountID
+          - SandboxDPADAccountID
 
 Conditions:
-  IsRemediationOn: !And [!Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxAccountID ]], !Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxDBAccountID ]]]
+  IsRemediationOn: !And [
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxAccountID ]],
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxDBAccountID ]]
+  ]
   IsCostRuleOn: !And [
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref APIStoreAccountID ]],
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftAccountID ]],
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ]],
-    !Not [!Equals [ !Ref "AWS::AccountId", !Ref StudentsAccountID ]]]
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftDevAccountID ]],
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref StudentsAccountID ]],
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref SandboxDPADAccountID ]]
+  ]
   IsPatchingRuleOn: !And [
     !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftAccountID ]],
-    !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ]]]
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftLabAccountID ]],
+    !Not [!Equals [ !Ref "AWS::AccountId", !Ref OpenShiftDevAccountID ]]
+  ]
 Parameters:
   IsedCostCentre:
     Type: String
@@ -128,6 +131,12 @@ Parameters:
   OpenShiftLabAccountID:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDOpenShiftLab
+  OpenShiftDevAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShiftDev
+  SandboxDPADAccountID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSandboxDPAD
   S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates
@@ -170,7 +179,6 @@ Resources:
         - AWS::ElasticLoadBalancing::LoadBalancer
         - AWS::ElasticLoadBalancingV2::LoadBalancer
         - AWS::RDS::DBInstance
-        - AWS::RDS::DBSecurityGroup
         - AWS::RDS::DBSnapshot
         - AWS::RDS::DBSubnetGroup
         - AWS::RDS::EventSubscription
@@ -223,7 +231,7 @@ Resources:
       FunctionName: Ised-CreateJiraIssue
       Handler: index.handler
       MemorySize: 128
-      Role: !ImportValue ConfigLambdaRole
+      Role: !GetAtt ConfigLambdaRole.Arn
       Runtime: python3.7
       Timeout: 300
   
@@ -302,13 +310,13 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArn: !ImportValue AutomationRole
+        AutomationRoleArn: !GetAtt AutomationRole.Arn
         ConfigRuleName: !Ref AWSConfigRuleTagsCost
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
         IsedJiraUrl: !Ref IsedJiraURL
         IsedJiraUserName: !Ref IsedJiraUser
-        IsedLambdaRole: !ImportValue ConfigLambdaRole
+        IsedLambdaRole: !GetAtt ConfigLambdaRole.Arn
         SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
         JiraSSMParameterName: !Ref SSMParamName
 
@@ -317,13 +325,13 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArn: !ImportValue AutomationRole
+        AutomationRoleArn: !GetAtt AutomationRole.Arn
         ConfigRuleName: !Ref AWSConfigRuleTagsBackup
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
         IsedJiraUrl: !Ref IsedJiraURL
         IsedJiraUserName: !Ref IsedJiraUser
-        IsedLambdaRole: !ImportValue ConfigLambdaRole
+        IsedLambdaRole: !GetAtt ConfigLambdaRole.Arn
         SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
         JiraSSMParameterName: !Ref SSMParamName
   
@@ -333,12 +341,71 @@ Resources:
     Properties:
       TemplateURL: !Join [ '', [!Ref S3Templates, "config-remediation.yaml" ]]
       Parameters:
-        AutomationRoleArn: !ImportValue AutomationRole
+        AutomationRoleArn: !GetAtt AutomationRole.Arn
         ConfigRuleName: !Ref AWSConfigRuleTagsPatching
         IsRemediationAutoOn: !If [IsRemediationOn,'true','false']
         IsedJiraProject: !Ref IsedJiraProject
         IsedJiraUrl: !Ref IsedJiraURL
         IsedJiraUserName: !Ref IsedJiraUser
-        IsedLambdaRole: !ImportValue ConfigLambdaRole
+        IsedLambdaRole: !GetAtt ConfigLambdaRole.Arn
         SSMDocumentCreateJiraIssue: !Ref CreateSSMDocumentCreateJiraIssue
         JiraSSMParameterName: !Ref SSMParamName 
+
+  ConfigLambdaRole:
+    Description: This role is used by the lambda function "Ised-CreateJiraIssue"
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ised-config-lambda-execution-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMFullAccess
+        - arn:aws:iam::aws:policy/AWSLambdaExecute
+        - arn:aws:iam::aws:policy/ResourceGroupsandTagEditorReadOnlyAccess
+      Path: /
+  ConfigLambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref ConfigLambdaRole
+      PolicyName: ised-config-lambda-desc-rules-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action: "config:DescribeComplianceByResource"
+            Resource: "*"
+  AutomationRole:
+    Type: AWS::IAM::Role
+    Description: This role is used by the SSM document to invoke the lambda function "Ised-CreateJiraIssue"
+    Properties:
+      RoleName: ised-config-automation-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - ssm.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
+      Path: /
+      Policies:
+       - PolicyName: "root"
+         PolicyDocument:
+           Version: "2012-10-17"
+           Statement:
+             - Effect: "Allow"
+               Action:
+               - "lambda:*"
+               - "iam:PassRole"
+               Resource: "*"
