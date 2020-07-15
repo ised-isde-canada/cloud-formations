@@ -68,7 +68,7 @@ Parameters:
       - LogDelivery
       - LogLoadBalancer
       - GuardDuty
-      - ConfigConformancePolicy
+      - ConfigConformance
   ProjectId:
     Type: String
     Default: cops-aws
