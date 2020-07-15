@@ -112,6 +112,12 @@ Parameters:
     Type: String
     Description: Engine Version
     Default: 11.5
+  AllowMajorVersionUpgrade:
+    Type: String
+    Default: False
+    AllowedValues:
+      - True
+      - False
 # ===== General Section =====
   DBName:
     Description: My database
@@ -229,7 +235,7 @@ Resources:
       DBInstanceIdentifier: !Join [ "-", [ !Ref DBName, !Ref Environment ] ]
       AllocatedStorage: !Ref RDSStorage
       MaxAllocatedStorage: !If [ IsMaxStorage, !Ref RDSMaxStorage, !Ref "AWS::NoValue" ]
-      AllowMajorVersionUpgrade: false
+      AllowMajorVersionUpgrade: !Ref AllowMajorVersionUpgrade
       AutoMinorVersionUpgrade: true
       DBInstanceClass: !Ref RDSSize
       DeletionProtection: true
