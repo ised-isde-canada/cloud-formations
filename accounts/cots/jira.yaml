@@ -69,6 +69,12 @@ Parameters:
   DBName:
     Type: String
     Default: jira
+  AllowMajorVersionUpgrade:
+    Type: String
+    Default: False
+    AllowedValues:
+      - True
+      - False
 
  # ===== JIRA =====
   JIRAInstallerUrl:
@@ -165,6 +171,7 @@ Resources:
         DBName: !Ref DBName
         RDSEngine: !Ref RDSEngine
         RDSEngineVersion: !Ref RDSEngineVersion
+        AllowMajorVersionUpgrade: !Ref AllowMajorVersionUpgrade
         RDSStorage: !Ref RDSStorage
         RDSSize: !Ref RDSSize
         RDSMaxStorage: ""

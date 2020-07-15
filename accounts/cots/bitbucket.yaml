@@ -69,6 +69,12 @@ Parameters:
   DBName:
     Type: String
     Default: bitbucket
+  AllowMajorVersionUpgrade:
+    Type: String
+    Default: False
+    AllowedValues:
+      - True
+      - False
 
   # ===== Bitbucket =====
   BitbucketInstallerUrl:
@@ -156,6 +162,7 @@ Resources:
         DBName: !Ref DBName
         RDSEngine: !Ref RDSEngine
         RDSEngineVersion: !Ref RDSEngineVersion
+        AllowMajorVersionUpgrade: !Ref AllowMajorVersionUpgrade
         RDSStorage: !Ref RDSStorage
         RDSSize: !Ref RDSSize
         RDSMaxStorage: ""
