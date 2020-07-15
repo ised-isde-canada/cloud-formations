@@ -2,10 +2,17 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Autogenerate SMTP Secret and store it in Secret Manager
-Description: Template to create the SMTP credentials. Version 1.1
+# Version 1.2 - Add option to have emails with like condition
+Description: Template to create the SMTP credentials. Version 1.2
 Parameters:
   ApplicationName:
     Type: String
+  ConditionType:
+    Type: String
+    Default: "String Equals"
+    AllowedValues:
+      - "String Equals"
+      - "String Like"     
   Email1:
     Type: String
   Email2:
@@ -18,9 +25,12 @@ Conditions:
   Has2Emails: !Not [!Equals [ !Ref Email2, "" ]]
   Has3Emails: !Not [!Equals [ !Ref Email3, "" ]]
   Has4Emails: !Not [!Equals [ !Ref Email4, "" ]]
+  StringEqual: !Equals [ !Ref ConditionType, "String Equals" ]
+  StringLike: !Equals [ !Ref ConditionType, "String Like" ]
 Resources:
-  SMTPUser:
+  SMTPUserEqual:
     Type: AWS::IAM::User
+    Condition: StringEqual
     Properties:
       UserName: !Join ["-", [ ses-smtp-user, !Ref ApplicationName ] ]
       Groups:
@@ -40,10 +50,32 @@ Resources:
                 - !If [ Has2Emails, !Ref Email2, !Ref Email1 ]
                 - !If [ Has3Emails, !Ref Email3, !Ref Email1 ]
                 - !If [ Has4Emails, !Ref Email4, !Ref Email1 ]
+  SMTPUserLike:
+    Type: AWS::IAM::User
+    Condition: StringLike
+    Properties:
+      UserName: !Join ["-", [ ses-smtp-user, !Ref ApplicationName ] ]
+      Groups:
+      - !ImportValue ses-smtp-group
+      Policies:
+      - PolicyName: SendEmail
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: "ses:SendRawEmail"
+            Resource: "*"
+            Condition:
+              StringLike:
+                'ses:FromAddress': 
+                - !Ref Email1
+                - !If [ Has2Emails, !Ref Email2, !Ref Email1 ]
+                - !If [ Has3Emails, !Ref Email3, !Ref Email1 ]
+                - !If [ Has4Emails, !Ref Email4, !Ref Email1 ]
   AccessKey:
     Type: AWS::IAM::AccessKey
     Properties:
-      UserName: !Ref SMTPUser
+      UserName: !If [ StringEqual, !Ref SMTPUserEqual, !Ref SMTPUserLike ]
   SecretKey:
     Type: AWS::SecretsManager::Secret
     Properties:
