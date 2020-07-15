@@ -277,3 +277,6 @@ Resources:
             Condition:
               Bool:
                 "aws:SecureTransport": "false"
+Outputs:
+  BucketArn:
+    Value: !GetAtt S3Bucket.Arn
