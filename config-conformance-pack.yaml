@@ -18,3 +18,10 @@ Resources:
         S3BucketPolicy: ConfigConformance
         S3BucketAccess: Private
         KmsArn: NA
+  ConformancePack:
+    Type: AWS::Config::ConformancePack
+    DependsOn: DeliveryS3BucketStack
+    Properties:
+      ConformancePackName: Ised-Conformance-Pack
+      DeliveryS3Bucket: !GetAtt [ DeliveryS3BucketStack, Outputs.BucketArn ]
+      TemplateS3Uri: "s3:/"
