@@ -16,11 +16,5 @@ Resources:
       Parameters:
         Name: conformance-pack
         S3BucketPolicy: Local
-        S3BucketAccess: LogDeliveryWrite
+        S3BucketAccess: S3ConfigConformancePolicy
         KmsArn: NA
-  ConformancePack:
-    Type: AWS::Config::ConformancePack
-    DependsOn: DeliveryS3BucketStack
-    Properties:
-      ConformancePackName: Ised-Conformance-Pack
-      DeliveryS3Bucket: !Join [ '', [ "arn:aws:s3:::", !Ref S3BucketNamePrefix, "-", !Ref "AWS::AccountId" , "conformance-pack" ]]
