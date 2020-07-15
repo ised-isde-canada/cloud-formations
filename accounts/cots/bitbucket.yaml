@@ -132,7 +132,7 @@ Resources:
       IpProtocol: tcp
       FromPort: 7990
       ToPort: 7990
-      CidrIp: 100.96.192.0/24
+      CidrIp: !If [ IsProd, 100.96.199.0/26, 100.96.193.64/26 ]
 
   # Allow incoming connection on Crowd's listening port from Bitbucket's sg
   IngressCrowd:
