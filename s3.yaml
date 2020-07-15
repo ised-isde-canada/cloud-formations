@@ -185,14 +185,14 @@ Resources:
             Resource: 
               - !Join ['', ["arn:aws:s3:::", !Ref S3Bucket ]]
             Principal: 
-              AWS: !Join ['', [ "arn:aws:iam::", Ref "AWS::AccountId", ":role/aws-service-role/config-conforms.amazonaws.com/AWSServiceRoleForConfigConforms" ] ]
+              AWS: !Join ['', [ "arn:aws:iam::", !Ref "AWS::AccountId", ":role/aws-service-role/config-conforms.amazonaws.com/AWSServiceRoleForConfigConforms" ] ]
           - Action: 
               - "s3:PutObject"
             Effect: "Allow"
             Resource: 
               - !Join ['', ["arn:aws:s3:::", !Ref S3Bucket, "/*" ]]
             Principal: 
-              AWS: !Join ['', [ "arn:aws:iam::", Ref "AWS::AccountId", ":role/aws-service-role/config-conforms.amazonaws.com/AWSServiceRoleForConfigConforms" ] ]
+              AWS: !Join ['', [ "arn:aws:iam::", !Ref "AWS::AccountId", ":role/aws-service-role/config-conforms.amazonaws.com/AWSServiceRoleForConfigConforms" ] ]
             Condition: 
               StringEquals: 
                 s3:x-amz-acl: 
@@ -203,7 +203,7 @@ Resources:
             Resource: 
               - !Join ['', ["arn:aws:s3:::", !Ref S3Bucket, "/*" ]]
             Principal: 
-              AWS: !Join ['', [ "arn:aws:iam::", Ref "AWS::AccountId", ":role/aws-service-role/config-conforms.amazonaws.com/AWSServiceRoleForConfigConforms" ] ]
+              AWS: !Join ['', [ "arn:aws:iam::", !Ref "AWS::AccountId", ":role/aws-service-role/config-conforms.amazonaws.com/AWSServiceRoleForConfigConforms" ] ]
   S3LogLoadBalancerBucketPolicy: 
     Type: AWS::S3::BucketPolicy
     Condition: LogLoadBalancer
