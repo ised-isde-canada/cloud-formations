@@ -1,0 +1,175 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: "Main Template to create the routing for an application. Version 1.0"
+
+Parameters:
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+
+Resources:
+  # AEM
+  AEMRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: aem
+        Development: ised
+        ApplicationPort: 4502
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.200.149
+        TargetPortNumber: 4502
+
+  # Bitbucket
+  BitbucketRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: scm
+        Production: public
+        Development: ised
+        ApplicationPort: 7990
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.198.4
+        TargetIpOrInstanceProd: 100.96.201.15
+        TargetPortNumber: 7990
+
+  # Confluence
+  ConfluenceRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: wiki
+        Production: public
+        Development: ised
+        ApplicationPort: 8090
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.198.8
+        TargetIpOrInstanceProd: 100.96.201.7
+        TargetPortNumber: 8090
+
+  # Crowd
+  CrowdRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: crowd
+        Production: public
+        Development: ised
+        ApplicationPort: 8095
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.198.12
+        TargetIpOrInstanceProd: 100.96.201.27
+        TargetPortNumber: 8095
+
+  # Jenkins
+  JenkinsRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: cicd
+        Development: ised
+        Production: public
+        ApplicationPort: 8080
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.198.15
+        TargetIpOrInstanceProd: 100.96.201.26
+        TargetPortNumber: 8080
+
+  # JIRA
+  JIRARoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: jira
+        Production: public
+        Development: ised
+        ApplicationPort: 8080
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.198.7
+        TargetIpOrInstanceProd: 100.96.201.5
+        TargetPortNumber: 8080
+
+  # JIRA Chendy
+  JIRAChendyRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: jira-chendy
+        Development: ised
+        ApplicationPort: 8080
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.198.14
+        TargetPortNumber: 8080
+
+  # JIRA out-of-the-box
+  JIRAOOBRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: jira-oob
+        Development: ised
+        ApplicationPort: 8080
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.198.24
+        TargetPortNumber: 8080
+
+  # phpPGAdmin
+  phpPGAdminRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: phppgadmin
+        Development: ised
+        Production: ised
+        ApplicationPort: 80
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.198.27
+        TargetIpOrInstanceProd: 100.96.201.57
+        TargetPortNumber: 80
+
+  # specauct (projects01)
+  specauctRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: specauct
+        Development: ised
+        ApplicationPort: 80
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.200.132
+        TargetPortNumber: 80
+
+  # password
+  passwordRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: password
+        Production: public
+        ApplicationPort: 8686
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceProd: 100.96.192.13
+        TargetPortNumber: 8686
