@@ -15,6 +15,6 @@ Resources:
       TemplateURL: !Join [ '', [!Ref S3Templates, "s3.yaml" ]]
       Parameters:
         Name: conformance-pack
-        S3BucketPolicy: Local
-        S3BucketAccess: S3ConfigConformancePolicy
+        S3BucketPolicy: ConfigConformancePolicy
+        S3BucketAccess: Private
         KmsArn: NA

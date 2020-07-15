@@ -39,6 +39,7 @@ Conditions:
   OrgWrite: !Equals [ !Ref S3BucketPolicy, OrganizationWrite ]
   GuardDuty: !Equals [ !Ref S3BucketPolicy, GuardDuty ]
   LogDelivery: !Equals [ !Ref S3BucketPolicy, LogDelivery ]
+  ConfigConformance: !Equals [ !Ref S3BucketPolicy, ConfigConformance ]
   LogLoadBalancer: !Equals [ !Ref S3BucketPolicy, LogLoadBalancer ]
 Parameters:
   Name:
@@ -67,6 +68,7 @@ Parameters:
       - LogDelivery
       - LogLoadBalancer
       - GuardDuty
+      - ConfigConformancePolicy
   ProjectId:
     Type: String
     Default: cops-aws
@@ -173,7 +175,7 @@ Resources:
               Service: delivery.logs.amazonaws.com
   S3ConfigConformancePolicy: 
     Type: AWS::S3::BucketPolicy
-    Condition: LogDelivery
+    Condition: ConfigConformance
     Properties: 
       Bucket: !Ref S3Bucket
       PolicyDocument: 
