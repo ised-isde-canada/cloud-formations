@@ -2,7 +2,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
 # Version 1.1 - Autogenerate SMTP Secret and store it in Secret Manager
-Description: Template to create the SMTP credentials. Version 1.1
+# Version 1.2 - Add option to have emails with like condition
+Description: Template to create the SMTP credentials. Version 1.2
 Parameters:
   ApplicationName:
     Type: String

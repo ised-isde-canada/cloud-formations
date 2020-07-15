@@ -184,7 +184,10 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "EC2 Security Group"
-      GroupName: !Join ['-', ["secg-ec2", !Ref "AWS::AccountId", !Ref ISEDProjectId ] ]
+      # "GroupName"s need to be unique. Defining one as below means we can't
+      # have two EC2s for the same ISEDProjectId. Let AWS generate a GroupName
+      # instead. We can differentiate them via the "Name" tag below
+      # GroupName: !Join ['-', ["secg-ec2", !Ref "AWS::AccountId", !Ref ISEDProjectId ] ]
       VpcId: !Ref VPCId
       Tags:
       - Key: Name
@@ -258,7 +261,17 @@ Resources:
       - Key: ised-backup
         Value: !If [ IsProd, backup-prod, backup-dev ]
       - Key: Patch Group
-        Value: !If [ IsProd, prod-linux2, dev-linux2 ]
+        Value:
+          !If
+            - IsProd
+            - !If
+              - IsWindows
+              - prod-windows
+              - prod-linux2
+            - !If
+              - IsWindows
+              - dev-windows
+              - dev-linux2
       - !If
         - IsSchedule
         - Key: ised-schedule

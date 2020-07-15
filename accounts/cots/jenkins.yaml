@@ -19,15 +19,13 @@ Parameters:
   S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates
-  VPCName:
-    Type: String
-    Default: ised
-  JIRAProjectKey:
-    Type: String
-    Default: jenkins
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
   ISEDProjectId:
     Type: String
-    Default: ccots
+    Default: ccots-jenkins
   CostCentre:
     Type: String
     Default: cio-rdad
@@ -37,12 +35,6 @@ Parameters:
     AllowedValues:
       - dev
       - prod
-  Subnet:
-    Type: String
-    Default: subneta
-    AllowedValues:
-      - subneta
-      - subnetb
   EC2Ami:
     Type: String
     Description: Specify if restoring from Ami, otherwise leave blank
@@ -59,6 +51,7 @@ Parameters:
     Default: /dev/sdb
 
 Conditions:
+  IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ] ]
   IsProd: !Equals [ !Ref Environment, prod ]
 
 Resources:
@@ -69,19 +62,23 @@ Resources:
       TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
       Parameters:
         # ===== General Section =====
-        JIRAProjectKey: !Ref JIRAProjectKey
         ISEDProjectId: !Ref ISEDProjectId
         CostCentre: !Ref CostCentre
         Environment: !Ref Environment
-        VPCName: !Ref VPCName
-        Subnet: !Ref Subnet
+        VPCId: !Ref VPCId
+        SubnetId: !Ref SubnetId
         Schedule: !If [ IsProd, 24-7, office-hours ]
 
         # ===== EC2 Section =====
-        CreateEC2: Linux
+        EC2OS: Linux
         EC2Size: t3.large
         EC2Ami: !Ref EC2Ami
         EC2RootVolumeSize: !Ref EC2RootVolumeSize
+        EBSVolume1Size: !If [ IsEC2Restore, "", !Ref EC2DataVolumeSize ]
+        EBSVolume1Mount: !If [ IsEC2Restore, "", !Ref EC2DataVolumeMount ]
+        EBSVolume2Size: ""
+        EBSVolume2Mount: ""
+        EC2Options: !If [ IsEC2Restore, "Restore", "Create" ]
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash -xe
@@ -114,32 +111,6 @@ Resources:
 
             docker run --restart=unless-stopped -d -p 8080:8080 -p 50000:50000 -v ${JenkinsDataPath}:/var/jenkins_home ${JenkinsDockerImage}
 
-  EBSDataVolume:
-    Type: AWS::EC2::Volume
-    Properties:
-      Size: !Ref EC2DataVolumeSize
-      AvailabilityZone: !GetAtt EC2.Outputs.AvailabilityZone
-      Encrypted: true
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
-      - Key: ised-cost-centre
-        Value: !Ref CostCentre
-      - Key: ised-project-id
-        Value: ccots
-      - Key: ised-environment
-        Value: !Ref Environment
-      - Key: ised-backup
-        Value: !If [ IsProd, backup-prod, backup-dev ]
-    DeletionPolicy: Snapshot
-
-  EBSDataMountPoint:
-    Type: AWS::EC2::VolumeAttachment
-    Properties:
-      InstanceId: !GetAtt EC2.Outputs.InstanceId
-      VolumeId: !Ref EBSDataVolume
-      Device: !Ref EC2DataVolumeMount
-
   # Jenkins Web Console from Load Balancer
   IngressWebConsoleLB:
     Type: AWS::EC2::SecurityGroupIngress
@@ -148,7 +119,7 @@ Resources:
       IpProtocol: tcp
       FromPort: 8080
       ToPort: 8080
-      CidrIp: 100.96.194.128/27
+      CidrIp: !If [ IsProd, 100.96.199.0/26, 100.96.193.64/26 ]
 
   # Jenkins Web Console
   IngressWebConsole:

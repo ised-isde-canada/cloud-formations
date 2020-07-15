@@ -10,9 +10,10 @@ Parameters:
   VPCName:
     Type: String
     Default: ised
-  JIRAProjectKey:
-    Type: String
-    Default: confluence
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
   ISEDProjectId:
     Type: String
     Default: ccots-confluence
@@ -25,12 +26,6 @@ Parameters:
     AllowedValues:
       - dev
       - prod
-  Subnet:
-    Type: String
-    Default: subneta
-    AllowedValues:
-      - subneta
-      - subnetb
   EC2Ami:
     Type: String
     Description: Specify if restoring from Ami, otherwise leave blank
@@ -64,18 +59,35 @@ Parameters:
     Default: postgres
   RDSEngineVersion:
     Type: String
-    Default: 9.6.15
+    Default: 9.6.16
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
   RDSMasterUserPassword:
     NoEcho: true
     Type: String
+  DBName:
+    Type: String
+    Default: confluence
+  AllowMajorVersionUpgrade:
+    Type: String
+    Default: False
+    AllowedValues:
+      - True
+      - False
+
+  # ===== Bitbucket =====
+  ConfluenceInstallerUrl:
+    Description: The Url to the installer (.bin)
+    Type: String
+  ConfluenceInstanceDomain:
+    Description: Domain name to reach this new Bitbucket install
+    Type: String
 
 Conditions:
   IsProd: !Equals [ !Ref Environment, prod ]
-  IsEC2Restore: !Equals [ !Ref EC2Ami, "" ]
-  IsRDSRestore: !Equals [ !Ref RDSSnapshot, "" ]
+  IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ] ]
+  IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ] ]
 
 Resources:
 
@@ -85,71 +97,32 @@ Resources:
       TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
       Parameters:
         # ===== General Section =====
-        JIRAProjectKey: !Ref JIRAProjectKey
         ISEDProjectId: !Ref ISEDProjectId
         CostCentre: !Ref CostCentre
         Environment: !Ref Environment
-        VPCName: !Ref VPCName
-        Subnet: !Ref Subnet
+        VPCId: !Ref VPCId
+        SubnetId: !Ref SubnetId
         Schedule: !If [ IsProd, 24-7, office-hours ]
 
         # ===== EC2 Section =====
-        CreateEC2: Linux
+        EC2OS: Linux
         EC2Size: t3.large
         EC2Ami: !Ref EC2Ami
-        EC2RootVolumeSize: !Ref EC2RootVolumeSize
+        EC2RootVolumeSize: !If [ IsEC2Restore, "", !Ref EC2RootVolumeSize ]
+        EBSVolume1Size: !If [ IsEC2Restore, "", !Ref EC2AppVolumeSize ]
+        EBSVolume1Mount: !If [ IsEC2Restore, "",!Ref EC2AppVolumeMount ]
+        EBSVolume2Size: !If [ IsEC2Restore, "", !Ref EC2DataVolumeSize ]
+        EBSVolume2Mount: !If [ IsEC2Restore, "", !Ref EC2DataVolumeMount ]
+        EC2Options: !If [ IsEC2Restore, "Restore", "Create" ]
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
 
-  EBSAppVolume:
-    Type: AWS::EC2::Volume
-    Properties:
-      Size: !Ref EC2AppVolumeSize
-      AvailabilityZone: !GetAtt EC2.Outputs.AvailabilityZone
-      Encrypted: true
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
-      - Key: ised-cost-centre
-        Value: !Ref CostCentre
-      - Key: ised-project-id
-        Value: ccots-confluence
-      - Key: ised-environment
-        Value: !Ref Environment
-      - Key: ised-backup
-        Value: !If [ IsProd, backup-prod, backup-dev ]
-    DeletionPolicy: Snapshot
+            wget "https://github.com/stephane-berube/cots-mods/archive/confluence.zip" -O /tmp/pkg.zip
+            unzip /tmp/pkg.zip -d /tmp
 
-  EBSAppMountPoint:
-    Type: AWS::EC2::VolumeAttachment
-    Properties:
-      InstanceId: !GetAtt EC2.Outputs.InstanceId
-      VolumeId: !Ref EBSAppVolume
-      Device: !Ref EC2AppVolumeMount
-
-  EBSDataVolume:
-    Type: AWS::EC2::Volume
-    Properties:
-      Size: !Ref EC2DataVolumeSize
-      AvailabilityZone: !GetAtt EC2.Outputs.AvailabilityZone
-      Encrypted: true
-      Tags:
-      - Key: Name
-        Value: !Join ['-', ["ebs", !Ref "AWS::AccountId", !Ref "JIRAProjectKey", !Ref "Environment" ] ]
-      - Key: ised-cost-centre
-        Value: !Ref CostCentre
-      - Key: ised-project-id
-        Value: ccots-confluence
-      - Key: ised-environment
-        Value: !Ref Environment
-      - Key: ised-backup
-        Value: !If [ IsProd, backup-prod, backup-dev ]
-    DeletionPolicy: Snapshot
-
-  EBSDataMountPoint:
-    Type: AWS::EC2::VolumeAttachment
-    Properties:
-      InstanceId: !GetAtt EC2.Outputs.InstanceId
-      VolumeId: !Ref EBSDataVolume
-      Device: !Ref EC2DataVolumeMount
+            chmod 700 /tmp/cots-mods-confluence/install.sh
+            /tmp/cots-mods-confluence/install.sh "${ConfluenceInstallerUrl}" "${EC2DataVolumeMount}" "${EC2AppVolumeMount}" "${Environment}" "${ConfluenceInstanceDomain}"
 
   # Allow incoming connection on Confluence's listening port from ALB VPC
   IngressConfluence:
@@ -159,7 +132,7 @@ Resources:
       IpProtocol: tcp
       FromPort: 8090
       ToPort: 8090
-      CidrIp: 100.96.192.0/24
+      CidrIp: !If [ IsProd, 100.96.199.0/26, 100.96.193.64/26 ]
 
   # Allow incoming connection on Crowd's listening port from Confluence's sg
   IngressCrowd:
@@ -179,21 +152,25 @@ Resources:
       TemplateURL: !Join [ '', [!Ref S3Templates, "rds.yaml" ]]
       Parameters:
         # ===== General Section =====
-        JIRAProjectKey: !Ref JIRAProjectKey
         ISEDProjectId: !Ref ISEDProjectId
         CostCentre: !Ref CostCentre
         Environment: !Ref Environment
-        VPCName: !Ref VPCName
+        VPCId: !Ref VPCId
         Schedule: !If [ IsProd, 24-7, office-hours ]
+        VPCName: !Ref VPCName
         # ===== RDS Section =====
+        DBName: !Ref DBName
         RDSEngine: !Ref RDSEngine
         RDSEngineVersion: !Ref RDSEngineVersion
+        AllowMajorVersionUpgrade: !Ref AllowMajorVersionUpgrade
         RDSStorage: !Ref RDSStorage
         RDSSize: !Ref RDSSize
+        RDSMaxStorage: ""
         RDSSnapshot: !Ref RDSSnapshot
         RDSBackupRetentionPeriod: !If [ IsProd, 30, 7 ]
         RDSMasterUserPassword: !Ref RDSMasterUserPassword
-        DBParameterGroupName: db-parameter-group-postgres96
+        Ec2IpAddress: !GetAtt EC2.Outputs.EC2PrivateIp
+        RDSOptions: !If [ IsRDSRestore, "Restore", "Create" ]
 
   IngressPostgres:
     Type: AWS::EC2::SecurityGroupIngress

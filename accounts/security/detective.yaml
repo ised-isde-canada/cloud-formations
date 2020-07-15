@@ -33,6 +33,9 @@ Parameters:
   AccountIDOpenShiftLab:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDOpenShiftLab
+  AccountIDOpenShiftDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShiftDev
   AccountIDProjects01:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDProjects01
@@ -42,6 +45,9 @@ Parameters:
   AccountIDSandboxDB:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDSandboxDB
+  AccountIDSandboxDPAD:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSandboxDPAD
   AccountIDSecurityDev:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountIDSecurityDev
@@ -81,6 +87,9 @@ Parameters:
   AccountEmailOpenShiftLab:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountEmailOpenShiftLab
+  AccountEmailOpenShiftDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailOpenShiftDev
   AccountEmailProjects01:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountEmailProjects01
@@ -90,6 +99,9 @@ Parameters:
   AccountEmailSandboxDB:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountEmailSandboxDB
+  AccountEmailSandboxDPAD:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountEmailSandboxDPAD
   AccountEmailSecurityDev:
     Type: AWS::SSM::Parameter::Value<String>
     Default: AccountEmailSecurityDev
@@ -239,3 +251,19 @@ Resources:
       GraphArn: !Ref DetectiveGraph
       MemberId: !Ref AccountIDTbsCpiaDev
       MemberEmailAddress: !Ref AccountEmailTbsCpiaDev
+
+  MemberInvite17:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDOpenShiftDev
+      MemberEmailAddress: !Ref AccountEmailOpenShiftDev
+
+  MemberInvite18:
+    Condition: IsSecurityAccount
+    Type: AWS::Detective::MemberInvitation
+    Properties:
+      GraphArn: !Ref DetectiveGraph
+      MemberId: !Ref AccountIDSandboxDPAD
+      MemberEmailAddress: !Ref AccountEmailSandboxDPAD
