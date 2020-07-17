@@ -26,11 +26,9 @@ Conditions:
   Has3Emails: !Not [!Equals [ !Ref Email3, "" ]]
   Has4Emails: !Not [!Equals [ !Ref Email4, "" ]]
   StringEqual: !Equals [ !Ref ConditionType, "String Equals" ]
-  StringLike: !Equals [ !Ref ConditionType, "String Like" ]
 Resources:
-  SMTPUserEqual:
+  SMTPUser:
     Type: AWS::IAM::User
-    Condition: StringEqual
     Properties:
       UserName: !Join ["-", [ ses-smtp-user, !Ref ApplicationName ] ]
       Groups:
@@ -44,38 +42,25 @@ Resources:
             Action: "ses:SendRawEmail"
             Resource: "*"
             Condition:
-              StringEquals:
-                'ses:FromAddress': 
-                - !Ref Email1
-                - !If [ Has2Emails, !Ref Email2, !Ref Email1 ]
-                - !If [ Has3Emails, !Ref Email3, !Ref Email1 ]
-                - !If [ Has4Emails, !Ref Email4, !Ref Email1 ]
-  SMTPUserLike:
-    Type: AWS::IAM::User
-    Condition: StringLike
-    Properties:
-      UserName: !Join ["-", [ ses-smtp-user, !Ref ApplicationName ] ]
-      Groups:
-      - !ImportValue ses-smtp-group
-      Policies:
-      - PolicyName: SendEmail
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action: "ses:SendRawEmail"
-            Resource: "*"
-            Condition:
-              StringLike:
-                'ses:FromAddress': 
-                - !Ref Email1
-                - !If [ Has2Emails, !Ref Email2, !Ref Email1 ]
-                - !If [ Has3Emails, !Ref Email3, !Ref Email1 ]
-                - !If [ Has4Emails, !Ref Email4, !Ref Email1 ]
+              !If
+                - StringEqual
+                - StringEquals:
+                    'ses:FromAddress':
+                      - !Ref Email1
+                      - !If [ Has2Emails, !Ref Email2, !Ref Email1 ]
+                      - !If [ Has3Emails, !Ref Email3, !Ref Email1 ]
+                      - !If [ Has4Emails, !Ref Email4, !Ref Email1 ]
+                - StringLike:
+                    'ses:FromAddress':
+                      - !Ref Email1
+                      - !If [ Has2Emails, !Ref Email2, !Ref Email1 ]
+                      - !If [ Has3Emails, !Ref Email3, !Ref Email1 ]
+                      - !If [ Has4Emails, !Ref Email4, !Ref Email1 ]
+
   AccessKey:
     Type: AWS::IAM::AccessKey
     Properties:
-      UserName: !If [ StringEqual, !Ref SMTPUserEqual, !Ref SMTPUserLike ]
+      UserName: !Ref SMTPUser
   SecretKey:
     Type: AWS::SecretsManager::Secret
     Properties:
