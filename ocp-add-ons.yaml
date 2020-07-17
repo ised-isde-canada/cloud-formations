@@ -280,9 +280,6 @@ Resources:
     Type: AWS::IAM::User
     Properties:
       UserName: IsedOcpUserInstall
-      LoginProfile:
-        Password: "CanadaIsed123!"
-        PasswordResetRequired: true
   HostedZone:
     Type: AWS::Route53::HostedZone
     Properties: 
