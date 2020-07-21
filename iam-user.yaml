@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Template to create IAM users. Version 1.0
+
+Parameters:
+  UserName:
+    Type: String
+  ConsoleAccess:
+    Type: String
+    AllowedValues:
+      - True
+      - False
+    Default: False
+  CreateAccessKey:
+    Type: String
+    AllowedValues:
+      - True
+      - False
+    Default: False
+  Password:
+    Description: Password is required if account has Console access
+    Type: String
+    NoEcho: True
+  Email:
+    Description: Where to send key-rotation notifications, if applicable
+    Type: String
+  ManagedPolicyArns:
+    Description: Comma-separated list of IAM Policy ARNs
+    Type: CommaDelimitedList
+  Serial:
+    Description: Increment this number by one to rotate the user's IAM Access Key
+    Type: String
+    Default: 1
+
+Conditions:
+  HasAdditionalPolicies: !Not [ !Equals [ !Join [ "", !Ref ManagedPolicyArns ], "" ] ]
+  HasConsoleAccess: !Equals [ !Ref ConsoleAccess, true ]
+  HasAccessKey: !Equals [ !Ref CreateAccessKey, true ]
+
+Resources:
+  IAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      LoginProfile:
+        !If
+          - HasConsoleAccess
+          - Password: !Ref Password
+          - !Ref "AWS::NoValue"
+      UserName: !Join ["-", [ iam-user, !Ref UserName ] ]
+      Groups:
+        - !ImportValue iam-group-enforce-mfa
+      ManagedPolicyArns:
+        !If
+          - HasAdditionalPolicies
+          - !Ref ManagedPolicyArns
+          - !Ref "AWS::NoValue"
+      Tags:
+        - Key: ised-contact-email
+          Value: !Ref Email
+        - Key: ised-stack-id
+          Value: !Ref "AWS::StackId"
+
+  IAMAccessKey:
+    Type: AWS::IAM::AccessKey
+    Condition: HasAccessKey
+    Properties:
+      Serial: !Ref Serial
+      UserName: !Ref IAMUser
+
+  IAMSecretKey:
+    Type: AWS::SecretsManager::Secret
+    Condition: HasAccessKey
+    Properties:
+      Name: !Ref IAMUser
+      Description: IAM User Secret Key
+      SecretString: !Sub '{"accesskey": "${IAMAccessKey}", "secretkey": "${IAMAccessKey.SecretAccessKey}"}'
