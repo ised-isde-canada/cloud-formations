@@ -1,0 +1,8 @@
+#!/bin/bash
+# ./create-stack-set iam-policy-enforce-mfa 
+
+echo Creating Stack Set $1
+aws cloudformation create-stack-set --stack-set-name ised-$1 --template-url https://ised-s3-256255698049-cf.s3.ca-central-1.amazonaws.com/cf-stacks/$1.yaml --parameters file://./../cf-parameters/$1.json --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
+
+echo Creating Stack Instances $1
+aws cloudformation create-stack-instances --stack-set-name ised-$1 --accounts file://./../scripts/accounts.json --regions ca-central-1
