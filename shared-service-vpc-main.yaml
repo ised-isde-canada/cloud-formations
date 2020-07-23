@@ -78,6 +78,16 @@ Resources:
         CIDRBlock: 100.96.193.0/26
         TransitGatewayAttachmentId: tgw-attach-0b7d61da8b7f2b4da
 
+  # sandbox-ceb
+  sandboxCeb:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "shared-service-vpc.yaml" ]]
+      Parameters:
+        Environment: dev
+        CIDRBlock: 100.96.195.0/27
+        TransitGatewayAttachmentId: tgw-attach-0541fa60b18678ef6
+
   # students
   students:
     Type: AWS::CloudFormation::Stack
