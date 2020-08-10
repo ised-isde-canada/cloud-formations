@@ -14,6 +14,7 @@ Metadata:
           - VPCName
           - Environment
           - Ec2IpAddress
+          - OCPIpAddress
       - Label:
           default: "Engine Options"
         Parameters:
@@ -48,6 +49,8 @@ Metadata:
         default: "(*) The vpc Name to launch the instance into."
       Ec2IpAddress:
         default: IP Address of the EC2 to enable the connection
+      OCPIpAddress:
+        default: IP Address of the OCP to enable the connection
       Environment:
         default: "(*) Environment."
       RDSOptions:
@@ -91,6 +94,8 @@ Parameters:
       - qa
       - prod
   Ec2IpAddress:
+    Type: String
+  OCPIpAddress:
     Type: String
 # ===== Engine Options Section =====
   RDSOptions:
@@ -201,6 +206,7 @@ Conditions:
   IsPostgres11: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "11" ]
   IsPostgres12: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "12" ]
   IsEc2IpAddress: !Not [ !Equals [ !Ref Ec2IpAddress, "" ]]
+  IsOCPIpAddress: !Not [ !Equals [ !Ref OCPIpAddress, "" ]]
   IsMaxStorage: !Not [ !Equals [ !Ref RDSMaxStorage, "" ]]
 Resources:
   SecurityGroupRDS:
@@ -228,6 +234,16 @@ Resources:
       FromPort: 5432
       ToPort: 5432
       CidrIp: !Join [ '/', [ !Ref Ec2IpAddress, "32" ] ]
+  IngressOCPPostgres:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: IsOCPIpAddress
+    Properties:
+      Description: Allow incoming connections from OCP from VPC to RDS on port 5432 (Postgresql)
+      GroupId: !Ref SecurityGroupRDS
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      CidrIp: !Ref OCPIpAddress
   RDS:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain
