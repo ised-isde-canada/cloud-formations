@@ -1,0 +1,152 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Enables versioning/logging/encryption on S3 buckets. Version 1.0
+
+Parameters:
+  AccountIDMaster:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDMaster
+  S3BucketNamePrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3BucketNamePrefix
+  ConfigRuleName:
+    Type: String
+
+Resources:
+  EnableVersioningLoggingSSMDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Automation
+      Content:
+        schemaVersion: "0.3"
+        assumeRole: "{{ AutomationAssumeRole }}"
+        parameters:
+          AutomationAssumeRole:
+            type: "String"
+            description: "(Optional) The ARN of the role that allows Automation to perform\
+              \ the actions on your behalf. "
+            default: ""
+          ResourceId:
+            type: "String"
+            description: "Id of the resource to configure"
+        mainSteps:
+        - name: "enableVersioningLogging"
+          action: "aws:invokeLambdaFunction"
+          inputs:
+            FunctionName: !Ref EnableVersioningLoggingFunction
+            Payload: !Sub |-
+              {
+                "ResourceId": "{{ResourceId}}",
+                "LoggingBucket": "${S3BucketNamePrefix}-${AWS::AccountId}-log",
+                "AccountId": "${AWS::AccountId}"
+              }
+        outputs:
+        - "enableVersioningLogging.Payload"
+
+  EnableVersioningLoggingFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt EnableVersioningLoggingConfigRole.Arn
+      Code:
+        S3Bucket: !Sub "${S3BucketNamePrefix}-${AccountIDMaster}-lambdas"
+        S3Key: ised-config-s3-remediation.zip
+      Runtime: python3.7
+
+  # The role used by the lambda that enables versioning/logging
+  EnableVersioningLoggingConfigRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ised-config-enable-versioning-role
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSConfigRulesExecutionRole"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+
+  # Allow our compliance-detection lambda to log to CloudWatch
+  CloudWatchLogsPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref EnableVersioningLoggingConfigRole
+      PolicyName: ised-config-enable-versioning-cw-logs-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "logs:CreateLogGroup"
+            Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - Effect: "Allow"
+            Action:
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: !Join [ "", [ "arn:aws:logs:", !Sub "${AWS::Region}", ":", !Sub "${AWS::AccountId}", ":log-group:/aws/lambda/", !Ref EnableVersioningLoggingFunction, ":*" ] ]
+
+  # Allow configuration of EC2/RDS
+  S3EnableVersioningLogging:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref EnableVersioningLoggingConfigRole
+      PolicyName: ised-config-enable-versioning-logging-s3
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "s3:PutBucketLogging"
+              - "s3:PutBucketVersioning"
+              - "s3:PutEncryptionConfiguration"
+            Resource: "*"
+
+  EnableVersioningLoggingRemediation:
+      Type: "AWS::Config::RemediationConfiguration"
+      Properties:
+        ConfigRuleName: !Ref ConfigRuleName
+        Parameters:
+          ResourceId:
+            ResourceValue:
+              Value: RESOURCE_ID
+          AutomationAssumeRole:
+            StaticValue:
+              Values:
+              - !GetAtt AutomationRole.Arn
+        TargetId: !Ref EnableVersioningLoggingSSMDocument
+        TargetType: "SSM_DOCUMENT"
+        Automatic: True
+        MaximumAutomaticAttempts: 10
+        RetryAttemptSeconds: 60
+
+  AutomationRole:
+    Type: AWS::IAM::Role
+    Description: Role used by the SSM document to invoke the lambda function
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - ssm.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
+      Path: /
+      Policies:
+       - PolicyName: "root"
+         PolicyDocument:
+           Version: "2012-10-17"
+           Statement:
+             - Effect: "Allow"
+               Action:
+               - "lambda:*"
+               - "iam:PassRole"
+               Resource: !GetAtt EnableVersioningLoggingFunction.Arn
