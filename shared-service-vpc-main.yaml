@@ -88,6 +88,16 @@ Resources:
         CIDRBlock: 100.96.195.0/27
         TransitGatewayAttachmentId: tgw-attach-0541fa60b18678ef6
 
+  # sts-pulsar-dev
+  stsPulsarDev:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "shared-service-vpc.yaml" ]]
+      Parameters:
+        Environment: dev
+        CIDRBlock: 100.96.195.32/27
+        TransitGatewayAttachmentId: tgw-attach-041c82e0add055bb7
+
   # students
   students:
     Type: AWS::CloudFormation::Stack
