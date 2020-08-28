@@ -592,22 +592,22 @@ Resources:
       VpcEndpointType: Gateway
       VpcId: !Ref VPC
 # Enable VPC Flow logs to central S3 bucket in the Log Archive account
-  VPCFlowLogs:
-    Type: AWS::EC2::FlowLog
-    Properties:
-      DeliverLogsPermissionArn: !ImportValue VPCFlowLogRole
-      LogGroupName: !Join ['-', ["vpc-flow-log-group", !Ref "AWS::AccountId" ]]
-      ResourceId: !Ref VPC
-      ResourceType: VPC
-      TrafficType: ALL
-  VPCFlowLogstoS3:
-    Type: AWS::EC2::FlowLog
-    Properties:
-      LogDestination: !Join [':', [ "arn:aws:s3::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref AccountIDLog, "logs-vpc"]]]]
-      LogDestinationType: s3
-      ResourceId: !Ref VPC
-      ResourceType: VPC
-      TrafficType: ALL
+  # VPCFlowLogs:
+    # Type: AWS::EC2::FlowLog
+    # Properties:
+      # DeliverLogsPermissionArn: !ImportValue VPCFlowLogRole
+      # LogGroupName: !Join ['-', ["vpc-flow-log-group", !Ref "AWS::AccountId" ]]
+      # ResourceId: !Ref VPC
+      # ResourceType: VPC
+      # TrafficType: ALL
+  # VPCFlowLogstoS3:
+    # Type: AWS::EC2::FlowLog
+    # Properties:
+      # LogDestination: !Join [':', [ "arn:aws:s3::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref AccountIDLog, "logs-vpc"]]]]
+      # LogDestinationType: s3
+      # ResourceId: !Ref VPC
+      # ResourceType: VPC
+      # TrafficType: ALL
 
 Outputs:
   VPC:
