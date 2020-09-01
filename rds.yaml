@@ -145,6 +145,7 @@ Parameters:
     Description: DB Instance Class
     Default: db.t3.small
     AllowedValues:
+      - db.t3.micro
       - db.t3.small
       - db.t3.medium
       - db.t3.large
