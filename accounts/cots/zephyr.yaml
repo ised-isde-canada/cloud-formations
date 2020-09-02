@@ -1,0 +1,158 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Zephyr
+
+Parameters:
+  # ===== General Section =====
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+  VPCName:
+    Type: String
+    Default: ised
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  ISEDProjectId:
+    Type: String
+    Default: ccots-zephyr
+  CostCentre:
+    Type: String
+    Default: cio-rdad
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+  EC2Ami:
+    Type: String
+    Description: Specify if restoring from Ami, otherwise leave blank
+
+  # ===== EBS Volumes =====
+  EC2RootVolumeSize:
+    Type: String
+    Default: 8
+  EC2AppVolumeSize:
+    Type: String
+    Default: 2
+  EC2AppVolumeMount:
+    Type: String
+    Default: /dev/sdg
+  EC2DataVolumeSize:
+    Type: String
+    Default: 100
+  EC2DataVolumeMount:
+    Type: String
+    Default: /dev/sdf
+
+  # ===== RDS Section =====
+  RDSStorage:
+    Type: String
+    Default: 20
+  RDSSize:
+    Type: String
+    Default: db.t3.medium
+  RDSEngine:
+    Type: String
+    Default: mysql
+  RDSEngineVersion:
+    Type: String
+    Default: "8.0.20"
+  RDSSnapshot:
+    Description: Specify if restoring from snapshot
+    Type: String
+  RDSMasterUserPassword:
+    NoEcho: true
+    Type: String
+  DBName:
+    Type: String
+    Default: zephyr
+  AllowMajorVersionUpgrade:
+    Type: String
+    Default: False
+    AllowedValues:
+      - True
+      - False
+
+Conditions:
+  IsProd: !Equals [ !Ref Environment, prod ]
+  IsEC2Restore: !Not [ !Equals [ !Ref EC2Ami, "" ] ]
+  IsRDSRestore: !Not [ !Equals [ !Ref RDSSnapshot, "" ] ]
+
+Resources:
+
+  EC2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ec2.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre
+        Environment: !Ref Environment
+        VPCId: !Ref VPCId
+        SubnetId: !Ref SubnetId
+        Schedule: !If [ IsProd, 24-7, office-hours ]
+
+        # ===== EC2 Section =====
+        EC2OS: Ubuntu-Server-18.04-LTS
+        EC2Size: t3.xlarge
+        EC2Ami: !Ref EC2Ami
+        EC2RootVolumeSize: !If [ IsEC2Restore, "", !Ref EC2RootVolumeSize ]
+        EBSVolume1Size: !If [ IsEC2Restore, "", !Ref EC2AppVolumeSize ]
+        EBSVolume1Mount: !If [ IsEC2Restore, "",!Ref EC2AppVolumeMount ]
+        EBSVolume2Size: !If [ IsEC2Restore, "", !Ref EC2DataVolumeSize ]
+        EBSVolume2Mount: !If [ IsEC2Restore, "", !Ref EC2DataVolumeMount ]
+        EC2Options: !If [ IsEC2Restore, "Restore", "Create" ]
+        UserData: ""
+
+  # Allow incoming connection on Confluence's listening port from ALB VPC
+  IngressZephyr:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt EC2.Outputs.EC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: !If [ IsProd, 100.96.199.0/26, 100.96.193.64/26 ]
+
+  RDS:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "rds.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        ISEDProjectId: !Ref ISEDProjectId
+        CostCentre: !Ref CostCentre
+        Environment: !Ref Environment
+        VPCId: !Ref VPCId
+        Schedule: !If [ IsProd, 24-7, office-hours ]
+        VPCName: !Ref VPCName
+        # ===== RDS Section =====
+        DBName: !Ref DBName
+        RDSEngine: !Ref RDSEngine
+        RDSEngineVersion: !Ref RDSEngineVersion
+        AllowMajorVersionUpgrade: !Ref AllowMajorVersionUpgrade
+        RDSStorage: !Ref RDSStorage
+        RDSSize: !Ref RDSSize
+        RDSMaxStorage: ""
+        RDSSnapshot: !Ref RDSSnapshot
+        RDSBackupRetentionPeriod: !If [ IsProd, 30, 7 ]
+        RDSMasterUserPassword: !Ref RDSMasterUserPassword
+        Ec2IpAddress: !GetAtt EC2.Outputs.EC2PrivateIp
+        RDSOptions: !If [ IsRDSRestore, "Restore", "Create" ]
+        OCPIpAddress: ""
+
+  IngressPostgres:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Allow incoming connections from EC2s from VPC to RDS on port 3306 (mysql/mariadb)
+      GroupId: !GetAtt RDS.Outputs.RDSSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      CidrIp:
+        Fn::ImportValue:
+          Fn::Sub:  "vpc-cidrblock-${VPCName}-${Environment}"
