@@ -66,7 +66,7 @@ Resources:
         ApplicationPort: 8095
         ApplicationProtocol: HTTP
         TargetType: ip
-        TargetIpOrInstanceDev: 100.96.198.12
+        TargetIpOrInstanceDev: 100.96.198.25
         TargetIpOrInstanceProd: 100.96.201.27
         TargetPortNumber: 8095
 
