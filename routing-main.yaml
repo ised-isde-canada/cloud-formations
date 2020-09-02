@@ -173,3 +173,17 @@ Resources:
         TargetType: ip
         TargetIpOrInstanceProd: 100.96.192.13
         TargetPortNumber: 8686
+
+  # 5greport (sandbox-ceb)
+  5greportRoutes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: 5greport
+        Development: ised
+        ApplicationPort: 80
+        ApplicationProtocol: HTTP
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.195.4
+        TargetPortNumber: 80
