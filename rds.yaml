@@ -239,6 +239,7 @@ Conditions:
   IsMaxStorage: !Not [ !Equals [ !Ref RDSMaxStorage, "" ]]
 Resources:
   SecurityGroupRDS:
+    DeletionPolicy: Retain
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "RDS Secuirty Group"
