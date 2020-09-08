@@ -283,7 +283,7 @@ Resources:
         RDSStorage: !Ref RDSStorage
         RDSMaxStorage: !Ref RDSMaxStorage
         RDSSize: !Ref RDSSize
-        Ec2IpAddress: !GetAtt EC2.Outputs.EC2PrivateIp
+        # Ec2IpAddress: !GetAtt EC2.Outputs.EC2PrivateIp
         # ===== Parameters =====
         RDSSnapshot: !Ref RDSSnapshot
         Schedule: !Ref Schedule
@@ -291,29 +291,3 @@ Resources:
         # ===== Tags =====
         ISEDProjectId: !Ref ISEDProjectId
         CostCentre: !Ref CostCentre
-  IAMPolicy:
-    Type: 'AWS::IAM::ManagedPolicy'
-    DependsOn: EC2
-    Properties:
-      ManagedPolicyName: !Join [ "-" , [ ised-ec2-client-policy, !Ref ISEDProjectId ] ] 
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:      
-              - ec2:StartInstances
-              - ec2:StopInstances
-            Resource: !Join [ ":" , ["arn:aws:ec2:ca-central-1", !Ref "AWS::AccountId", !Join [ "/", ["instance", !GetAtt EC2.Outputs.InstanceId ] ] ] ]
-          - Effect: Allow
-            Action:      
-              - ec2:DescribeInstances
-            Resource: "*"
-      Users: 
-        - !Ref IAMUser
-  IAMUser:
-    Type: AWS::IAM::User
-    Properties:
-      UserName: !Join [ "-" , [ ised-client-user, !Ref ISEDProjectId ] ]
-      LoginProfile:
-        Password: "CanadaIsed123!"
-        PasswordResetRequired: true

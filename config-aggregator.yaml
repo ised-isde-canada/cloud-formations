@@ -1,14 +1,38 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: Config Aggregator, Version 1.0
+# Version 1.1 - Add all regions, fix IAM Role
+Description: Config Aggregator, Version 1.1
 Resources:
+  ConfigAggregationRole:
+    Description: Role for the conifg aggregator
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal: {
+            Service: [
+              config.amazonaws.com
+            ]
+          }
+          Action: ['sts:AssumeRole']
+      Path: "/service-role/"
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSConfigRoleForOrganizations
+      Tags:
+        - Key: Name
+          Value: !Join ['-', ["role", !Ref "AWS::AccountId", ised-config-aggregator-role ] ]
+        - Key: ised-cost-centre
+          Value: cio-rdad
+        - Key: ised-project-id
+          Value: cops-aws
+        - Key: ised-environment
+          Value: ops
   ConfigurationAggregator:
     Type: 'AWS::Config::ConfigurationAggregator'
     Properties:
       OrganizationAggregationSource:
-        RoleArn: >-
-          arn:aws:iam::256255698049:role/aws-service-role/organizations.amazonaws.com/AWSServiceRoleForOrganizations
-        AwsRegions:
-          - ca-central-1
-        AllAwsRegions: false
+        RoleArn: !GetAtt [ ConfigAggregationRole, Arn ]
+        AllAwsRegions: true
       ConfigurationAggregatorName: Ised-AWS-Config-Aggregator
