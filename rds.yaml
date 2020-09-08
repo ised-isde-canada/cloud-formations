@@ -4,6 +4,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.2 - Add Ingress Security Group
 # Version 1.3 - Add postgres 12 parameter group
 # Version 1.4 - Add OCP Ip Address for Security Group
+# Version 1.5 - Support MySQL/MariaDB
 Description: Template to create the RDS. Version 1.4
 Metadata:
   AWS::CloudFormation::Interface:
@@ -80,6 +81,18 @@ Mappings:
   MasterUserNameMap:
     postgres:
       MasterUserName: "postgres"
+    mariadb:
+      MasterUserName: "admin"
+    mysql:
+      MasterUserName: "admin"
+  DBPortNumber:
+    postgres:
+      Port: "5432"
+    mariadb:
+      Port: "3306"
+    mysql:
+      Port: "3306"
+
 Parameters:
 # ===== Network Section =====
   VPCId:
@@ -114,6 +127,8 @@ Parameters:
     Default: postgres
     AllowedValues: 
       - postgres
+      - mariadb
+      - mysql
   RDSEngineVersion:
     Type: String
     Description: Engine Version
@@ -203,10 +218,22 @@ Conditions:
   IsRDSRestore: !Equals [ !Ref RDSOptions, Restore ]
   IsProd: !Equals [ !Ref Environment, prod ]
   IsSchedule: !Not [!Equals [ !Ref Schedule, <Always On> ]]
-  IsPostgres9: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "9" ]
-  IsPostgres10: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "10" ]
-  IsPostgres11: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "11" ]
-  IsPostgres12: !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "12" ]
+  IsPostgres9: !And [
+    !Equals [ !Ref RDSEngine, "postgres" ],
+    !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "9" ]
+  ]
+  IsPostgres10: !And [
+    !Equals [ !Ref RDSEngine, "postgres" ],
+    !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "10" ]
+  ]
+  IsPostgres11: !And [
+    !Equals [ !Ref RDSEngine, "postgres" ],
+    !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "11" ]
+  ]
+  IsPostgres12: !And [
+    !Equals [ !Ref RDSEngine, "postgres" ],
+    !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "12" ]
+  ]
   IsEc2IpAddress: !Not [ !Equals [ !Ref Ec2IpAddress, "" ]]
   IsOCPIpAddress: !Not [ !Equals [ !Ref OCPIpAddress, "" ]]
   IsMaxStorage: !Not [ !Equals [ !Ref RDSMaxStorage, "" ]]
@@ -226,25 +253,25 @@ Resources:
         Value: !Ref ISEDProjectId
       - Key: ised-environment
         Value: !Ref Environment
-  IngressPostgres:
+  IngressDB:
     Type: AWS::EC2::SecurityGroupIngress
     Condition: IsEc2IpAddress
     Properties:
-      Description: Allow incoming connections from EC2s from VPC to RDS on port 5432 (Postgresql)
+      Description: Allow incoming connections from EC2s from VPC to RDS
       GroupId: !Ref SecurityGroupRDS
       IpProtocol: tcp
-      FromPort: 5432
-      ToPort: 5432
+      FromPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
+      ToPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
       CidrIp: !Join [ '/', [ !Ref Ec2IpAddress, "32" ] ]
-  IngressOCPPostgres:
+  IngressOCPDB:
     Type: AWS::EC2::SecurityGroupIngress
     Condition: IsOCPIpAddress
     Properties:
-      Description: Allow incoming connections from OCP from VPC to RDS on port 5432 (Postgresql)
+      Description: Allow incoming connections from OCP from VPC to RDS
       GroupId: !Ref SecurityGroupRDS
       IpProtocol: tcp
-      FromPort: 5432
-      ToPort: 5432
+      FromPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
+      ToPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
       CidrIp: !Ref OCPIpAddress
   RDS:
     Type: AWS::RDS::DBInstance
@@ -257,7 +284,7 @@ Resources:
       AutoMinorVersionUpgrade: true
       DBInstanceClass: !Ref RDSSize
       DeletionProtection: true
-      Port: 5432
+      Port: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
       StorageType: gp2
       MultiAZ: !If [ IsProd, True, False ]
       BackupRetentionPeriod: !Ref RDSBackupRetentionPeriod
@@ -276,7 +303,6 @@ Resources:
       DBName: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref DBName ]
       Engine: !Ref RDSEngine
       EngineVersion: !Ref RDSEngineVersion
-      LicenseModel: postgresql-license
       StorageEncrypted: true
       DBParameterGroupName:
         !If
