@@ -5,7 +5,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.3 - Add postgres 12 parameter group
 # Version 1.4 - Add OCP Ip Address for Security Group
 # Version 1.5 - Support MySQL/MariaDB
-Description: Template to create the RDS. Version 1.4
+# Version 1.6 - Multiple environments in single VPC & OCP Values
+Description: Template to create the RDS. Version 1.6
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -14,14 +15,15 @@ Metadata:
         Parameters:
           - VPCId
           - VPCName
-          - Environment
+          - VPCEnvironment
           - Ec2IpAddress
-          - OCPIpAddress
+          - OCPLink
       - Label:
           default: "Engine Options"
         Parameters:
           - RDSOptions
           - RDSSnapshot
+          - Environment
           - RDSEngine
           - RDSEngineVersion
           - RDSSize
@@ -49,10 +51,12 @@ Metadata:
         default: "(*) The vpc ID to launch the instance into."
       VPCName:
         default: "(*) The vpc Name to launch the instance into."
+      VPCEnvironemnt:
+        default: "(*) The vpc Environment to launch the instance into."
       Ec2IpAddress:
         default: IP Address of the EC2 to enable the connection
-      OCPIpAddress:
-        default: IP Address of the OCP to enable the connection
+      OCPLink:
+        default: Create Network Connection with Open Shift VPC
       Environment:
         default: "(*) Environment."
       RDSOptions:
@@ -92,25 +96,31 @@ Mappings:
       Port: "3306"
     mysql:
       Port: "3306"
-
+  OpenShiftCidr:
+    dev:
+      OCPCidr: 100.96.197.0/24
+    prod:
+      OCPCidr: 100.96.196.0/24
 Parameters:
 # ===== Network Section =====
   VPCId:
     Type: "AWS::EC2::VPC::Id"
   VPCName:
     Type: String
-  Environment:
+  VPCEnvironment:
     Type: String
     Default: dev
     AllowedValues: 
       - dev
-      - uat
-      - qa
       - prod
   Ec2IpAddress:
     Type: String
-  OCPIpAddress:
+  OCPLink:
     Type: String
+    Default: <No>
+    AllowedValues: 
+      - <No>
+      - <Yes>
 # ===== Engine Options Section =====
   RDSOptions:
     Type: String
@@ -121,6 +131,14 @@ Parameters:
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - uat
+      - qa
+      - prod
   RDSEngine:
     Type: String
     Description: Engine Type
@@ -217,6 +235,7 @@ Parameters:
 Conditions:
   IsRDSRestore: !Equals [ !Ref RDSOptions, Restore ]
   IsProd: !Equals [ !Ref Environment, prod ]
+  IsOCP: !Equals [ !Ref OCPLink, <Yes> ]
   IsSchedule: !Not [!Equals [ !Ref Schedule, <Always On> ]]
   IsPostgres9: !And [
     !Equals [ !Ref RDSEngine, "postgres" ],
@@ -235,7 +254,6 @@ Conditions:
     !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "12" ]
   ]
   IsEc2IpAddress: !Not [ !Equals [ !Ref Ec2IpAddress, "" ]]
-  IsOCPIpAddress: !Not [ !Equals [ !Ref OCPIpAddress, "" ]]
   IsMaxStorage: !Not [ !Equals [ !Ref RDSMaxStorage, "" ]]
 Resources:
   SecurityGroupRDS:
@@ -266,14 +284,14 @@ Resources:
       CidrIp: !Join [ '/', [ !Ref Ec2IpAddress, "32" ] ]
   IngressOCPDB:
     Type: AWS::EC2::SecurityGroupIngress
-    Condition: IsOCPIpAddress
+    Condition: IsOCPLink
     Properties:
       Description: Allow incoming connections from OCP from VPC to RDS
       GroupId: !Ref SecurityGroupRDS
       IpProtocol: tcp
       FromPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
       ToPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
-      CidrIp: !Ref OCPIpAddress
+      CidrIp: !FindInMap [ OpenShiftCidr, !Ref VPCEnvironment, OCPIpAddress ]
   RDS:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain
@@ -326,7 +344,7 @@ Resources:
 
       DBSubnetGroupName:
         Fn::ImportValue: 
-          Fn::Sub: "dbsubnet-${VPCName}-${Environment}"
+          Fn::Sub: "dbsubnet-${VPCName}-${VPCEnvironment}"
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
       - Key: Name
