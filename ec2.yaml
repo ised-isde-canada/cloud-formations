@@ -116,6 +116,7 @@ Parameters:
       - r5.medium
       - r5.large
       - r5.xlarge
+      - r5.2xlarge
       - m5.large
   # ===== Additional Configuration Section =====
   UserData:
