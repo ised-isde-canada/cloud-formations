@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: Enable versioning/logging/encryption on S3 Buckets. Version 1.0
+
+Parameters:
+  AccountIDMaster:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDMaster
+  S3BucketNamePrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3BucketNamePrefix
+  S3Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+
+Resources:
+  # Config rule that checks whether S3 buckets have
+  # logging/versioning/encryption enabled
+  S3ConfigRule:
+    Type: AWS::Config::ConfigRule
+    DependsOn: PermitConfig
+    Properties:
+      ConfigRuleName: ised-config-s3-rule
+      Description: Checks whether your s3 bucket has logging/versioning enabled
+      Scope:
+        ComplianceResourceTypes:
+        - AWS::S3::Bucket
+      Source:
+        Owner: CUSTOM_LAMBDA
+        SourceIdentifier: !GetAtt S3DetectionFunction.Arn
+        SourceDetails:
+          -
+            EventSource: aws.config
+            MessageType: ConfigurationItemChangeNotification
+          -
+            EventSource: aws.config
+            MessageType: OversizedConfigurationItemChangeNotification
+
+  # SSM Document and its remediation configuration
+  EnableLoggingVersioningSSMDocument:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "ssm-doc-s3.yaml" ]]
+      Parameters:
+        ConfigRuleName: !Ref S3ConfigRule
+
+  # The lambda function that decides whether a resource is compliant or not
+  # In this case, it checks whether the bucket has logging/versioning
+  # enabled or not. If so, the resource is compliant. If not, the resource is non-compliant
+  S3DetectionFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt S3ConfigRole.Arn
+      Code:
+        S3Bucket: !Sub "${S3BucketNamePrefix}-${AccountIDMaster}-lambdas"
+        S3Key: ised-config-s3.zip
+      Runtime: python3.7
+
+  # Allow the Config Rule above to trigger our Lambda
+  PermitConfig:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Ref S3DetectionFunction
+      Principal: config.amazonaws.com
+      SourceAccount: !Sub "${AWS::AccountId}"
+
+  # The role used by our compliance-detection lambda
+  S3ConfigRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ised-config-s3-role
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSConfigRulesExecutionRole"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+
+  # Allow our compliance-detection lambda to log to CloudWatch
+  CloudWatchLogsPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref S3ConfigRole
+      PolicyName: ised-config-s3-cw-logs-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "logs:CreateLogGroup"
+            Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - Effect: "Allow"
+            Action:
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: !Join [ "", [ "arn:aws:logs:", !Sub "${AWS::Region}", ":", !Sub "${AWS::AccountId}", ":log-group:/aws/lambda/", !Ref S3DetectionFunction, ":*" ] ]
