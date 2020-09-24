@@ -5,7 +5,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.3 - Add postgres 12 parameter group
 # Version 1.4 - Add OCP Ip Address for Security Group
 # Version 1.5 - Support MySQL/MariaDB
-Description: Template to create the RDS. Version 1.4
+# Version 1.6 - Multiple environments in single VPC & OCP Values; Add Instance ID
+Description: Template to create the RDS. Version 1.6
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -14,14 +15,15 @@ Metadata:
         Parameters:
           - VPCId
           - VPCName
-          - Environment
+          - VPCEnvironment
           - Ec2IpAddress
-          - OCPIpAddress
+          - OCPLink
       - Label:
           default: "Engine Options"
         Parameters:
           - RDSOptions
           - RDSSnapshot
+          - Environment
           - RDSEngine
           - RDSEngineVersion
           - RDSSize
@@ -30,6 +32,7 @@ Metadata:
       - Label:
           default: "General Settings"
         Parameters:
+          - DBInstanceId
           - DBName
           - RDSMasterUserPassword
       - Label:
@@ -49,10 +52,12 @@ Metadata:
         default: "(*) The vpc ID to launch the instance into."
       VPCName:
         default: "(*) The vpc Name to launch the instance into."
+      VPCEnvironemnt:
+        default: "(*) The vpc Environment to launch the instance into."
       Ec2IpAddress:
         default: IP Address of the EC2 to enable the connection
-      OCPIpAddress:
-        default: IP Address of the OCP to enable the connection
+      OCPLink:
+        default: Create Network Connection with Open Shift VPC
       Environment:
         default: "(*) Environment."
       RDSOptions:
@@ -61,8 +66,10 @@ Metadata:
         default: "(*) The name of the database engine that you want to use for this DB instance."
       RDSEngineVersion:
         default: "(*) The version number of the database engine to use."
-      DBName:
+      DBInstanceId:
         default: "(*) A name for the DB instance."
+      DBName:
+        default: "(*) A name for the DB."
       RDSMasterUserPassword:
         default: "(*) The password for the master user. The password can include any printable ASCII character except /, \", or @"
       RDSSize:
@@ -92,25 +99,31 @@ Mappings:
       Port: "3306"
     mysql:
       Port: "3306"
-
+  OpenShiftCidr:
+    dev:
+      OCPCidr: 100.96.197.0/24
+    prod:
+      OCPCidr: 100.96.196.0/24
 Parameters:
 # ===== Network Section =====
   VPCId:
     Type: "AWS::EC2::VPC::Id"
   VPCName:
     Type: String
-  Environment:
+  VPCEnvironment:
     Type: String
     Default: dev
     AllowedValues: 
       - dev
-      - uat
-      - qa
       - prod
   Ec2IpAddress:
     Type: String
-  OCPIpAddress:
+  OCPLink:
     Type: String
+    Default: <No>
+    AllowedValues: 
+      - <No>
+      - <Yes>
 # ===== Engine Options Section =====
   RDSOptions:
     Type: String
@@ -121,6 +134,14 @@ Parameters:
   RDSSnapshot:
     Description: Specify if restoring from snapshot
     Type: String
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - uat
+      - qa
+      - prod
   RDSEngine:
     Type: String
     Description: Engine Type
@@ -140,12 +161,19 @@ Parameters:
       - True
       - False
 # ===== General Section =====
+  DBInstanceId:
+    Description: My database Insatcen Id
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
   DBName:
     Description: My database
     Type: String
     MinLength: '1'
     MaxLength: '64'
-    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9_]*'
     ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
   RDSMasterUserPassword:
     NoEcho: 'true'
@@ -217,6 +245,7 @@ Parameters:
 Conditions:
   IsRDSRestore: !Equals [ !Ref RDSOptions, Restore ]
   IsProd: !Equals [ !Ref Environment, prod ]
+  IsOCP: !Equals [ !Ref OCPLink, <Yes> ]
   IsSchedule: !Not [!Equals [ !Ref Schedule, <Always On> ]]
   IsPostgres9: !And [
     !Equals [ !Ref RDSEngine, "postgres" ],
@@ -235,7 +264,6 @@ Conditions:
     !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "12" ]
   ]
   IsEc2IpAddress: !Not [ !Equals [ !Ref Ec2IpAddress, "" ]]
-  IsOCPIpAddress: !Not [ !Equals [ !Ref OCPIpAddress, "" ]]
   IsMaxStorage: !Not [ !Equals [ !Ref RDSMaxStorage, "" ]]
 Resources:
   SecurityGroupRDS:
@@ -243,11 +271,11 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "RDS Secuirty Group"
-      GroupName: !Join ['-', ["secg-rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
+      GroupName: !Join ['-', ["secg-rds", !Ref "AWS::AccountId", !Ref DBInstanceId, !Ref "Environment" ] ]
       VpcId: !Ref VPCId
       Tags:
       - Key: Name
-        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
+        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref DBInstanceId, !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
@@ -266,19 +294,19 @@ Resources:
       CidrIp: !Join [ '/', [ !Ref Ec2IpAddress, "32" ] ]
   IngressOCPDB:
     Type: AWS::EC2::SecurityGroupIngress
-    Condition: IsOCPIpAddress
+    Condition: IsOCP
     Properties:
       Description: Allow incoming connections from OCP from VPC to RDS
       GroupId: !Ref SecurityGroupRDS
       IpProtocol: tcp
       FromPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
       ToPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
-      CidrIp: !Ref OCPIpAddress
+      CidrIp: !FindInMap [ OpenShiftCidr, !Ref VPCEnvironment, OCPCidr ]
   RDS:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain
     Properties:
-      DBInstanceIdentifier: !Join [ "-", [ !Ref DBName, !Ref Environment ] ]
+      DBInstanceIdentifier: !Join [ "-", [ !Ref DBInstanceId, !Ref Environment ] ]
       AllocatedStorage: !Ref RDSStorage
       MaxAllocatedStorage: !If [ IsMaxStorage, !Ref RDSMaxStorage, !Ref "AWS::NoValue" ]
       AllowMajorVersionUpgrade: !Ref AllowMajorVersionUpgrade
@@ -326,11 +354,11 @@ Resources:
 
       DBSubnetGroupName:
         Fn::ImportValue: 
-          Fn::Sub: "dbsubnet-${VPCName}-${Environment}"
+          Fn::Sub: "dbsubnet-${VPCName}-${VPCEnvironment}"
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
       - Key: Name
-        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
+        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref DBInstanceId, !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
@@ -349,11 +377,11 @@ Outputs:
     Description: RDS
     Value: !Ref RDS
     Export:
-      Name: !Join ['-', ["rds", !Ref "DBName", !Ref "Environment" ] ]
+      Name: !Join ['-', ["rds", !Ref "DBInstanceId", !Ref "Environment" ] ]
   RDSEndpoint:
     Description: RDS Endpoint
     Value: !GetAtt RDS.Endpoint.Address
     Export:
-      Name: !Join ['-', ["rds-endpoint", !Ref "DBName", !Ref "Environment" ] ]
+      Name: !Join ['-', ["rds-endpoint", !Ref "DBInstanceId", !Ref "Environment" ] ]
   RDSSecurityGroup:
     Value: !Ref SecurityGroupRDS
