@@ -5,7 +5,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.3 - Add postgres 12 parameter group
 # Version 1.4 - Add OCP Ip Address for Security Group
 # Version 1.5 - Support MySQL/MariaDB
-# Version 1.6 - Multiple environments in single VPC & OCP Values
+# Version 1.6 - Multiple environments in single VPC & OCP Values; Add Instance ID
 Description: Template to create the RDS. Version 1.6
 Metadata:
   AWS::CloudFormation::Interface:
