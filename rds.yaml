@@ -32,6 +32,7 @@ Metadata:
       - Label:
           default: "General Settings"
         Parameters:
+          - DBInstanceId
           - DBName
           - RDSMasterUserPassword
       - Label:
@@ -65,8 +66,10 @@ Metadata:
         default: "(*) The name of the database engine that you want to use for this DB instance."
       RDSEngineVersion:
         default: "(*) The version number of the database engine to use."
-      DBName:
+      DBInstanceId:
         default: "(*) A name for the DB instance."
+      DBName:
+        default: "(*) A name for the DB."
       RDSMasterUserPassword:
         default: "(*) The password for the master user. The password can include any printable ASCII character except /, \", or @"
       RDSSize:
@@ -158,12 +161,19 @@ Parameters:
       - True
       - False
 # ===== General Section =====
+  DBInstanceId:
+    Description: My database Insatcen Id
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
   DBName:
     Description: My database
     Type: String
     MinLength: '1'
     MaxLength: '64'
-    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9_]*'
     ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
   RDSMasterUserPassword:
     NoEcho: 'true'
@@ -261,11 +271,11 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "RDS Secuirty Group"
-      GroupName: !Join ['-', ["secg-rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
+      GroupName: !Join ['-', ["secg-rds", !Ref "AWS::AccountId", !Ref DBInstanceId, !Ref "Environment" ] ]
       VpcId: !Ref VPCId
       Tags:
       - Key: Name
-        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
+        Value: !Join ['-', ["sg-rds", !Ref "AWS::AccountId", !Ref DBInstanceId, !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
@@ -284,19 +294,19 @@ Resources:
       CidrIp: !Join [ '/', [ !Ref Ec2IpAddress, "32" ] ]
   IngressOCPDB:
     Type: AWS::EC2::SecurityGroupIngress
-    Condition: IsOCPLink
+    Condition: IsOCP
     Properties:
       Description: Allow incoming connections from OCP from VPC to RDS
       GroupId: !Ref SecurityGroupRDS
       IpProtocol: tcp
       FromPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
       ToPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
-      CidrIp: !FindInMap [ OpenShiftCidr, !Ref VPCEnvironment, OCPIpAddress ]
+      CidrIp: !FindInMap [ OpenShiftCidr, !Ref VPCEnvironment, OCPCidr ]
   RDS:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain
     Properties:
-      DBInstanceIdentifier: !Join [ "-", [ !Ref DBName, !Ref Environment ] ]
+      DBInstanceIdentifier: !Join [ "-", [ !Ref DBInstanceId, !Ref Environment ] ]
       AllocatedStorage: !Ref RDSStorage
       MaxAllocatedStorage: !If [ IsMaxStorage, !Ref RDSMaxStorage, !Ref "AWS::NoValue" ]
       AllowMajorVersionUpgrade: !Ref AllowMajorVersionUpgrade
@@ -348,7 +358,7 @@ Resources:
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
       - Key: Name
-        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref DBName, !Ref "Environment" ] ]
+        Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref DBInstanceId, !Ref "Environment" ] ]
       - Key: ised-cost-centre
         Value: !Ref CostCentre
       - Key: ised-project-id
@@ -367,11 +377,11 @@ Outputs:
     Description: RDS
     Value: !Ref RDS
     Export:
-      Name: !Join ['-', ["rds", !Ref "DBName", !Ref "Environment" ] ]
+      Name: !Join ['-', ["rds", !Ref "DBInstanceId", !Ref "Environment" ] ]
   RDSEndpoint:
     Description: RDS Endpoint
     Value: !GetAtt RDS.Endpoint.Address
     Export:
-      Name: !Join ['-', ["rds-endpoint", !Ref "DBName", !Ref "Environment" ] ]
+      Name: !Join ['-', ["rds-endpoint", !Ref "DBInstanceId", !Ref "Environment" ] ]
   RDSSecurityGroup:
     Value: !Ref SecurityGroupRDS
