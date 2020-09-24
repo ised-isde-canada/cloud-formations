@@ -1,0 +1,188 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+
+Description: "Template auto-apply ised-schedule: end-of-week-shutdown to dev accounts. Version 1.0"
+
+Parameters:
+  S3BucketNamePrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3BucketNamePrefix
+  AccountIDCOTSDev:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDCOTSDev
+  #AccountIDOpenShiftDev:
+  #  Type: AWS::SSM::Parameter::Value<String>
+  #  Default: AccountIDOpenShiftDev
+  AccountIDOpenShiftLab:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDOpenShiftLab
+  AccountIDSandbox:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDSandbox
+  AccountIDMaster:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: AccountIDMaster
+
+Conditions:
+  IsRuleOn: !Or [
+    !Equals [ !Ref "AWS::AccountId", !Ref AccountIDCOTSDev ],
+    !Equals [ !Ref "AWS::AccountId", !Ref AccountIDOpenShiftLab ],
+    !Equals [ !Ref "AWS::AccountId", !Ref AccountIDSandbox ]
+  ]
+
+Resources:
+  TagResourceScheduleRule:
+    Type: AWS::Config::ConfigRule
+    Condition: IsRuleOn
+    Properties:
+      ConfigRuleName: ised-config-schedule
+      InputParameters:
+        tag1Key: ised-schedule
+        tag1Value: end-of-week-shutdown
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::EC2::Instance
+          - AWS::RDS::DBInstance
+      Source:
+        Owner: AWS
+        SourceIdentifier: REQUIRED_TAGS
+
+  TagResourceScheduleFunction:
+    Type: AWS::Lambda::Function
+    Condition: IsRuleOn
+    Properties:
+      Code:
+        S3Bucket: !Sub "${S3BucketNamePrefix}-${AccountIDMaster}-lambdas"
+        S3Key: ised-config-schedule.zip
+      FunctionName: ised-config-schedule
+      Handler: index.handler
+      Role: !GetAtt TagResourceScheduleRole.Arn
+      Runtime: python3.7
+      Timeout: 300
+
+  TagResourceScheduleSSMDocument:
+    Type: AWS::SSM::Document
+    Condition: IsRuleOn
+    Properties:
+      DocumentType: Automation
+      Content:
+        schemaVersion: "0.3"
+        assumeRole: "{{ AutomationAssumeRole }}"
+        parameters:
+          AutomationAssumeRole:
+            type: "String"
+            description: "(Optional) The ARN of the role that allows Automation to perform\
+              \ the actions on your behalf. "
+          ResourceId:
+            type: "String"
+            description: "Id of the resource to configure"
+        mainSteps:
+        - name: "tagResourceSchedule"
+          action: "aws:invokeLambdaFunction"
+          inputs:
+            FunctionName: !Ref TagResourceScheduleFunction
+            Payload: "{\"ResourceId\": \"{{ResourceId}}\"}"
+        outputs:
+        - "tagResourceSchedule.Payload"
+
+  # The role used by the lambda that enables tags resources
+  TagResourceScheduleRole:
+    Type: AWS::IAM::Role
+    Condition: IsRuleOn
+    Properties:
+      RoleName: ised-config-schedule-role
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSConfigRulesExecutionRole"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+
+  # Allow our compliance-detection lambda to log to CloudWatch
+  CloudWatchLogsPolicy:
+    Type: AWS::IAM::Policy
+    Condition: IsRuleOn
+    Properties:
+      Roles:
+        - !Ref TagResourceScheduleRole
+      PolicyName: ised-config-schedule-cw-logs-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "logs:CreateLogGroup"
+            Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - Effect: "Allow"
+            Action:
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: !Join [ "", [ "arn:aws:logs:", !Sub "${AWS::Region}", ":", !Sub "${AWS::AccountId}", ":log-group:/aws/lambda/", !Ref TagResourceScheduleFunction, ":*" ] ]
+
+  # Allow configuration of EC2/RDS
+  TagResourceSchedulePolicy:
+    Type: AWS::IAM::Policy
+    Condition: IsRuleOn
+    Properties:
+      Roles:
+        - !Ref TagResourceScheduleRole
+      PolicyName: ised-config-schedule-ec2-rds
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "rds:AddTagsToResource"
+              - "ec2:CreateTags"
+            Resource: "*"
+
+  EnableTerminationRemediation:
+      Type: "AWS::Config::RemediationConfiguration"
+      Condition: IsRuleOn
+      Properties:
+        ConfigRuleName: !Ref TagResourceScheduleRule
+        Parameters:
+          ResourceId:
+            ResourceValue:
+              Value: RESOURCE_ID
+          AutomationAssumeRole:
+            StaticValue:
+              Values:
+              - !GetAtt AutomationRole.Arn
+        TargetId: !Ref TagResourceScheduleSSMDocument
+        TargetType: "SSM_DOCUMENT"
+        Automatic: True
+        MaximumAutomaticAttempts: 10
+        RetryAttemptSeconds: 60
+
+  AutomationRole:
+    Type: AWS::IAM::Role
+    Condition: IsRuleOn
+    Description: Role used by the SSM document to invoke the lambda function
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - ssm.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
+      Path: /
+      Policies:
+       - PolicyName: "root"
+         PolicyDocument:
+           Version: "2012-10-17"
+           Statement:
+             - Effect: "Allow"
+               Action:
+               - "lambda:*"
+               - "iam:PassRole"
+               Resource: !GetAtt TagResourceScheduleFunction.Arn
