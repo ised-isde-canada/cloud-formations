@@ -201,3 +201,17 @@ Resources:
         TargetType: ip
         TargetIpOrInstanceDev: 100.96.198.46
         TargetPortNumber: 80
+
+  # ixus2 (projects01) COPS-4763
+  ixus2Routes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref S3Templates, "routing.yaml" ]]
+      Parameters:
+        ApplicationName: ixus2
+        Development: ised
+        ApplicationPort: 443
+        ApplicationProtocol: HTTPS
+        TargetType: ip
+        TargetIpOrInstanceDev: 100.96.200.188
+        TargetPortNumber: 443
