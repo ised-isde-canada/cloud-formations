@@ -1,0 +1,232 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.2 - Updating AWS Backup Plan from monthly to weekly (i.e. every Tuesday)
+# Version 1.3 - Fixed cron expression for scheduled AWS Backup Plan
+# Version 1.4 - Updated AWS Backup Plan time to 8:00 AM (local)
+# Version 1.5 - Extract IAM roles and put them in roles.yaml template 
+# Version 1.6 - Removed LifeCycle Manager Policies and replaced them with AWS Backup
+# Version 1.7 - Changed backup tags and made distinction for OCP specific backups
+Description: Template to create backups using AWS Backup for RDS instances and EBS volumes. Version 1.7
+Parameters:
+  BackupTime:
+    # We want this to be 01:00 Canada/Eastern (05:00 for daylight saving, 06:00 for standard time)
+    # This needs to be changed twice a year for EST/EDT (see: COPS-2174)
+    Description: "The time at which backups will be done (select 05:00 when it's daylight saving, 06:00 when it's standard time)"
+    Type: String
+    Default: "06:00"
+    AllowedValues:
+      - "05:00"
+      - "06:00"
+Resources:
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: "Encryption key for daily"
+      EnableKeyRotation: True
+      Enabled: True
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal: {AWS: { "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:root" }}
+          Action: kms:*
+          Resource: "*"
+  BackupVault:
+    Type: "AWS::Backup::BackupVault"
+    Properties:
+      BackupVaultName: "DefaultBackupVault01"
+      EncryptionKeyArn: !GetAtt KMSKey.Arn
+  BackupPlanForRdsProdBackups:
+    Type: "AWS::Backup::BackupPlan"
+    Properties:
+      BackupPlan:
+        BackupPlanName: "RDS-PROD-Backup-Plan"
+        BackupPlanRule:
+          - RuleName: "RDS-PROD-Weekly-Backup-Rule"
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: "cron(0 12 ? * 3 *)" # 08:00am eastern time, weekly - every Tuesday
+            StartWindowMinutes: 60
+            Lifecycle:
+              MoveToColdStorageAfterDays: 7
+              DeleteAfterDays: 2555
+  BackupPlanForEbsDevBackups:
+    Type: "AWS::Backup::BackupPlan"
+    Properties:
+      BackupPlan:
+        BackupPlanName: "EBS-DEV-Backup-Plan"
+        BackupPlanRule:
+          - RuleName: "EBS-DEV-Daily-Backup-Rule"
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: "cron(0 12 ? * * *)" # 08:00am eastern time, daily
+            StartWindowMinutes: 60
+            Lifecycle:
+              DeleteAfterDays: 7
+  BackupPlanForEbsProdBackups:
+    Type: "AWS::Backup::BackupPlan"
+    Properties:
+      BackupPlan:
+        BackupPlanName: "EBS-PROD-Backup-Plan"
+        BackupPlanRule:
+          - RuleName: "EBS-PROD-Weekly-Backup-Rule"
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: "cron(0 12 ? * 3 *)" # 08:00am eastern time, weekly - every Tuesday
+            StartWindowMinutes: 60
+            Lifecycle:
+              MoveToColdStorageAfterDays: 7
+              DeleteAfterDays: 2555
+          - RuleName: "EBS-PROD-Daily-Backup-Rule"
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: "cron(0 12 ? * * *)" # 08:00am eastern time, daily
+            StartWindowMinutes: 60
+            Lifecycle:
+              DeleteAfterDays: 30
+  BackupPlanForRdsProdOcpBackups:
+    Type: "AWS::Backup::BackupPlan"
+    Properties:
+      BackupPlan:
+        BackupPlanName: "RDS-PROD-OCP-Backup-Plan"
+        BackupPlanRule:
+          - RuleName: "RDS-PROD-Weekly-OCP-Backup-Rule"
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: "cron(0 5 ? * 3 *)" # 01:00am eastern time, weekly - every Tuesday
+            StartWindowMinutes: 60
+            Lifecycle:
+              MoveToColdStorageAfterDays: 7
+              DeleteAfterDays: 2555
+  BackupPlanForEbsProdOcpBackups:
+    Type: "AWS::Backup::BackupPlan"
+    Properties:
+      BackupPlan:
+        BackupPlanName: "EBS-PROD-OCP-Backup-Plan"
+        BackupPlanRule:
+          - RuleName: "EBS-PROD-Weekly-OCP-Backup-Rule"
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: "cron(0 5 ? * 3 *)" # 01:00am eastern time, weekly - every Tuesday
+            StartWindowMinutes: 60
+            Lifecycle:
+              MoveToColdStorageAfterDays: 7
+              DeleteAfterDays: 2555
+          - RuleName: "EBS-PROD-Daily-OCP-Backup-Rule"
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: "cron(0 5 ? * * *)" # 01:00am eastern time, daily 
+            StartWindowMinutes: 60
+            Lifecycle:
+              DeleteAfterDays: 30
+  BackupPlanForEbsDevOcpBackups:
+    Type: "AWS::Backup::BackupPlan"
+    Properties:
+      BackupPlan:
+        BackupPlanName: "EBS-DEV-OCP-Backup-Plan"
+        BackupPlanRule:
+          - RuleName: "EBS-DEV-Daily-OCP-Backup-Rule"
+            TargetBackupVault: !Ref BackupVault 
+            ScheduleExpression: "cron(0 12 ? * * *)" # 08:00am eastern time, daily
+            StartWindowMinutes: 60
+            Lifecycle:
+              DeleteAfterDays: 7
+  AssignRdsProdBackupResources:
+    Type: "AWS::Backup::BackupSelection"
+    Properties:
+      BackupSelection:
+        SelectionName: "RDS-PROD-Backup-Resource"
+        IamRoleArn: !GetAtt BackupRole.Arn
+        ListOfTags:
+         - ConditionType: "STRINGEQUALS"
+           ConditionKey: "ised-backup"
+           ConditionValue: "backup-prod-rds"
+      BackupPlanId: !Ref BackupPlanForRdsProdBackups
+  AssignEbsDevBackupResources:
+    Type: "AWS::Backup::BackupSelection"
+    Properties:
+      BackupSelection:
+        SelectionName: "EBS-DEV-Backup-Resource"
+        IamRoleArn: !GetAtt BackupRole.Arn
+        ListOfTags:
+         - ConditionType: "STRINGEQUALS"
+           ConditionKey: "ised-backup"
+           ConditionValue: "backup-dev-ebs"
+      BackupPlanId: !Ref BackupPlanForEbsDevBackups
+  AssignEbsProdBackupResources:
+    Type: "AWS::Backup::BackupSelection"
+    Properties:
+      BackupSelection:
+        SelectionName: "EBS-PROD-Backup-Resource"
+        IamRoleArn: !GetAtt BackupRole.Arn
+        ListOfTags:
+         - ConditionType: "STRINGEQUALS"
+           ConditionKey: "ised-backup"
+           ConditionValue: "backup-prod-ebs"
+      BackupPlanId: !Ref BackupPlanForEbsProdBackups
+  AssignEbsProdOcpBackupResources:
+    Type: "AWS::Backup::BackupSelection"
+    Properties:
+      BackupSelection:
+        SelectionName: "EBS-PROD-OCP-Backup-Resource"
+        IamRoleArn: !GetAtt BackupRole.Arn
+        ListOfTags:
+         - ConditionType: "STRINGEQUALS"
+           ConditionKey: "ised-backup"
+           ConditionValue: "backup-prod-ebs-ocp"
+      BackupPlanId: !Ref BackupPlanForEbsProdOcpBackups
+  AssignRdsProdOcpBackupResources:
+    Type: "AWS::Backup::BackupSelection"
+    Properties:
+      BackupSelection:
+        SelectionName: "RDS-PROD-OCP-Backup-Resource"
+        IamRoleArn: !GetAtt BackupRole.Arn
+        ListOfTags:
+         - ConditionType: "STRINGEQUALS"
+           ConditionKey: "ised-backup"
+           ConditionValue: "backup-prod-rds-ocp"
+      BackupPlanId: !Ref BackupPlanForRdsProdOcpBackups
+  AssignEbsDevOcpBackupResources:
+    Type: "AWS::Backup::BackupSelection"
+    Properties:
+      BackupSelection:
+        SelectionName: "EBS-DEV-OCP-Backup-Resource"
+        IamRoleArn: !GetAtt BackupRole.Arn
+        ListOfTags:
+         - ConditionType: "STRINGEQUALS"
+           ConditionKey: "ised-backup"
+           ConditionValue: "backup-dev-ebs-ocp"
+      BackupPlanId: !Ref BackupPlanForEbsDevOcpBackups
+  BackupRole:
+    Type: AWS::IAM::Role
+    Description: Provides AWS Backup permission to create backups and perform restores on your behalf across AWS services.
+    Properties:
+      RoleName: ised-backup-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - backup.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores
+      Path: /
+
+Outputs:
+  BackupVault:
+    Description: BackupVault where AWS Backups are stored 
+    Value: !Ref BackupVault
+  BackupPlanForRdsProdBackups:
+    Description: RDS-PROD-Backup-Plan
+    Value: !Ref BackupPlanForRdsProdBackups
+  BackupPlanForEbsDevBackups:
+    Description: EBS-DEV-Backup-Plan
+    Value: !Ref BackupPlanForEbsDevBackups
+  BackupPlanForEbsProdBackups:
+    Description: EBS-PROD-Backup-Plan
+    Value: !Ref BackupPlanForEbsProdBackups
+  BackupPlanForEbsDevOcpBackups:
+    Description: EBS-DEV-OCP-Backup-Plan
+    Value: !Ref BackupPlanForEbsDevOcpBackups
+  BackupPlanForEbsProdOcpBackups:
+    Description: EBS-PROD-OCP-Backup-Plan
+    Value: !Ref BackupPlanForEbsProdOcpBackups
+  BackupPlanForRdsProdOcpBackups:
+    Description: RDS-PROD-OCP-Backup-Plan
+    Value: !Ref BackupPlanForRdsProdOcpBackups
