@@ -1,0 +1,49 @@
+{
+    "plans": {
+        "RDS-PROD-Backup-Plan": {
+            "regions": {
+                "@@assign": [
+                    "ca-central-1"
+                ]
+            },
+            "rules": {
+                "RDS-PROD-Weekly-Backup-Rule": {
+                    "schedule_expression": {
+                        "@@assign": "cron(0 12 ? * 3 *)"
+                    },
+                    "start_backup_window_minutes": {
+                        "@@assign": "60"
+                    },
+                    "lifecycle": {
+                        "move_to_cold_storage_after_days": {
+                            "@@assign": "7"
+                        },
+                        "delete_after_days": {
+                            "@@assign": "2555"
+                        }
+                    },
+                    "target_backup_vault_name": {
+                        "@@assign": "BackupVault01"
+                    }
+                }
+            },
+            "selections": {
+                "tags": {
+                    "RDS-PROD-Backup-Resource": {
+                        "iam_role_arn": {
+                            "@@assign": "arn:aws:iam::$account:role/ised-backup-role"
+                        },
+                        "tag_key": {
+                            "@@assign": "ised-backup"
+                        },
+                        "tag_value": {
+                            "@@assign": [
+                                "backup-prod-rds"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
