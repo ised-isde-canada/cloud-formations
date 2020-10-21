@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Version 1.0 - Initial version
+Description: S3 to RDS Solution
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - Label: 
+          default: "Projetc Information"
+        Parameters: 
+          - ProjectId
+          - CostCentre
+          - Environment
+      - Label:
+          default: "VPC"
+        Parameters:
+          - VPC
+          - VPCName
+      - Label: 
+          default: "Others"
+        Parameters: 
+          - Templates
+    ParameterLabels: 
+      ProjectId: 
+        default: "Project Id"
+      CostCentre: 
+        default: "Cost Centre"
+      CostCentre: 
+        default: "Environment"
+      VPC:
+        default: "VPC"
+      VPCName:
+        default: "VPC Name"
+      Templates:
+        default: "S3 Bucket For Templates"
+Parameters:
+  Templates:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3Templates
+  ProjectId:
+    Type: String
+  CostCentre:
+    Type: String
+  VPC:
+    Type: AWS::EC2::VPC::Id
+  VPCName:
+    Type: String
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: 
+      - dev
+      - prod
+Resources:
+  RDSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join [ '-', [ "ised", !Ref ProjectId, "role-rds" ] ]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - rds.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: !Join [ '-', [ "ised", !Ref ProjectId, "policy-rds" ] ]
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 's3:*'
+                Resource: '*'
+  RDS:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join [ '', [!Ref Templates, "rds.yaml" ]]
+      Parameters:
+        # ===== General Section =====
+        ISEDProjectId: !Ref ProjectId
+        CostCentre: !Ref CostCentre
+        Environment: !Ref Environment
+        # ===== VPC Section =====
+        VPCId: !Ref VPC
+        VPCName: !Ref VPCName
+        # ===== RDS Section =====
+        RDSOptions: "Create"
+        DBInstanceId: !Ref ProjectId
+        DBName: !Ref ProjectId
+        RDSEngine: postgres
+        RDSEngineVersion: "10.11"
+        AllowMajorVersionUpgrade: False
+        RDSStorage: 20
+        RDSSize: db.t3.micro
+        RDSMaxStorage: ""
+        Schedule: "24-7"
+        RDSBackupRetentionPeriod: "7"
+        RDSMasterUserPassword: "Canada123"
+        RDSSnapshot: ""
+        Ec2IpAddress: 100.96.197.0/24
+
