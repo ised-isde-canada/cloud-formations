@@ -3,7 +3,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: Template to create IAM users. Version 1.0
 
 Parameters:
-  UserName:
+  Name:
     Type: String
   ConsoleAccess:
     Type: String
@@ -46,7 +46,7 @@ Resources:
           - HasConsoleAccess
           - Password: !Ref Password
           - !Ref "AWS::NoValue"
-      UserName: !Join ["-", [ iam-user, !Ref UserName ] ]
+      UserName: !Join ["-", [ ised, !Ref Name, iam-user ] ]
       Groups:
         - !ImportValue iam-group-enforce-mfa
       ManagedPolicyArns:
