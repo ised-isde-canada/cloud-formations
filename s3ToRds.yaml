@@ -10,12 +10,14 @@ Metadata:
           - ProjectId
           - CostCentre
           - Environment
-          - EMail
+          - Email
       - Label:
           default: "VPC"
         Parameters:
           - VPC
           - VPCName
+          - Subnet1
+          - Subnet2
       - Label: 
           default: "Others"
         Parameters: 
@@ -33,6 +35,10 @@ Metadata:
         default: "VPC"
       VPCName:
         default: "VPC Name"
+      Subnet1:
+        default: "Subnet 1"
+      Subnet2:
+        default: "Subnet 2"
       Templates:
         default: "S3 Bucket For Templates"
 Parameters:
@@ -49,6 +55,10 @@ Parameters:
     Type: AWS::EC2::VPC::Id
   VPCName:
     Type: String
+  Subnet1:
+    Type: AWS::EC2::Subnet::Id
+  Subnet2:
+    Type: AWS::EC2::Subnet::Id
   Environment:
     Type: String
     Default: dev
@@ -90,6 +100,8 @@ Resources:
         # ===== VPC Section =====
         VPCId: !Ref VPC
         VPCName: !Ref VPCName
+        Subnet1: !Ref Subnet1
+        Subnet2: !Ref Subnet2
         # ===== RDS Section =====
         RDSOptions: "Create"
         DBInstanceId: !Ref ProjectId
@@ -119,9 +131,6 @@ Resources:
         KmsArn: NA
         ProjectId: !Ref ProjectId
         CostCentre: !Ref CostCentre
-        Environment: !Ref Environment
-  UserGroup:
-    Type: AWS::IAM::Group
   IAMUserS3:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -143,10 +152,9 @@ Resources:
         Statement:
           - Effect: "Allow"
             Action: "s3:*"
-            Resource: "*"
- #     Groups: [!Ref 'UserGroup']
-#              - Fn::Sub: "arn:aws:s3:::${S3BucketNamePrefix}-${AWS::AccountId}-drupal-${BucketName}"
-#              - Fn::Sub: "arn:aws:s3:::${S3BucketNamePrefix}-${AWS::AccountId}-drupal-${BucketName}/*"
+            Resource:
+              - !GetAtt [ S3, Outputs.BucketArn]
+              - !Join [ "/", [!GetAtt [ S3, Outputs.BucketArn],"*"] ]
       Users:
         - !GetAtt 
           - IAMUserS3
@@ -164,13 +172,17 @@ Resources:
             Action: ['sts:AssumeRole']
       Path: /
       Policies:
-        - PolicyName: root
+        - PolicyName: !Join [ '-', [ "ised", !Ref ProjectId, "policy-lambdarole" ] ]
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Effect: Allow
-                Action: ['logs:*']
-                Resource: 'arn:aws:logs:*:*:*'
+              - Effect: "Allow"
+                Action: "s3:*"
+                Resource:
+                  - !GetAtt [ S3, Outputs.BucketArn]
+                  - !Join [ "/", [!GetAtt [ S3, Outputs.BucketArn],"*"] ]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
   Lambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -178,6 +190,12 @@ Resources:
       Runtime: python3.7
       Role: !GetAtt LambdaExecutionRole.Arn
       Handler: index.lambda_handler
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt [ RDS, Outputs.RDSSecurityGroup]
+        SubnetIds:
+          - !Ref Subnet1
+          - !Ref Subnet2
       Code:
 #        S3Bucket: !Ref 'LambdaZipsBucket'
 #        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/MyFunction/lambda.zip'
