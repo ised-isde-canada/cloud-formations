@@ -15,6 +15,8 @@ Metadata:
         Parameters:
           - VPCId
           - VPCName
+          - Subnet1
+          - Subnet2
           - VPCEnvironment
           - Ec2IpAddress
           - OCPLink
@@ -52,6 +54,10 @@ Metadata:
         default: "(*) The vpc ID to launch the instance into."
       VPCName:
         default: "(*) The vpc Name to launch the instance into."
+      Subnet1:
+        default: "(*) The Subnet 1 ID"
+      Subnet2:
+        default: "(*) The Subnet 2 ID"
       VPCEnvironemnt:
         default: "(*) The vpc Environment to launch the instance into."
       Ec2IpAddress:
@@ -110,6 +116,10 @@ Parameters:
     Type: "AWS::EC2::VPC::Id"
   VPCName:
     Type: String
+  Subnet1:
+    Type: AWS::EC2::Subnet::Id
+  Subnet2:
+    Type: AWS::EC2::Subnet::Id
   VPCEnvironment:
     Type: String
     Default: dev
@@ -302,7 +312,23 @@ Resources:
       FromPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
       ToPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
       CidrIp: !FindInMap [ OpenShiftCidr, !Ref VPCEnvironment, OCPCidr ]
-  RDS:
+  DBSubnetGroup: 
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties: 
+      DBSubnetGroupDescription: "DB Subnet Group"
+      SubnetIds: 
+        - !Ref Subnet1
+        - !Ref Subnet2
+      Tags:
+      - Key: Name
+        Value: !Join ['-', ["db-subnet-group", !Ref "AWS::AccountId", !Ref DBInstanceId, !Ref "Environment" ] ]
+      - Key: ised-cost-centre
+        Value: !Ref CostCentre
+      - Key: ised-project-id
+        Value: !Ref ISEDProjectId
+      - Key: ised-environment
+        Value: !Ref Environment
+    RDS:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain
     Properties:
@@ -352,9 +378,7 @@ Resources:
                     db-parameter-group-postgres12
                 - !Ref AWS::NoValue
 
-      DBSubnetGroupName:
-        Fn::ImportValue: 
-          Fn::Sub: "dbsubnet-${VPCName}-${VPCEnvironment}"
+      DBSubnetGroupName: !FRef DBSubnetGroup
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
       - Key: Name
