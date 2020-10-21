@@ -122,24 +122,8 @@ Resources:
         Environment: !Ref Environment
   UserGroup:
     Type: AWS::IAM::Group
-  IAMPolicyS3:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: !Join [ '-', [ "ised", !Ref ProjectId, "policy-iamusers3" ] ]
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            Action: "s3:*"
-            Resource: "*"
-      Groups: [!Ref 'UserGroup']
-#              - Fn::Sub: "arn:aws:s3:::${S3BucketNamePrefix}-${AWS::AccountId}-drupal-${BucketName}"
-#              - Fn::Sub: "arn:aws:s3:::${S3BucketNamePrefix}-${AWS::AccountId}-drupal-${BucketName}/*"
-#      Users:
-#        - !Ref IAMUser
   IAMUserS3:
     Type: AWS::CloudFormation::Stack
-    DependsOn: IAMPolicyS3
     Properties:
       TemplateURL: !Join [ '', [!Ref Templates, "iam-user.yaml" ]]
       Parameters:
@@ -149,6 +133,24 @@ Resources:
         Password: ""
         Email: !Ref Email
         ManagedPolicyArns: ""
+  IAMPolicyS3:
+    Type: AWS::IAM::Policy
+    DependsOn: IAMUserS3
+    Properties:
+      PolicyName: !Join [ '-', [ "ised", !Ref ProjectId, "policy-iamusers3" ] ]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action: "s3:*"
+            Resource: "*"
+ #     Groups: [!Ref 'UserGroup']
+#              - Fn::Sub: "arn:aws:s3:::${S3BucketNamePrefix}-${AWS::AccountId}-drupal-${BucketName}"
+#              - Fn::Sub: "arn:aws:s3:::${S3BucketNamePrefix}-${AWS::AccountId}-drupal-${BucketName}/*"
+      Users:
+        - !GetAtt 
+          - IAMUserS3
+          - Outputs.IAMUser
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:

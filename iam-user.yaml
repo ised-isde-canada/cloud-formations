@@ -74,3 +74,10 @@ Resources:
       Name: !Ref IAMUser
       Description: IAM User Secret Key
       SecretString: !Sub '{"accesskey": "${IAMAccessKey}", "secretkey": "${IAMAccessKey.SecretAccessKey}"}'
+
+Outputs:
+  IAMUser:
+    Description: IAMUser
+    Value: !Ref IAMUser
+    Export: 
+      Name: !Join ['-', ["iam", !Ref Name ]]
