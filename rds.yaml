@@ -366,14 +366,6 @@ Resources:
         Fn::ImportValue: 
           Fn::Sub: "dbsubnet-${VPCName}-${VPCEnvironment}"
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
-      AssociatedRoles: 
-        !If
-          - HasAssociatedRole
-          - 
-          - !Ref "AWS::NoValue", !Ref DBName ]
-      - FeatureName: S3_INTEGRATION
-        RoleArn: arn:aws:iam::1111111111:role/customerx-rds-s3-role
-        Status: ACTIVE
       Tags:
       - Key: Name
         Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref DBInstanceId, !Ref "Environment" ] ]
