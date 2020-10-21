@@ -329,7 +329,7 @@ Resources:
         Value: !Ref ISEDProjectId
       - Key: ised-environment
         Value: !Ref Environment
-    RDS:
+  RDS:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Retain
     Properties:
