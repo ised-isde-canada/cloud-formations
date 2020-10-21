@@ -243,7 +243,6 @@ Parameters:
     Type: String
     Default: cio-rdad
 Conditions:
-  IsRetain: Retain
   IsRDSRestore: !Equals [ !Ref RDSOptions, Restore ]
   IsProd: !Equals [ !Ref Environment, prod ]
   IsOCP: !Equals [ !Ref OCPLink, <Yes> ]
