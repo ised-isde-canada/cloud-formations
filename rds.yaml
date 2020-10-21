@@ -6,8 +6,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.4 - Add OCP Ip Address for Security Group
 # Version 1.5 - Support MySQL/MariaDB
 # Version 1.6 - Multiple environments in single VPC & OCP Values; Add Instance ID
-# Version 1.7 - Allow to change Deletion Policy
-Description: Template to create the RDS. Version 1.7
+Description: Template to create the RDS. Version 1.6
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -43,7 +42,6 @@ Metadata:
           - PreferredBackupWindowTime
           - PreferredMaintenanceWindow
           - Schedule
-          - DeletionPolicy
       - Label:
           default: "Tags"
         Parameters:
@@ -86,8 +84,6 @@ Metadata:
         default: "(*) Project Id Cost Tag"
       CostCentre:
         default: "(*) Cost Centre Cost Tag"
-      DeletionPolicy:
-        default: "(*) Deletion Policy"
 Mappings:
   MasterUserNameMap:
     postgres:
@@ -164,12 +160,6 @@ Parameters:
     AllowedValues:
       - True
       - False
-  DeletionPolicy:
-    Type: String
-    Default: Retain
-    AllowedValues: 
-      - Retain
-      - Delete
 # ===== General Section =====
   DBInstanceId:
     Description: My database Insatcen Id
@@ -253,6 +243,7 @@ Parameters:
     Type: String
     Default: cio-rdad
 Conditions:
+  IsRetain: Retain
   IsRDSRestore: !Equals [ !Ref RDSOptions, Restore ]
   IsProd: !Equals [ !Ref Environment, prod ]
   IsOCP: !Equals [ !Ref OCPLink, <Yes> ]
@@ -277,7 +268,7 @@ Conditions:
   IsMaxStorage: !Not [ !Equals [ !Ref RDSMaxStorage, "" ]]
 Resources:
   SecurityGroupRDS:
-    DeletionPolicy: !Ref DeletionPolicy
+    DeletionPolicy: Retain
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "RDS Secuirty Group"
@@ -314,7 +305,7 @@ Resources:
       CidrIp: !FindInMap [ OpenShiftCidr, !Ref VPCEnvironment, OCPCidr ]
   RDS:
     Type: AWS::RDS::DBInstance
-    DeletionPolicy: !Ref DeletionPolicy
+    DeletionPolicy: Retain
     Properties:
       DBInstanceIdentifier: !Join [ "-", [ !Ref DBInstanceId, !Ref Environment ] ]
       AllocatedStorage: !Ref RDSStorage
