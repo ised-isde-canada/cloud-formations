@@ -379,7 +379,7 @@ Resources:
                     db-parameter-group-postgres12
                 - !Ref AWS::NoValue
 
-      DBSubnetGroupName: !FRef DBSubnetGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
       - Key: Name
