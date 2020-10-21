@@ -6,7 +6,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.4 - Add OCP Ip Address for Security Group
 # Version 1.5 - Support MySQL/MariaDB
 # Version 1.6 - Multiple environments in single VPC & OCP Values; Add Instance ID
-Description: Template to create the RDS. Version 1.6
+# Version 1.7 - Allow to change Deletion Policy
+Description: Template to create the RDS. Version 1.7
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -42,6 +43,7 @@ Metadata:
           - PreferredBackupWindowTime
           - PreferredMaintenanceWindow
           - Schedule
+          - DeletionPolicy
       - Label:
           default: "Tags"
         Parameters:
@@ -84,6 +86,8 @@ Metadata:
         default: "(*) Project Id Cost Tag"
       CostCentre:
         default: "(*) Cost Centre Cost Tag"
+      DeletionPolicy:
+        default: "(*) Deletion Policy"
 Mappings:
   MasterUserNameMap:
     postgres:
@@ -160,6 +164,12 @@ Parameters:
     AllowedValues:
       - True
       - False
+  DeletionPolicy:
+    Type: String
+    Default: Retain
+    AllowedValues: 
+      - Retain
+      - Delete
 # ===== General Section =====
   DBInstanceId:
     Description: My database Insatcen Id
@@ -267,7 +277,7 @@ Conditions:
   IsMaxStorage: !Not [ !Equals [ !Ref RDSMaxStorage, "" ]]
 Resources:
   SecurityGroupRDS:
-    DeletionPolicy: Retain
+    DeletionPolicy: !Ref DeletionPolicy
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "RDS Secuirty Group"
@@ -304,7 +314,7 @@ Resources:
       CidrIp: !FindInMap [ OpenShiftCidr, !Ref VPCEnvironment, OCPCidr ]
   RDS:
     Type: AWS::RDS::DBInstance
-    DeletionPolicy: Retain
+    DeletionPolicy: !Ref DeletionPolicy
     Properties:
       DBInstanceIdentifier: !Join [ "-", [ !Ref DBInstanceId, !Ref Environment ] ]
       AllocatedStorage: !Ref RDSStorage
@@ -356,6 +366,14 @@ Resources:
         Fn::ImportValue: 
           Fn::Sub: "dbsubnet-${VPCName}-${VPCEnvironment}"
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
+      AssociatedRoles: 
+        !If
+          - HasAssociatedRole
+          - 
+          - !Ref "AWS::NoValue", !Ref DBName ]
+      - FeatureName: S3_INTEGRATION
+        RoleArn: arn:aws:iam::1111111111:role/customerx-rds-s3-role
+        Status: ACTIVE
       Tags:
       - Key: Name
         Value: !Join ['-', ["rds", !Ref "AWS::AccountId", !Ref DBInstanceId, !Ref "Environment" ] ]
