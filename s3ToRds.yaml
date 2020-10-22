@@ -22,6 +22,8 @@ Metadata:
           default: "Others"
         Parameters: 
           - Templates
+          - S3TemplatesBucket
+          - S3BucketNamePrefix
     ParameterLabels: 
       Email: 
         default: "e-mail to receive notifications about key rotations"
@@ -29,7 +31,7 @@ Metadata:
         default: "Project Id"
       CostCentre: 
         default: "Cost Centre"
-      CostCentre: 
+      Environment: 
         default: "Environment"
       VPC:
         default: "VPC"
@@ -41,10 +43,20 @@ Metadata:
         default: "Subnet 2"
       Templates:
         default: "S3 Bucket For Templates"
+      S3TemplatesBucket:
+        default: "S3 Bucket For Templates"
+      S3BucketNamePrefix:
+        default: "S3 Bucket Name Prefix"
 Parameters:
   Templates:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3Templates
+  S3TemplatesBucket:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3TemplatesBucket
+  S3BucketNamePrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: S3BucketNamePrefix 
   Email:
     Type: String
   ProjectId:
@@ -122,6 +134,8 @@ Resources:
         CostCentre: !Ref CostCentre
   S3:
     Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - LambdaPermission
     Properties:
       TemplateURL: !Join [ '', [!Ref Templates, "s3.yaml" ]]
       Parameters:
@@ -129,8 +143,17 @@ Resources:
         S3BucketPolicy: Local
         S3BucketAccess: Private
         KmsArn: NA
+        LambdaArn: !GetAtt Lambda.Arn
         ProjectId: !Ref ProjectId
         CostCentre: !Ref CostCentre
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref Lambda
+      Principal: s3.amazonaws.com
+      SourceArn: !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]]
+      SourceAccount: !Ref AWS::AccountId
   IAMUserS3:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -179,8 +202,8 @@ Resources:
               - Effect: "Allow"
                 Action: "s3:*"
                 Resource:
-                  - !GetAtt [ S3, Outputs.BucketArn]
-                  - !Join [ "/", [!GetAtt [ S3, Outputs.BucketArn],"*"] ]
+                  - !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]]
+                  - !Join [ "/", [ !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]], "*"]]
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
   Lambda:
@@ -190,6 +213,11 @@ Resources:
       Runtime: python3.7
       Role: !GetAtt LambdaExecutionRole.Arn
       Handler: index.lambda_handler
+      Environment:
+        Variables:
+          POSTGRES_CHEMA: "ised_staging"
+          REGION_NAME: ca-central-1
+          SECRET_NAME: sandbox/DDAS/postgresRDS
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt [ RDS, Outputs.RDSSecurityGroup]
@@ -197,99 +225,7 @@ Resources:
           - !Ref Subnet1
           - !Ref Subnet2
       Code:
-#        S3Bucket: !Ref 'LambdaZipsBucket'
-#        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/MyFunction/lambda.zip'
-        ZipFile: |
-          import psycopg2
-          import boto3
-          import base64
-          import json
-          import db_secret
-          import os
-          from botocore.exceptions import ClientError
-
-          def lambda_handler(event, context):
-              print ("Start call")
-              
-              #Set Variables  
-              secret_name = os.environ['SECRET_NAME']
-              region_name = os.environ['REGION_NAME']
-              connection = None
-              schema = os.environ['POSTGRES_SCHEMA']
-              
-              #Set Bucket update info
-              bucket = event['Records'][0]['s3']['bucket']['name']
-              key = event['Records'][0]['s3']['object']['key']
-              
-              
-              print(key + ' file updated')
-              if (key in ('ESTATE_DETAIL.tsv', 'DDAS_INTAKE_DLA.tsv')):
-
-                  #Get Table Name
-                  tablename = key.replace('.tsv', '')
-                  
-                  query_truncate_str = "TRUNCATE table ised_staging." + tablename + ";"
-                  #query_add_str = "SELECT aws_s3.table_import_from_s3 ('" + schema + "." + tablename + "','','(FORMAT CSV, DELIMITER E''\t'', HEADER true)',aws_commons.create_s3_uri('" + bucket + "','" + key + "','" + region_name + "'), aws_commons.create_aws_credentials('" + s3_access_key + "', '" + s3_secret_key + "', ''));"
-                  query_add_str = "SELECT aws_s3.table_import_from_s3 ('" + schema + "." + tablename + "','','(FORMAT CSV, DELIMITER E''\t'', HEADER true)',aws_commons.create_s3_uri('" + bucket + "','" + key + "','" + region_name + "'));"
-
-                  try:
-                      #Call Get DB info
-                      print ("Get Secret")            
-                      secret = db_secret.get_secret(secret_name,region_name)   
-                
-                      #Connect
-                      print ("Start connection")
-                      connection = psycopg2.connect(user = json.loads(secret)['username'],
-                                                    password = json.loads(secret)['password'],
-                                                    host = json.loads(secret)['host'],
-                                                    port = json.loads(secret)['port'],
-                                                    database = json.loads(secret)['engine'])
-              
-                      
-                      cursor = connection.cursor()
-                      print('connected successfully')
-                  
-                      cursor.execute(query_truncate_str)
-                      print('Truncated table ' + tablename + ' successfully')
-                      
-                      cursor.execute(query_add_str)
-                      print('Added records to ' + tablename + ' successfully')
-                      
-                      connection.commit()
-                      print('Table ' + tablename + ' updated successfully') 
-                      
-                  except Exception as ex:
-                      print ("Error :", ex)
-                  finally:
-                      #closing database connection.
-                          if(connection):
-                              cursor.close()
-                              connection.close()
-                              print("PostgreSQL connection is closed")    
-              else:
-                  print("ESTATE_DETAIL.tsv or DDAS_INTAKE_DLA.tsv were not update")
-                  
-                  
-                            var aws = require('aws-sdk')
-                    var response = require('cfn-response')
-                    exports.handler = function(event, context) {
-                        console.log("REQUEST RECEIVED:\n" + JSON.stringify(event))
-                        // For Delete requests, immediately send a SUCCESS response.
-                        if (event.RequestType == "Delete") {
-                            response.send(event, context, "SUCCESS")
-                            return
-                        }
-                        var responseStatus = "FAILED"
-                        var responseData = {}
-                        var functionName = event.ResourceProperties.FunctionName
-                        var lambda = new aws.Lambda()
-                        lambda.invoke({ FunctionName: functionName }, function(err, invokeResult) {
-                            if (err) {
-                                responseData = {Error: "Invoke call failed"}
-                                console.log(responseData.Error + ":\n", err)
-                            }
-                            else responseStatus = "SUCCESS"
-                            response.send(event, context, responseStatus, responseData)
-                        })
-                    }
-
+        S3Bucket: !Ref S3TemplatesBucket
+        S3Key: "lambda/ised_osb_copy_s3_rds_postgres.zip"
+        
+        
