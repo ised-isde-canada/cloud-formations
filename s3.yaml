@@ -82,6 +82,8 @@ Parameters:
   S3BucketNamePrefix:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3BucketNamePrefix 
+  LambdaArn:
+    Type: String
 Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
@@ -107,6 +109,10 @@ Resources:
         Value: !Ref "ProjectId"
       - Key: ised-environment
         Value: !Ref "Environment"
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !Ref LambdaArn
   S3OrgReadBucketPolicy: 
     Type: AWS::S3::BucketPolicy
     Condition: OrgRead
