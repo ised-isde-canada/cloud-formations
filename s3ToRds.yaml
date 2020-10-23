@@ -7,8 +7,8 @@ Metadata:
       - Label: 
           default: "Projetc Information"
         Parameters: 
-          - ProjectId
-          - CostCentre
+          - DBName
+          - DBUser
           - Environment
           - Email
       - Label:
@@ -18,12 +18,21 @@ Metadata:
           - Subnet1
           - Subnet2
       - Label: 
+          default: "Tags"
+        Parameters: 
+          - ProjectId
+          - CostCentre
+      - Label: 
           default: "Others"
         Parameters: 
           - Templates
           - S3TemplatesBucket
           - S3BucketNamePrefix
     ParameterLabels: 
+      DBName:
+        default: "DB Name"
+      DBUser:
+        default: "DB User Name"
       Email: 
         default: "e-mail to receive notifications about key rotations"
       ProjectId: 
@@ -54,6 +63,10 @@ Parameters:
   S3BucketNamePrefix:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3BucketNamePrefix 
+  DBName:
+    Type: String
+  DBUser:
+    Type: String
   Email:
     Type: String
   ProjectId:
@@ -151,7 +164,7 @@ Resources:
         # ===== RDS Section =====
         RDSOptions: "Create"
         DBInstanceId: !Ref ProjectId
-        DBName: !Ref ProjectId
+        DBName: !Ref DBName
         RDSEngine: postgres
         RDSEngineVersion: "10.11"
         AllowMajorVersionUpgrade: False
@@ -161,8 +174,9 @@ Resources:
         Schedule: "24-7"
         RDSBackupRetentionPeriod: "7"
         RDSMasterUserPassword: "Canada123"
-        IAMAssociationRole: !Ref RDSAssociatedRole
-        IAMAssociationFeature: s3import
+        DBUser: !Ref DBUser
+        IAMAssociationRole: !GetAtt RDSAssociatedRole.Arn
+        IAMAssociationFeature: s3Import
         RDSSnapshot: ""
         Ec2IpAddress: ""
         OCPLink: <Yes>
@@ -251,7 +265,7 @@ Resources:
           - !Ref Subnet2
       Code:
         S3Bucket: !Ref S3TemplatesBucket
-        S3Key: "lambda/ised_osb_copy_s3_rds_postgres.zip"
+        S3Key: "lambda/lambda_ddas.zip"
   IAMUserS3:
     Type: AWS::CloudFormation::Stack
     Properties:

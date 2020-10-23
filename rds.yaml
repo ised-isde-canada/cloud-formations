@@ -48,6 +48,7 @@ Metadata:
           - DBName
           - RDSMasterUserPassword
           - CreateAccessKey
+          - DBUser
       - Label:
           default: "Additional Section"
         Parameters:
@@ -220,6 +221,8 @@ Parameters:
     AllowedValues: 
       - <No>
       - <Yes>
+  DBUser:
+    Type: String
   RDSSize:
     Type: String
     Description: DB Instance Class
@@ -315,8 +318,8 @@ Resources:
     Properties:
       Name: !Join [ '-', [ "ised", !Join [ "-", [ !Ref DBInstanceId, !Ref Environment ] ], "secret-db" ] ]
       Description: 'This is my rds instance secret'
-      GenerateSecretString:
-        SecretStringTemplate: '{"username": "admin"}'
+      GenerateSecretString: 
+        SecretStringTemplate: !Sub '{"username": "${DBUser}"}'
         GenerateStringKey: 'password'
         PasswordLength: 16
         ExcludeCharacters: '"@/\'
