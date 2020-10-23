@@ -6,7 +6,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.6 - Removed LifeCycle Manager Policies and replaced them with AWS Backup
 # Version 1.7 - Changed backup tags and made distinction for OCP specific backups
 # Version 1.8 - Remove all Backup Plans/Resources, Keep ONLY Backup Vault and Backup Role for Backup OU implementation
-Description: Template to create backup vault and backup role to use AWS Backup for (RDS/EBS) Backup OU implementation strategy. Version 1.8
+# Version 1.9 - Renamed backup vault to 'BackupVault01'
+Description: Template to create backup vault and backup role to use AWS Backup for (RDS/EBS) Backup OU implementation strategy. Version 1.9
 
 Resources:
   KMSKey:
@@ -25,7 +26,7 @@ Resources:
   BackupVault:
     Type: "AWS::Backup::BackupVault"
     Properties:
-      BackupVaultName: "DefaultBackupVault01"
+      BackupVaultName: "BackupVault01"
       EncryptionKeyArn: !GetAtt KMSKey.Arn
 
   BackupRole:

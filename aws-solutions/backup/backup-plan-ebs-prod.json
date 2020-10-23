@@ -24,6 +24,16 @@
                     },
                     "target_backup_vault_name": {
                         "@@assign": "BackupVault01"
+                    },
+                    "recovery_point_tags": {
+                        "ised-backup-rule": {
+                            "tag_key": {
+                                "@@assign": "ised-backup-rule"
+                            },
+                            "tag_value": {
+                                "@@assign": "ebs-prod-weekly-backup-rule"
+                            }
+                        }
                     }
                 },
                 "EBS-PROD-Daily-Backup-Rule": {
@@ -40,6 +50,16 @@
                     },
                     "target_backup_vault_name": {
                         "@@assign": "BackupVault01"
+                    },
+                    "recovery_point_tags": {
+                        "ised-backup-rule": {
+                            "tag_key": {
+                                "@@assign": "ised-backup-rule"
+                            },
+                            "tag_value": {
+                                "@@assign": "ebs-prod-daily-backup-rule"
+                            }
+                        }
                     }
                 }
             },

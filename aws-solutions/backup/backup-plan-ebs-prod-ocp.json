@@ -7,6 +7,32 @@
                 ]
             },
             "rules": {
+                "EBS-PROD-Daily-OCP-Backup-Rule": {
+                    "schedule_expression": {
+                        "@@assign": "cron(0 12 ? * * *)"
+                    },
+                    "start_backup_window_minutes": {
+                        "@@assign": "60"
+                    },
+                    "lifecycle": {
+                        "delete_after_days": {
+                            "@@assign": "30"
+                        }
+                    },
+                    "target_backup_vault_name": {
+                        "@@assign": "BackupVault01"
+                    },
+                    "recovery_point_tags": {
+                        "ised-backup-rule": {
+                            "tag_key": {
+                                "@@assign": "ised-backup-rule"
+                            },
+                            "tag_value": {
+                                "@@assign": "ebs-prod-daily-ocp-backup-rule"
+                            }
+                        }
+                    }
+                },
                 "EBS-PROD-Weekly-OCP-Backup-Rule": {
                     "schedule_expression": {
                         "@@assign": "cron(0 5 ? * 3 *)"
@@ -24,22 +50,16 @@
                     },
                     "target_backup_vault_name": {
                         "@@assign": "BackupVault01"
-                    }
-                },
-                "EBS-PROD-Daily-OCP-Backup-Rule": {
-                    "schedule_expression": {
-                        "@@assign": "cron(0 5 ? * * *)"
                     },
-                    "start_backup_window_minutes": {
-                        "@@assign": "60"
-                    },
-                    "lifecycle": {
-                        "delete_after_days": {
-                            "@@assign": "30"
+                    "recovery_point_tags": {
+                        "ised-backup-rule": {
+                            "tag_key": {
+                                "@@assign": "ised-backup-rule"
+                            },
+                            "tag_value": {
+                                "@@assign": "ebs-prod-weekly-ocp-backup-rule"
+                            }
                         }
-                    },
-                    "target_backup_vault_name": {
-                        "@@assign": "BackupVault01"
                     }
                 }
             },

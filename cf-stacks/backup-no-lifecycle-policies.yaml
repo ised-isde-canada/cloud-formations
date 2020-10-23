@@ -5,7 +5,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.5 - Extract IAM roles and put them in roles.yaml template 
 # Version 1.6 - Removed LifeCycle Manager Policies and replaced them with AWS Backup
 # Version 1.7 - Changed backup tags and made distinction for OCP specific backups
-Description: Template to create backups using AWS Backup for RDS instances and EBS volumes. Version 1.7
+# Version 1.8 - Renamed backup vault name to 'BackupVault01'
+Description: Template to create backups using AWS Backup for RDS instances and EBS volumes. Version 1.8
 Parameters:
   BackupTime:
     # We want this to be 01:00 Canada/Eastern (05:00 for daylight saving, 06:00 for standard time)
@@ -33,7 +34,7 @@ Resources:
   BackupVault:
     Type: "AWS::Backup::BackupVault"
     Properties:
-      BackupVaultName: "DefaultBackupVault01"
+      BackupVaultName: "BackupVault01"
       EncryptionKeyArn: !GetAtt KMSKey.Arn
   BackupPlanForRdsProdBackups:
     Type: "AWS::Backup::BackupPlan"

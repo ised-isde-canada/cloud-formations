@@ -21,6 +21,16 @@
                     },
                     "target_backup_vault_name": {
                         "@@assign": "BackupVault01"
+                    },
+                    "recovery_point_tags": {
+                        "ised-backup-rule": {
+                            "tag_key": {
+                                "@@assign": "ised-backup-rule"
+                            },
+                            "tag_value": {
+                                "@@assign": "ebs-dev-daily-ocp-backup-rule"
+                            }
+                        }
                     }
                 }
             },
