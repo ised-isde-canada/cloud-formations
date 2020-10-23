@@ -41,6 +41,7 @@ Metadata:
           - RDSStorage
           - RDSMaxStorage
           - IAMAssociationRole
+          - IAMAssociationFeature
       - Label:
           default: "General Settings"
         Parameters:
@@ -100,6 +101,8 @@ Metadata:
         default: "(*) The upper limit to which Amazon RDS can automatically scale the storage of the DB instance. The value must be greater than default storage or left blank"
       IAMAssociationRole:
         default: "IAM Association Role"
+      IAMAssociationFeature:
+        default: "IAM Association Feature"
       ISEDProjectId:
         default: "(*) Project Id Cost Tag"
       CostCentre:
@@ -235,6 +238,8 @@ Parameters:
     Description: Maximum Allocated Storage
   IAMAssociationRole:
     Type: String
+  IAMAssociationFeature:
+    Type: String
 # ===== Additional Section =====
   RDSBackupRetentionPeriod:
     Type: String
@@ -280,6 +285,7 @@ Parameters:
 Conditions:
   IsRDSRestore: !Equals [ !Ref RDSOptions, Restore ]
   IsCreateAccessKey: !Equals [ !Ref CreateAccessKey, <Yes> ]
+  IsAssociatedRole: !Not [ !Equals [ !Ref IAMAssociationRole, "" ]]
   IsProd: !Equals [ !Ref Environment, prod ]
   IsEc2IpAddress: !Not [ !Equals [ !Ref Ec2IpAddress, "" ]]
   IsOCP: !Equals [ !Ref OCPLink, <Yes> ]
@@ -418,8 +424,11 @@ Resources:
       EngineVersion: !Ref RDSEngineVersion
       StorageEncrypted: true
       AssociatedRoles:
-      - FeatureName: s3Import
-        RoleArn: !Ref IAMAssociationRole
+      - !If
+        - IsAssociatedRole
+        - FeatureName: !Ref IAMAssociationFeature
+          RoleArn: !Ref IAMAssociationRole
+        - !Ref 'AWS::NoValue'
       DBParameterGroupName:
         !If
           - IsPostgres9
@@ -438,7 +447,6 @@ Resources:
                 - Fn::ImportValue:
                     db-parameter-group-postgres12
                 - !Ref AWS::NoValue
-
       DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups: [ !Ref SecurityGroupRDS ]
       Tags:
