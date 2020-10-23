@@ -7,37 +7,46 @@ AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.5 - Support MySQL/MariaDB
 # Version 1.6 - Multiple environments in single VPC & OCP Values; Add Instance ID
 # Version 1.7 - Create DBSubnetGroup
-Description: Template to create the RDS. Version 1.7
+# Version 1.8 - Add Secret Key, Update Security Group
+Description: Template to create the RDS. Version 1.8
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
+          default: "Action"
+        Parameters:
+          - RDSOptions
+          - DBInstanceId
+          - RDSSnapshot
+      - Label:
           default: "Network Configuration"
         Parameters:
           - VPCId
-          - VPCName
           - Subnet1
           - Subnet2
           - VPCEnvironment
+      - Label:
+          default: "Security Group Configuration"
+        Parameters:
           - Ec2IpAddress
+          - AddOwnGroup
           - OCPLink
       - Label:
           default: "Engine Options"
         Parameters:
-          - RDSOptions
-          - RDSSnapshot
           - Environment
           - RDSEngine
           - RDSEngineVersion
           - RDSSize
           - RDSStorage
           - RDSMaxStorage
+          - IAMAssociationRole
       - Label:
           default: "General Settings"
         Parameters:
-          - DBInstanceId
           - DBName
           - RDSMasterUserPassword
+          - CreateAccessKey
       - Label:
           default: "Additional Section"
         Parameters:
@@ -51,42 +60,46 @@ Metadata:
           - ISEDProjectId
           - CostCentre
     ParameterLabels:
+      RDSOptions:
+        default: "(*) RDS Options. Create or Restore instance"
+      DBInstanceId:
+        default: "(If Creating the new DB) Name for the DB instance."
+      RDSSnapshot:
+        default: "(If Restoring the old DB) Snapshot ID"
       VPCId:
         default: "(*) The vpc ID to launch the instance into."
-      VPCName:
-        default: "(*) The vpc Name to launch the instance into."
       Subnet1:
         default: "(*) The Subnet 1 ID"
       Subnet2:
         default: "(*) The Subnet 2 ID"
       VPCEnvironemnt:
         default: "(*) The vpc Environment to launch the instance into."
+      AddOwnGroup:
+        default: "(*) Add its own security group to inbound trafic"
       Ec2IpAddress:
         default: IP Address of the EC2 to enable the connection
       OCPLink:
         default: Create Network Connection with Open Shift VPC
       Environment:
         default: "(*) Environment."
-      RDSOptions:
-        default: "(*) RDS Options. Create or Restore instance"
       RDSEngine:
         default: "(*) The name of the database engine that you want to use for this DB instance."
       RDSEngineVersion:
         default: "(*) The version number of the database engine to use."
-      DBInstanceId:
-        default: "(*) A name for the DB instance."
       DBName:
         default: "(*) A name for the DB."
       RDSMasterUserPassword:
         default: "(*) The password for the master user. The password can include any printable ASCII character except /, \", or @"
+      CreateAccessKey:
+        default: "(*) Create Access Key in Secret Manager"
       RDSSize:
         default: "(*) The compute and memory capacity of the DB instance"
       RDSStorage:
         default: "(*) The amount of storage (in gigabytes) to be initially allocated for the database instance."
       RDSMaxStorage:
         default: "(*) The upper limit to which Amazon RDS can automatically scale the storage of the DB instance. The value must be greater than default storage or left blank"
-      RDSSnapshot:
-        default: "Specify if restoring from Snapshot, otherwise leave blank"
+      IAMAssociationRole:
+        default: "IAM Association Role"
       ISEDProjectId:
         default: "(*) Project Id Cost Tag"
       CostCentre:
@@ -115,8 +128,6 @@ Parameters:
 # ===== Network Section =====
   VPCId:
     Type: "AWS::EC2::VPC::Id"
-  VPCName:
-    Type: String
   Subnet1:
     Type: AWS::EC2::Subnet::Id
   Subnet2:
@@ -127,6 +138,12 @@ Parameters:
     AllowedValues: 
       - dev
       - prod
+  AddOwnGroup:
+    Type: String
+    Default: <No>
+    AllowedValues: 
+      - <No>
+      - <Yes>
   Ec2IpAddress:
     Type: String
   OCPLink:
@@ -194,6 +211,12 @@ Parameters:
     MaxLength: '41'
     AllowedPattern: '[a-zA-Z0-9]*'
     ConstraintDescription: must contain only alphanumeric characters.
+  CreateAccessKey:
+    Type: String
+    Default: <No>
+    AllowedValues: 
+      - <No>
+      - <Yes>
   RDSSize:
     Type: String
     Description: DB Instance Class
@@ -210,13 +233,14 @@ Parameters:
   RDSMaxStorage:
     Type: String
     Description: Maximum Allocated Storage
+  IAMAssociationRole:
+    Type: String
 # ===== Additional Section =====
   RDSBackupRetentionPeriod:
     Type: String
     Description: Backup Retention Period
-    Default: <None>
+    Default: 7
     AllowedValues:
-      - <None>
       - 7
       - 30
   PreferredBackupWindowTime:
@@ -255,8 +279,11 @@ Parameters:
     Default: cio-rdad
 Conditions:
   IsRDSRestore: !Equals [ !Ref RDSOptions, Restore ]
+  IsCreateAccessKey: !Equals [ !Ref CreateAccessKey, <Yes> ]
   IsProd: !Equals [ !Ref Environment, prod ]
+  IsEc2IpAddress: !Not [ !Equals [ !Ref Ec2IpAddress, "" ]]
   IsOCP: !Equals [ !Ref OCPLink, <Yes> ]
+  IsOwnSecGroup: !Equals [ !Ref AddOwnGroup, <Yes> ]
   IsSchedule: !Not [!Equals [ !Ref Schedule, <Always On> ]]
   IsPostgres9: !And [
     !Equals [ !Ref RDSEngine, "postgres" ],
@@ -274,9 +301,29 @@ Conditions:
     !Equals [ !Ref RDSEngine, "postgres" ],
     !Equals [ !Select [ 0, !Split [ ".", !Ref RDSEngineVersion ] ], "12" ]
   ]
-  IsEc2IpAddress: !Not [ !Equals [ !Ref Ec2IpAddress, "" ]]
   IsMaxStorage: !Not [ !Equals [ !Ref RDSMaxStorage, "" ]]
 Resources:
+  RDSSecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: IsCreateAccessKey
+    Properties:
+      Name: !Join [ '-', [ "ised", !Join [ "-", [ !Ref DBInstanceId, !Ref Environment ] ], "secret-db" ] ]
+      Description: 'This is my rds instance secret'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "admin"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+  RDSSecretAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Condition: IsCreateAccessKey
+    DependsOn: 
+     - RDSSecret
+     - RDS
+    Properties:
+      SecretId: !Ref RDSSecret
+      TargetId: !Ref RDS
+      TargetType: AWS::RDS::DBInstance
   SecurityGroupRDS:
     DeletionPolicy: Retain
     Type: AWS::EC2::SecurityGroup
@@ -303,6 +350,16 @@ Resources:
       FromPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
       ToPort: !FindInMap [ DBPortNumber, !Ref RDSEngine, Port ]
       CidrIp: !Join [ '/', [ !Ref Ec2IpAddress, "32" ] ]
+  IngressDBOwnGroup:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: IsOwnSecGroup
+    Properties:
+      Description: Allow incoming connections same security group
+      GroupId: !Ref SecurityGroupRDS
+      IpProtocol: "-1"
+      FromPort: "-1"
+      ToPort: "-1"
+      SourceSecurityGroupId: !Ref SecurityGroupRDS
   IngressOCPDB:
     Type: AWS::EC2::SecurityGroupIngress
     Condition: IsOCP
@@ -360,6 +417,9 @@ Resources:
       Engine: !Ref RDSEngine
       EngineVersion: !Ref RDSEngineVersion
       StorageEncrypted: true
+      AssociatedRoles:
+      - FeatureName: s3Import
+        RoleArn: !Ref IAMAssociationRole
       DBParameterGroupName:
         !If
           - IsPostgres9
