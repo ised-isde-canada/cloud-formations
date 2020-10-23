@@ -100,6 +100,52 @@ Resources:
               - Effect: Allow
                 Action: 's3:*'
                 Resource: '*'
+  RDSSecret:
+    Type: AWS::SecretsManager::Secret
+    DependsOn: RDS
+    Properties:
+      Name: !Join [ '-', [ "ised", !Ref ProjectId, "secret-db" ] ]
+      Description: 'This is my rds instance secret'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "admin"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+  RDSSecretAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    DependsOn: RDSSecret
+    Properties:
+      SecretId: !Ref RDSSecret
+      TargetId: !GetAtt [ RDS, Outputs.RDS]
+      TargetType: AWS::RDS::DBInstance
+  RDSAssociatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join [ '-', [ "ised", !Ref ProjectId, "role-rds-association" ] ]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [rds.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+        - PolicyName: !Join [ '-', [ "ised", !Ref ProjectId, "policy-lambdarole" ] ]
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: "Allow"
+                Action: "s3:*"
+                Resource:
+                  - !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]]
+                  - !Join [ "/", [ !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]], "*"]]
+              - Effect: "Allow"
+                Action: "secretsmanager:GetSecretValue"
+                Resource: !Ref RDSSecret
+
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
   RDS:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -154,6 +200,67 @@ Resources:
       Principal: s3.amazonaws.com
       SourceArn: !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]]
       SourceAccount: !Ref AWS::AccountId
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join [ '-', [ "ised", !Ref ProjectId, "role-lambda-execution" ] ]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+        - PolicyName: !Join [ '-', [ "ised", !Ref ProjectId, "policy-lambdarole" ] ]
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: "Allow"
+                Action: "s3:*"
+                Resource:
+                  - !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]]
+                  - !Join [ "/", [ !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]], "*"]]
+              - Effect: "Allow"
+                Action: "secretsmanager:GetSecretValue"
+                Resource: !Ref RDSSecret
+
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+  Layer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.7
+      Content:
+        S3Bucket: !Ref S3TemplatesBucket
+        S3Key: "lambda/aws-psycopg2.zip"
+      LayerName: !Join [ '-', [ "ised", !Ref ProjectId, "lambda-layer" ] ]
+      LicenseInfo: MIT
+  Lambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Join [ '-', [ "ised", !Ref ProjectId, "lambda" ] ]
+      Runtime: python3.7
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Handler: index.lambda_handler
+      Layers:
+        - !Ref Layer
+      Environment:
+        Variables:
+          POSTGRES_SCHEMA: "ised_staging"
+          REGION_NAME: ca-central-1
+          SECRET_NAME: !Join [ '-', [ "ised", !Ref ProjectId, "secret-db" ] ]
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt [ RDS, Outputs.RDSSecurityGroup]
+        SubnetIds:
+          - !Ref Subnet1
+          - !Ref Subnet2
+      Code:
+        S3Bucket: !Ref S3TemplatesBucket
+        S3Key: "lambda/ised_osb_copy_s3_rds_postgres.zip"
   IAMUserS3:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -182,50 +289,3 @@ Resources:
         - !GetAtt 
           - IAMUserS3
           - Outputs.IAMUser
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Join [ '-', [ "ised", !Ref ProjectId, "role-lambda-execution" ] ]
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: [lambda.amazonaws.com]
-            Action: ['sts:AssumeRole']
-      Path: /
-      Policies:
-        - PolicyName: !Join [ '-', [ "ised", !Ref ProjectId, "policy-lambdarole" ] ]
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: "Allow"
-                Action: "s3:*"
-                Resource:
-                  - !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]]
-                  - !Join [ "/", [ !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]], "*"]]
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
-  Lambda:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Join [ '-', [ "ised", !Ref ProjectId, "lambda" ] ]
-      Runtime: python3.7
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Handler: index.lambda_handler
-      Environment:
-        Variables:
-          POSTGRES_CHEMA: "ised_staging"
-          REGION_NAME: ca-central-1
-          SECRET_NAME: sandbox/DDAS/postgresRDS
-      VpcConfig:
-        SecurityGroupIds:
-          - !GetAtt [ RDS, Outputs.RDSSecurityGroup]
-        SubnetIds:
-          - !Ref Subnet1
-          - !Ref Subnet2
-      Code:
-        S3Bucket: !Ref S3TemplatesBucket
-        S3Key: "lambda/ised_osb_copy_s3_rds_postgres.zip"
-        
-        
