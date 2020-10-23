@@ -15,7 +15,6 @@ Metadata:
           default: "VPC"
         Parameters:
           - VPC
-          - VPCName
           - Subnet1
           - Subnet2
       - Label: 
@@ -35,8 +34,6 @@ Metadata:
         default: "Environment"
       VPC:
         default: "VPC"
-      VPCName:
-        default: "VPC Name"
       Subnet1:
         default: "Subnet 1"
       Subnet2:
@@ -65,8 +62,6 @@ Parameters:
     Type: String
   VPC:
     Type: AWS::EC2::VPC::Id
-  VPCName:
-    Type: String
   Subnet1:
     Type: AWS::EC2::Subnet::Id
   Subnet2:
@@ -140,12 +135,6 @@ Resources:
                 Resource:
                   - !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]]
                   - !Join [ "/", [ !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]], "*"]]
-              - Effect: "Allow"
-                Action: "secretsmanager:GetSecretValue"
-                Resource: !Ref RDSSecret
-
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
   RDS:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -157,7 +146,6 @@ Resources:
         Environment: !Ref Environment
         # ===== VPC Section =====
         VPCId: !Ref VPC
-        VPCName: !Ref VPCName
         Subnet1: !Ref Subnet1
         Subnet2: !Ref Subnet2
         # ===== RDS Section =====
@@ -173,9 +161,12 @@ Resources:
         Schedule: "24-7"
         RDSBackupRetentionPeriod: "7"
         RDSMasterUserPassword: "Canada123"
+        IAMAssociationRole: !Ref RDSAssociatedRole
+        IAMAssociationFeature: s3import
         RDSSnapshot: ""
         Ec2IpAddress: ""
         OCPLink: <Yes>
+        AddOwnGroup: <Yes>
         ISEDProjectId: !Ref ProjectId
         CostCentre: !Ref CostCentre
   S3:
