@@ -195,7 +195,7 @@ Resources:
         RDSBackupRetentionPeriod: "7"
         CreateAccessKey: True
         DBUser: !Ref DBUser
-        RDSMasterUserPassword: !Ref DBPassword
+        DBPassword: !Ref DBPassword
         IAMAssociationRole: !GetAtt RDSAssociatedRole.Arn
         IAMAssociationFeature: s3Import
         RDSSnapshot: ""

@@ -46,7 +46,7 @@ Metadata:
           default: "General Settings"
         Parameters:
           - DBName
-          - RDSMasterUserPassword
+          - DBPassword
           - CreateAccessKey
           - DBUser
       - Label:
@@ -90,7 +90,9 @@ Metadata:
         default: "(*) The version number of the database engine to use."
       DBName:
         default: "(*) A name for the DB."
-      RDSMasterUserPassword:
+      DBUser:
+        default: "(*) The master user name."
+      DBPassword:
         default: "(*) The password for the master user. The password can include any printable ASCII character except /, \", or @"
       CreateAccessKey:
         default: "(*) Create Access Key in Secret Manager"
@@ -207,7 +209,7 @@ Parameters:
     MaxLength: '64'
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9_]*'
     ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
-  RDSMasterUserPassword:
+  DBPassword:
     NoEcho: 'true'
     Description: Password database access
     Type: String
@@ -317,8 +319,8 @@ Resources:
     Condition: IsCreateAccessKey
     Properties:
       Name: !Join [ '-', [ "ised", !Join [ "-", [ !Ref DBInstanceId, !Ref Environment, !Ref DBName ] ], "secret-db" ] ]
-      Description: !Join [ ' ' ['This is The Secret for'], !Ref DBInstanceId, 'RDS']
-      SecretString: !Join [ "", ["{\"username\":\"", !Ref DBUser "\",\"password\":\"", !Ref DBPassword, "\"}"]]
+      Description: !Join [ ' ', ['This is The Secret for', !Ref DBInstanceId, 'RDS']]
+      SecretString: !Join [ "", ["{\"username\":\"", !Ref DBUser, "\",\"password\":\"", !Ref DBPassword, "\"}"]]
   RDSSecretAttachment:
     Type: AWS::SecretsManager::SecretTargetAttachment
     Condition: IsCreateAccessKey
@@ -409,7 +411,7 @@ Resources:
       CopyTagsToSnapshot: true
       DBSnapshotIdentifier: !If [ IsRDSRestore, !Ref RDSSnapshot, !Ref "AWS::NoValue" ]
       MasterUsername: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref DBUser ]
-      MasterUserPassword: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref RDSMasterUserPassword ]
+      MasterUserPassword: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref DBPassword ]
       # Some applications recommend backing up the filesystem and the database
       # at the same time. Here, we match the EBS Backup Window
       # We want this to be 01:00 Canada/Eastern -- need to change the time twice a year
