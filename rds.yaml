@@ -479,3 +479,8 @@ Outputs:
       Name: !Join ['-', ["rds-endpoint", !Ref "DBInstanceId", !Ref "Environment" ] ]
   RDSSecurityGroup:
     Value: !Ref SecurityGroupRDS
+  RDSSecret:
+    Description: RDS Secret
+    Value: !Ref RDSSecret
+    Export:
+      Name: !Join ['-', ["rds", !Ref "DBInstanceId", !Ref "Environment", "secret" ] ]
