@@ -316,13 +316,9 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Condition: IsCreateAccessKey
     Properties:
-      Name: !Join [ '-', [ "ised", !Join [ "-", [ !Ref DBInstanceId, !Ref Environment ] ], "secret-db" ] ]
-      Description: 'This is my rds instance secret'
-      GenerateSecretString: 
-        SecretStringTemplate: !Sub '{"username": "${DBUser}"}'
-        GenerateStringKey: 'password'
-        PasswordLength: 16
-        ExcludeCharacters: '"@/\'
+      Name: !Join [ '-', [ "ised", !Join [ "-", [ !Ref DBInstanceId, !Ref Environment, !Ref DBName ] ], "secret-db" ] ]
+      Description: !Join [ ' ' ['This is The Secret for'], !Ref DBInstanceId, 'RDS']
+      SecretString: !Join [ "", ["{\"username\":\"", !Ref DBUser "\",\"password\":\"", !Ref DBPassword, "\"}"]]
   RDSSecretAttachment:
     Type: AWS::SecretsManager::SecretTargetAttachment
     Condition: IsCreateAccessKey
@@ -412,7 +408,7 @@ Resources:
       BackupRetentionPeriod: !Ref RDSBackupRetentionPeriod
       CopyTagsToSnapshot: true
       DBSnapshotIdentifier: !If [ IsRDSRestore, !Ref RDSSnapshot, !Ref "AWS::NoValue" ]
-      MasterUsername: !If [ IsRDSRestore, !Ref "AWS::NoValue", !FindInMap [MasterUserNameMap, !Ref RDSEngine, MasterUserName] ]
+      MasterUsername: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref DBUser ]
       MasterUserPassword: !If [ IsRDSRestore, !Ref "AWS::NoValue", !Ref RDSMasterUserPassword ]
       # Some applications recommend backing up the filesystem and the database
       # at the same time. Here, we match the EBS Backup Window

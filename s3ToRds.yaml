@@ -7,8 +7,13 @@ Metadata:
       - Label: 
           default: "Projetc Information"
         Parameters: 
+          - DBInstanceId
           - DBName
+          - DBSchema
           - DBUser
+          - DBPassword
+          - LambdaZipName
+          - S3Name
           - Environment
           - Email
       - Label:
@@ -29,10 +34,20 @@ Metadata:
           - S3TemplatesBucket
           - S3BucketNamePrefix
     ParameterLabels: 
+      DBInstanceId:
+        default: "DB Instance"
       DBName:
         default: "DB Name"
+      DBPassword:
+        default: "DB Password"
+      DBSchema:
+        default: "DB Schema"
+      S3Name:
+        default: "S3 Name"
       DBUser:
         default: "DB User Name"
+      LambdaZipName:
+        default: "The Name of the lambda zip file"
       Email: 
         default: "e-mail to receive notifications about key rotations"
       ProjectId: 
@@ -63,16 +78,34 @@ Parameters:
   S3BucketNamePrefix:
     Type: AWS::SSM::Parameter::Value<String>
     Default: S3BucketNamePrefix 
+  DBInstanceId:
+    Type: String
   DBName:
     Type: String
+  DBPassword:
+    NoEcho: 'true'
+    Description: Password database access
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters.
+  DBSchema:
+    Type: String
+  S3Name:
+    Type: String
   DBUser:
+    Type: String
+  LambdaZipName:
     Type: String
   Email:
     Type: String
   ProjectId:
     Type: String
+    Default: cops-aws
   CostCentre:
     Type: String
+    Default: cio-rdad
   VPC:
     Type: AWS::EC2::VPC::Id
   Subnet1:
@@ -86,46 +119,32 @@ Parameters:
       - dev
       - prod
 Resources:
-  RDSRole:
-    Type: AWS::IAM::Role
+  IAMUserS3:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      RoleName: !Join [ '-', [ "ised", !Ref ProjectId, "role-rds" ] ]
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
+      TemplateURL: !Join [ '', [!Ref Templates, "iam-user.yaml" ]]
+      Parameters:
+        Name: !Join [ "-", [ !Ref ProjectId, !Ref DBName]]
+        ConsoleAccess: False
+        CreateAccessKey: True
+        Password: ""
+        Email: !Ref Email
+        ManagedPolicyArns: ""
+  IAMPolicyS3:
+    Type: AWS::IAM::Policy
+    DependsOn: IAMUserS3
+    Properties:
+      PolicyName: !Join [ '-', [ "ised", !Ref ProjectId, "policy-iamusers3" ] ]
+      PolicyDocument:
+        Version: "2012-10-17"
         Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-              - rds.amazonaws.com
-            Action:
-              - 'sts:AssumeRole'
-      Path: /
-      Policies:
-        - PolicyName: !Join [ '-', [ "ised", !Ref ProjectId, "policy-rds" ] ]
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action: 's3:*'
-                Resource: '*'
-  RDSSecret:
-    Type: AWS::SecretsManager::Secret
-    DependsOn: RDS
-    Properties:
-      Name: !Join [ '-', [ "ised", !Ref ProjectId, "secret-db" ] ]
-      Description: 'This is my rds instance secret'
-      GenerateSecretString:
-        SecretStringTemplate: '{"username": "admin"}'
-        GenerateStringKey: 'password'
-        PasswordLength: 16
-        ExcludeCharacters: '"@/\'
-  RDSSecretAttachment:
-    Type: AWS::SecretsManager::SecretTargetAttachment
-    DependsOn: RDSSecret
-    Properties:
-      SecretId: !Ref RDSSecret
-      TargetId: !GetAtt [ RDS, Outputs.RDS]
-      TargetType: AWS::RDS::DBInstance
+          - Effect: "Allow"
+            Action: "s3:*"
+            Resource:
+              - !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref S3Name ]]]]
+              - !Join [ "/", [ !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref S3Name ]]]], "*"]]
+      Users:
+        - !GetAtt [IAMUserS3, Outputs.IAMUser]
   RDSAssociatedRole:
     Type: AWS::IAM::Role
     Properties:
@@ -146,10 +165,11 @@ Resources:
               - Effect: "Allow"
                 Action: "s3:*"
                 Resource:
-                  - !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]]
-                  - !Join [ "/", [ !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]], "*"]]
+                  - !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref S3Name ]]]]
+                  - !Join [ "/", [ !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref S3Name ]]]], "*"]]
   RDS:
     Type: AWS::CloudFormation::Stack
+    DependsOn: RDSAssociatedRole
     Properties:
       TemplateURL: !Join [ '', [!Ref Templates, "rds.yaml" ]]
       Parameters:
@@ -163,7 +183,7 @@ Resources:
         Subnet2: !Ref Subnet2
         # ===== RDS Section =====
         RDSOptions: "Create"
-        DBInstanceId: !Ref ProjectId
+        DBInstanceId: !Ref DBInstanceId
         DBName: !Ref DBName
         RDSEngine: postgres
         RDSEngineVersion: "10.11"
@@ -173,8 +193,9 @@ Resources:
         RDSMaxStorage: ""
         Schedule: "24-7"
         RDSBackupRetentionPeriod: "7"
-        RDSMasterUserPassword: "Canada123"
+        CreateAccessKey: True
         DBUser: !Ref DBUser
+        RDSMasterUserPassword: !Ref DBPassword
         IAMAssociationRole: !GetAtt RDSAssociatedRole.Arn
         IAMAssociationFeature: s3Import
         RDSSnapshot: ""
@@ -183,30 +204,9 @@ Resources:
         AddOwnGroup: <Yes>
         ISEDProjectId: !Ref ProjectId
         CostCentre: !Ref CostCentre
-  S3:
-    Type: AWS::CloudFormation::Stack
-    DependsOn:
-      - LambdaPermission
-    Properties:
-      TemplateURL: !Join [ '', [!Ref Templates, "s3.yaml" ]]
-      Parameters:
-        Name: !Ref ProjectId
-        S3BucketPolicy: Local
-        S3BucketAccess: Private
-        KmsArn: NA
-        LambdaArn: !GetAtt Lambda.Arn
-        ProjectId: !Ref ProjectId
-        CostCentre: !Ref CostCentre
-  LambdaPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      Action: 'lambda:InvokeFunction'
-      FunctionName: !Ref Lambda
-      Principal: s3.amazonaws.com
-      SourceArn: !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]]
-      SourceAccount: !Ref AWS::AccountId
   LambdaExecutionRole:
     Type: AWS::IAM::Role
+    DependsOn: RDS
     Properties:
       RoleName: !Join [ '-', [ "ised", !Ref ProjectId, "role-lambda-execution" ] ]
       AssumeRolePolicyDocument:
@@ -225,12 +225,11 @@ Resources:
               - Effect: "Allow"
                 Action: "s3:*"
                 Resource:
-                  - !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]]
-                  - !Join [ "/", [ !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref ProjectId ]]]], "*"]]
+                  - !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref S3Name ]]]]
+                  - !Join [ "/", [ !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref S3Name ]]]], "*"]]
               - Effect: "Allow"
                 Action: "secretsmanager:GetSecretValue"
-                Resource: !Ref RDSSecret
-
+                Resource: !Join [ '-', [ "ised", !Join [ "-", [ !Ref DBInstanceId, !Ref Environment, !Ref DBName ] ], "secret-db" ] ]
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
   Layer:
@@ -245,6 +244,10 @@ Resources:
       LicenseInfo: MIT
   Lambda:
     Type: AWS::Lambda::Function
+    DependsOn: 
+      - LambdaExecutionRole
+      - Layer
+      - RDS  
     Properties:
       FunctionName: !Join [ '-', [ "ised", !Ref ProjectId, "lambda" ] ]
       Runtime: python3.7
@@ -254,9 +257,9 @@ Resources:
         - !Ref Layer
       Environment:
         Variables:
-          POSTGRES_SCHEMA: "ised_staging"
+          POSTGRES_SCHEMA: !Ref DBSchema
           REGION_NAME: ca-central-1
-          SECRET_NAME: !Join [ '-', [ "ised", !Ref ProjectId, "secret-db" ] ]
+          SECRET_NAME: !Join [ '-', [ "ised", !Ref ProjectId, !Ref DBName, "secret-db" ] ]
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt [ RDS, Outputs.RDSSecurityGroup]
@@ -265,32 +268,31 @@ Resources:
           - !Ref Subnet2
       Code:
         S3Bucket: !Ref S3TemplatesBucket
-        S3Key: "lambda/lambda_ddas.zip"
-  IAMUserS3:
+        S3Key: !Join [ "", ["lambda/", !Ref LambdaZipName, ".zip"]]
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn: Lambda
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref Lambda
+      Principal: s3.amazonaws.com
+      SourceArn: !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref S3Name ]]]]
+      SourceAccount: !Ref AWS::AccountId
+  S3:
     Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - LambdaPermission
     Properties:
-      TemplateURL: !Join [ '', [!Ref Templates, "iam-user.yaml" ]]
+      TemplateURL: !Join [ '', [!Ref Templates, "s3.yaml" ]]
       Parameters:
-        Name: !Ref ProjectId
-        ConsoleAccess: False
-        CreateAccessKey: True
-        Password: ""
-        Email: !Ref Email
-        ManagedPolicyArns: ""
-  IAMPolicyS3:
-    Type: AWS::IAM::Policy
-    DependsOn: IAMUserS3
-    Properties:
-      PolicyName: !Join [ '-', [ "ised", !Ref ProjectId, "policy-iamusers3" ] ]
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            Action: "s3:*"
-            Resource:
-              - !GetAtt [ S3, Outputs.BucketArn]
-              - !Join [ "/", [!GetAtt [ S3, Outputs.BucketArn],"*"] ]
-      Users:
-        - !GetAtt 
-          - IAMUserS3
-          - Outputs.IAMUser
+        Name: !Ref S3Name
+        S3BucketPolicy: Local
+        S3BucketAccess: Private
+        KmsArn: NA
+        LambdaArn: !GetAtt Lambda.Arn
+        ProjectId: !Ref ProjectId
+        CostCentre: !Ref CostCentre
+
+
+  
+
