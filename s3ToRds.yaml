@@ -193,7 +193,7 @@ Resources:
         RDSMaxStorage: ""
         Schedule: "24-7"
         RDSBackupRetentionPeriod: "7"
-        CreateAccessKey: True
+        CreateAccessKey: <Yes>
         DBUser: !Ref DBUser
         DBPassword: !Ref DBPassword
         IAMAssociationRole: !GetAtt RDSAssociatedRole.Arn
@@ -229,7 +229,7 @@ Resources:
                   - !Join [ "/", [ !Join [ "",[ "arn:aws:s3:::", !Join ['-', [!Ref S3BucketNamePrefix, !Ref "AWS::AccountId", !Ref ProjectId, !Ref S3Name ]]]], "*"]]
               - Effect: "Allow"
                 Action: "secretsmanager:GetSecretValue"
-                Resource: !Join [ '-', [ "ised", !Join [ "-", [ !Ref DBInstanceId, !Ref Environment, !Ref DBName ] ], "secret-db" ] ]
+                Resource: !GetAtt [RDS, Outputs.RDSSecret]
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
   Layer:
