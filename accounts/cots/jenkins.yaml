@@ -109,8 +109,8 @@ Resources:
             chmod 775 /opt/jenkins
             chown ec2-user:docker /opt/jenkins
 
-            docker run --restart=unless-stopped -d -p 8080:8080 -p 50000:50000 -v ${JenkinsDataPath}:/var/jenkins_home ${JenkinsDockerImage}
-
+            docker run --name jenkins --restart=unless-stopped  -e JAVA_OPTS=-Duser.timezone=America/Toronto -d -p 8080:8080 -p 50000:50000 -v ${JenkinsDataPath}:/var/jenkins_home ${JenkinsDockerImage}
+            
   # Jenkins Web Console from Load Balancer
   IngressWebConsoleLB:
     Type: AWS::EC2::SecurityGroupIngress
