@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 # Version 1.0 - Initial version
-Description: Config COnformance Pack, Version 1.0
+Description: Config Conformance Pack, Version 1.0
 Parameters:
   S3Templates:
     Type: AWS::SSM::Parameter::Value<String>
@@ -23,5 +23,5 @@ Resources:
     DependsOn: DeliveryS3BucketStack
     Properties:
       ConformancePackName: Ised-Conformance-Pack-S3
-      DeliveryS3Bucket: ised-s3-256255698049-cops-aws-conformance-pack
+      DeliveryS3Bucket: !GetAtt [ DeliveryS3BucketStack, Outputs.BucketName ]
       TemplateS3Uri: "s3://ised-s3-256255698049-cf/config-conformance-template.yaml"
